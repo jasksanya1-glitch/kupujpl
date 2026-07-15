@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 26 — Price bands | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        main { max-width: var(--wrap); margin: 0 auto; padding: 20px 20px 48px; }
+        .band { margin-bottom: 32px; }
+        .band-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .band-head h2 { font-size: 18px; font-weight: 700; }
+        .band-head span { font-size: 13px; color: var(--muted); }
+        .band-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+        .band-row .card { flex: 0 0 160px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 26</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <main>
+        <div class="band">
+            <div class="band-head"><h2>🆓 Darmowe</h2><span>0 zł</span></div>
+            <div class="band-row" id="free"></div>
+        </div>
+        <div class="band">
+            <div class="band-head"><h2>💰 Do 50 zł</h2><span>Budżetowe hity</span></div>
+            <div class="band-row" id="low"></div>
+        </div>
+        <div class="band">
+            <div class="band-head"><h2>🎮 50–150 zł</h2><span>Mid-range</span></div>
+            <div class="band-row" id="mid"></div>
+        </div>
+        <div class="band">
+            <div class="band-head"><h2>👑 Premium 150+ zł</h2><span>Nowości AAA</span></div>
+            <div class="band-row" id="high"></div>
+        </div>
+    </main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('free').innerHTML = MOCK_GAMES.slice(0,2).map(cardHtml).join('');
+        document.getElementById('low').innerHTML = MOCK_GAMES.slice(1,4).map(cardHtml).join('');
+        document.getElementById('mid').innerHTML = MOCK_GAMES.slice(3,6).map(cardHtml).join('');
+        document.getElementById('high').innerHTML = MOCK_GAMES.slice(5).map(cardHtml).join('');
+    </script>
+</body>
+</html>

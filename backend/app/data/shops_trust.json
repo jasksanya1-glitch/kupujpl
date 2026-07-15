@@ -1,0 +1,101 @@
+{
+  "Steam": {
+    "is_official": true,
+    "trust_tier": "A",
+    "supports_pln": true,
+    "refund_policy_url": "https://store.steampowered.com/steam_refunds/",
+    "notes_pl": "Oficjalny sklep Valve. Zwroty w ciągu 14 dni przy <2 h gry.",
+    "refund_note_pl": "Zwrot na portfel Steam w 14 dni od zakupu, jeśli grałeś mniej niż 2 godziny i kupiłeś nie wcześniej niż 14 dni temu.",
+    "refund_note_uk": "Повернення на гаманець Steam за 14 днів, якщо грали менше 2 годин і купили не раніше ніж 14 днів тому."
+  },
+  "GOG": {
+    "is_official": true,
+    "trust_tier": "A",
+    "supports_pln": true,
+    "refund_policy_url": "https://support.gog.com/hc/pl/articles/212982089",
+    "notes_pl": "Oficjalny sklep DRM-free. 30 dni na zwrot.",
+    "refund_note_pl": "30 dni na zwrot bez podawania przyczyny. Po pobraniu/aktywacji gra może nie podlegać zwrotowi.",
+    "refund_note_uk": "30 днів на повернення без пояснення причини. Після завантаження/активації повернення може бути недоступне."
+  },
+  "Epic Games": {
+    "is_official": true,
+    "trust_tier": "A",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.epicgames.com/site/pl/refund-policy",
+    "notes_pl": "Oficialny sklep Epic. Zwrot w 14 dni.",
+    "refund_note_pl": "Zwrot w 14 dni od zakupu, jeśli grałeś mniej niż 2 godziny. Pieniądze wracają na konto Epic.",
+    "refund_note_uk": "Повернення за 14 днів, якщо грали менше 2 годин. Кошти повертаються на акаунт Epic."
+  },
+  "Gamivo": {
+    "is_official": false,
+    "trust_tier": "B",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.gamivo.com/pl/refund-policy",
+    "notes_pl": "Marketplace kluczy. Sprawdź region i wydawcę przed zakupem.",
+    "refund_note_pl": "Gamivo obiecuje zwrot w 14 dni, gdy klucz nie został użyty. Po aktywacji klucza zwrot zwykle niemożliwy.",
+    "refund_note_uk": "Gamivo обіцяє повернення за 14 днів, якщо ключ не використано. Після активації повернення зазвичай неможливе."
+  },
+  "G2A": {
+    "is_official": false,
+    "trust_tier": "C",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.g2a.com/pl/refund-policy",
+    "notes_pl": "Marketplace — wybieraj sprzedawców z wysoką oceną.",
+    "refund_note_pl": "Marketplace — zwrot zależy od sprzedawcy. G2A deklaruje Money Back Guarantee przy wadliwym kluczu (zgłoszenie w kilka dni). Sprawdź ocenę sprzedawcy.",
+    "refund_note_uk": "Маркетплейс — повернення залежить від продавця. G2A заявляє Money Back Guarantee при несправному ключі. Перевіряйте рейтинг продавця."
+  },
+  "Kinguin": {
+    "is_official": false,
+    "trust_tier": "B",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.kinguin.net/pl/refund-policy",
+    "notes_pl": "Marketplace kluczy. Zwrot zależy od sprzedawcy.",
+    "refund_note_pl": "Kinguin — Ochrona Kupującego: zwrot lub wymiana, gdy klucz nie działa lub nie zgadza się z opisem. Aktywowany klucz — zwykle bez zwrotu.",
+    "refund_note_uk": "Kinguin — захист покупця: повернення або обмін, якщо ключ не працює. Активований ключ — зазвичай без повернення."
+  },
+  "CDKeys": {
+    "is_official": false,
+    "trust_tier": "B",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.cdkeys.com/pl/refund-policy",
+    "notes_pl": "Reseller kluczy. Aktywuj szybko po zakupie.",
+    "refund_note_pl": "CDKeys/Loaded — zwrot w 14 dni na niewykorzystany klucz. Po aktywacji w Steam lub innym launcherze zwrot praktycznie niemożliwy.",
+    "refund_note_uk": "CDKeys/Loaded — повернення за 14 днів на невикористаний ключ. Після активації в Steam повернення практично неможливе."
+  },
+  "Instant Gaming": {
+    "is_official": false,
+    "trust_tier": "B",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.instant-gaming.com/pl/support/",
+    "notes_pl": "Autoryzowany reseller. Sprawdź wersję regionalną klucza.",
+    "refund_note_pl": "Instant Gaming pomaga przy wadliwym lub niewłaściwym kluczu. Nie ma zwrotu „nie podoba mi się gra” — po aktywacji zwrot rzadki.",
+    "refund_note_uk": "Instant Gaming допомагає при несправному ключі. Немає повернення «не сподобалась гра» — після активації повернення рідке."
+  },
+  "Fanatical": {
+    "is_official": false,
+    "trust_tier": "A",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.fanatical.com/pl/help",
+    "notes_pl": "Oficjalny retailer cyfrowy (Fanatical Global). Sprawdź region klucza.",
+    "refund_note_pl": "Fanatical — zwrot w 14 dni na niewykorzystany klucz cyfrowy. Szczegóły mogą zależeć od wydawcy i promocji.",
+    "refund_note_uk": "Fanatical — повернення за 14 днів на невикористаний ключ. Деталі можуть залежати від видавця."
+  },
+  "Eneba": {
+    "is_official": false,
+    "trust_tier": "B",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.eneba.com/pl/refund-policy",
+    "notes_pl": "Marketplace kluczy. Sprawdź region i sprzedawcę przed zakupem.",
+    "refund_note_pl": "Eneba — ochrona kupującego przy sporze ze sprzedawcą (np. zły region, niedziałający klucz). To marketplace — warunki różnią się między ofertami.",
+    "refund_note_uk": "Eneba — захист покупця у спорі з продавцем (зла регіон, несправний ключ). Маркетплейс — умови різняться."
+  },
+  "Green Man Gaming": {
+    "is_official": false,
+    "trust_tier": "A",
+    "supports_pln": true,
+    "refund_policy_url": "https://www.greenmangaming.com/pl/help-center/",
+    "notes_pl": "Autoryzowany partner wydawców.",
+    "refund_note_pl": "GMG — zwrot w 14 dni, jeśli klucz nie został wykorzystany. Po aktywacji zwrot zwykle niemożliwy.",
+    "refund_note_uk": "GMG — повернення за 14 днів, якщо ключ не використано. Після активації повернення зазвичай неможливе."
+  }
+}

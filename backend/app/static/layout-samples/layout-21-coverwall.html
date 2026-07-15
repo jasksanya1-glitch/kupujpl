@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 21 — Cover wall | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .cats { display: flex; gap: 8px; padding: 16px 20px; max-width: var(--wrap); margin: 0 auto; overflow-x: auto; }
+        .wall { columns: 4; column-gap: 10px; max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .wall-item { break-inside: avoid; margin-bottom: 10px; position: relative; border-radius: 10px; overflow: hidden; cursor: pointer; }
+        .wall-item img { width: 100%; display: block; }
+        .wall-item .overlay { position: absolute; inset: 0; background: linear-gradient(transparent 40%, rgba(0,0,0,.85)); display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; opacity: 0; transition: .2s; }
+        .wall-item:hover .overlay { opacity: 1; }
+        .wall-item h3 { font-size: 13px; margin-bottom: 4px; }
+        .wall-item.tall img { aspect-ratio: 3/4; object-fit: cover; }
+        .wall-item.wide img { aspect-ratio: 460/215; object-fit: cover; }
+        @media (max-width: 900px) { .wall { columns: 2; } }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 21</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="cats" id="cats"></div>
+    <div class="wall" id="wall"></div>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('wall').innerHTML = MOCK_GAMES.map((g, i) => `
+            <div class="wall-item ${i % 3 === 0 ? 'tall' : 'wide'}">
+                <img src="${g.img}" alt="">
+                <div class="overlay"><h3>${g.title}</h3><div class="price">${g.price}</div></div>
+            </div>
+        `).join('');
+    </script>
+</body>
+</html>

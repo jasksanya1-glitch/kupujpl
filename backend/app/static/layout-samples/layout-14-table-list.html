@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 14 — Lista tabeli | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .cats { display: flex; gap: 8px; padding: 16px 20px; max-width: var(--wrap); margin: 0 auto; overflow-x: auto; }
+        main { max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .list { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .list-head, .list-row { display: grid; grid-template-columns: 80px 1fr 100px 120px; gap: 12px; align-items: center; padding: 12px 16px; }
+        .list-head { background: var(--surface-2); font-size: 12px; text-transform: uppercase; color: var(--muted); letter-spacing: .06em; }
+        .list-row { border-top: 1px solid var(--border); cursor: pointer; transition: .15s; }
+        .list-row:hover { background: rgba(0,112,209,.08); }
+        .list-row img { width: 80px; height: 38px; object-fit: cover; border-radius: 6px; }
+        .list-row h3 { font-size: 15px; font-weight: 600; }
+        .list-row .shops { font-size: 12px; color: var(--muted); }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 14</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="cats" id="cats"></div>
+    <main>
+        <div class="list">
+            <div class="list-head"><span>Okładka</span><span>Tytuł</span><span>Cena</span><span>Sklepy</span></div>
+            <div id="rows"></div>
+        </div>
+    </main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('rows').innerHTML = MOCK_GAMES.map(g=>`
+            <div class="list-row">
+                <img src="${g.img}" alt="">
+                <h3>${g.title}</h3>
+                <div class="price">${g.price}</div>
+                <div class="shops">Steam, GOG, Epic</div>
+            </div>
+        `).join('');
+    </script>
+</body>
+</html>

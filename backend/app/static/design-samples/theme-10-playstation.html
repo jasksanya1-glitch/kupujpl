@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 10 — PlayStation Blue | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=SST+Pro:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#000;--surface:#1f1f1f;--blue:#0070d1;--blue-light:#2d9cff;--text:#fff;--muted:#aaa}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+        .badge{position:fixed;top:16px;right:16px;z-index:99;background:var(--blue);padding:6px 14px;font-size:11px;font-weight:700;border-radius:20px}
+        header{display:flex;align-items:center;gap:24px;height:64px;border-bottom:1px solid #333}
+        .logo{font-size:20px;font-weight:700;text-decoration:none;color:#fff;letter-spacing:-.02em}
+        .logo span{color:var(--blue-light);font-weight:400}
+        .search{flex:1;max-width:420px;height:40px;background:var(--surface);border:1px solid #333;border-radius:20px;padding:0 18px;color:#fff;font:inherit}
+        .search:focus{outline:none;border-color:var(--blue)}
+        .nav a{color:var(--blue-light);text-decoration:none;font-weight:600;font-size:14px}
+        .hero{padding:48px 0 32px;text-align:center}
+        .hero h1{font-size:clamp(2rem,5vw,3rem);font-weight:700;letter-spacing:-.03em}
+        .hero p{color:var(--muted);margin-top:12px;font-size:15px}
+        .cats{display:flex;gap:10px;flex-wrap:wrap;padding:8px 0 24px;justify-content:center}
+        .cat{padding:10px 20px;background:transparent;border:1px solid #444;border-radius:20px;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;transition:.2s}
+        .cat.active{border-color:var(--blue);color:var(--blue-light);background:rgba(0,112,209,.15)}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding-bottom:48px}
+        .card{background:var(--surface);border-radius:12px;overflow:hidden;transition:.25s}
+        .card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,112,209,.3)}
+        .card img{width:100%;aspect-ratio:460/215;object-fit:cover}
+        .card-body{padding:16px}
+        .card h3{font-size:15px;font-weight:600;margin-bottom:8px}
+        .price{color:var(--blue-light);font-size:17px;font-weight:700}
+    </style>
+</head>
+<body>
+    <div class="badge">STYL 10</div>
+    <header class="wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj w Play Now..."><nav class="nav"><a href="#">Zaloguj</a></nav></header>
+    <div class="hero wrap"><h1>Play. Compare. Save.</h1><p>87 000+ gier PC · porównanie cen ze wszystkich sklepów</p></div>
+    <main class="wrap">
+        <div class="cats"><button class="cat active">Wszystkie</button><button class="cat">Akcja</button><button class="cat">RPG</button><button class="cat">Przygodowe</button></div>
+        <div class="grid">
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt=""><div class="card-body"><h3>Counter-Strike 2</h3><div class="price">0,00 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt=""><div class="card-body"><h3>Wiedźmin 3</h3><div class="price">29,80 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt=""><div class="card-body"><h3>Cyberpunk 2077</h3><div class="price">119,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt=""><div class="card-body"><h3>Hades</h3><div class="price">47,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt=""><div class="card-body"><h3>Elden Ring</h3><div class="price">149,99 zł</div></div></article>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 4 — Kompaktowa siatka | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .cats-row { display: flex; gap: 6px; overflow-x: auto; padding: 16px 20px; max-width: var(--wrap); margin: 0 auto; }
+        .cat { padding: 6px 14px; font-size: 12px; }
+        main { max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        .card h3 { font-size: 12px; -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em; }
+        .card-body { padding: 8px 10px; }
+        .price { font-size: 13px; }
+        .meta { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 4</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="cats-row" id="cats"></div>
+    <main><p class="meta">Więcej gier na ekranie · małe karty · szybkie przeglądanie</p><div class="grid" id="grid"></div></main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('grid').innerHTML = MOCK_GAMES.concat(MOCK_GAMES.slice(0,4)).map(cardHtml).join('');
+    </script>
+</body>
+</html>

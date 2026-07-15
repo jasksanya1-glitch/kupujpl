@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KupujPL — 10 Cyberpunk Prototypes</title>
+  <style>
+    :root {
+      --bg: #05070d;
+      --panel: #0c111d;
+      --panel2: #111827;
+      --line: #243044;
+      --text: #e7f2ff;
+      --muted: #8aa0b8;
+      --cyan: #00e5ff;
+      --pink: #ff2bbd;
+      --green: #00ff8a;
+      --yellow: #ffe45e;
+      --red: #ff4d6d;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(0,229,255,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,.035) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, #000, transparent 72%);
+      opacity: .8;
+      z-index: -1;
+    }
+
+    @keyframes scan { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+    @keyframes pulse { 0%,100% { opacity: .45; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.14); } }
+    @keyframes blink { 0%,50% { opacity: 1; } 51%,100% { opacity: .15; } }
+    @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+    @keyframes radar { to { transform: rotate(360deg); } }
+    @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+    .shell { max-width: 1440px; margin: 0 auto; padding: 22px; }
+
+    .top {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: clamp(26px, 4vw, 54px);
+      line-height: 1;
+      letter-spacing: -.04em;
+      text-transform: uppercase;
+    }
+
+    .accent { color: var(--cyan); text-shadow: 0 0 24px rgba(0,229,255,.5); }
+    .sub { color: var(--muted); margin-top: 10px; max-width: 760px; }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 18px 0;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      padding: 12px 0;
+      background: rgba(5,7,13,.86);
+      backdrop-filter: blur(12px);
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: rgba(17,24,39,.72);
+      border-radius: 999px;
+      padding: 9px 13px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      transition: .18s ease;
+    }
+
+    .tab:hover, .tab.active {
+      color: var(--text);
+      border-color: var(--cyan);
+      background: rgba(0,229,255,.14);
+      box-shadow: 0 0 0 1px rgba(0,229,255,.18), 0 0 24px rgba(0,229,255,.16);
+    }
+
+    .stage {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      overflow: hidden;
+      background: rgba(8,12,22,.88);
+      min-height: 720px;
+      position: relative;
+    }
+
+    .proto { display: none; min-height: 720px; }
+    .proto.active { display: block; }
+
+    .proto-head {
+      display: grid;
+      grid-template-columns: 240px minmax(0,1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .proto-head::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 120px;
+      background: rgba(0,229,255,.12);
+      transform: skewX(-18deg);
+      animation: scan 4s infinite linear;
+    }
+
+    .brand {
+      font-size: 25px;
+      font-weight: 900;
+      letter-spacing: -.04em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand span { color: var(--cyan); }
+
+    .search {
+      position: relative;
+      z-index: 1;
+      height: 48px;
+      border: 1px solid var(--cyan);
+      background: rgba(0,229,255,.07);
+      color: var(--muted);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 10px;
+    }
+
+    .caret {
+      width: 2px;
+      height: 22px;
+      background: var(--cyan);
+      animation: blink .9s infinite;
+    }
+
+    .live {
+      position: relative;
+      z-index: 1;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: var(--green);
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: .12em;
+    }
+
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+    .game {
+      border: 1px solid var(--line);
+      background: rgba(17,24,39,.84);
+      border-radius: var(--radius);
+      padding: 12px;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .game::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 18px;
+      width: 80%;
+      height: 2px;
+      background: var(--cyan);
+      opacity: .75;
+      animation: scan 3.2s infinite linear;
+    }
+
+    .cover {
+      height: 96px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      background:
+        linear-gradient(135deg, rgba(0,229,255,.18), transparent 42%),
+        linear-gradient(315deg, rgba(255,43,189,.18), transparent 46%),
+        #0b1020;
+      display: flex;
+      align-items: end;
+      padding: 10px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .game-title { font-weight: 900; margin-top: 10px; }
+    .price { color: var(--green); font-size: 18px; font-weight: 950; }
+    .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .pill { border: 1px solid var(--line); border-radius: 999px; padding: 6px 9px; color: var(--muted); font-size: 12px; }
+
+    .layout-split { display: grid; grid-template-columns: 250px 1fr; min-height: 642px; }
+    .side { border-right: 1px solid var(--line); padding: 18px; background: rgba(255,255,255,.02); }
+    .side h3 { color: var(--muted); text-transform: uppercase; font-size: 12px; letter-spacing: .15em; margin-bottom: 12px; }
+    .cat { border: 1px solid var(--line); padding: 11px 12px; border-radius: 12px; margin-bottom: 8px; color: var(--muted); }
+    .cat.active { color: var(--text); border-color: var(--cyan); background: rgba(0,229,255,.12); }
+    .main { padding: 18px; }
+    .hero { border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px; background: rgba(255,255,255,.03); }
+    .hero h2 { font-size: clamp(22px, 3vw, 42px); line-height: 1; margin-bottom: 8px; }
+
+    /* 1 Neon Grid */
+    .p1 .cards { grid-template-columns: repeat(4, 1fr); }
+    .p1 .game:hover { border-color: var(--cyan); transform: translateY(-4px); transition: .2s; }
+
+    /* 2 Braindance */
+    .p2 .layout-split { display: block; }
+    .p2 .proto-head { grid-template-columns: 170px 1fr 120px; padding: 26px; }
+    .p2 .search { height: 74px; border-radius: 24px; font-size: 20px; justify-content: center; }
+    .p2 .main { padding: 28px; }
+    .p2 .hero { min-height: 220px; display: flex; align-items: end; border-color: var(--pink); background: rgba(255,43,189,.08); }
+    .p2 .cards { grid-template-columns: repeat(2, 1fr); }
+    .p2 .game { min-height: 220px; animation: floaty 4s infinite ease-in-out; }
+
+    /* 3 Night Market */
+    .p3 { --cyan: #ffb000; --pink: #ff4d6d; --green: #74ff00; }
+    .p3 .layout-split { grid-template-columns: 300px 1fr; }
+    .p3 .side { background: rgba(255,176,0,.07); }
+    .p3 .cat { border-radius: 2px 18px 2px 18px; }
+    .p3 .cards { grid-template-columns: repeat(3, 1fr); }
+    .p3 .game { border-radius: 4px; min-height: 210px; }
+    .ticker { overflow: hidden; border: 1px solid var(--line); border-radius: 999px; padding: 9px; margin-bottom: 14px; color: var(--yellow); }
+    .ticker span { display: inline-block; min-width: max-content; animation: marquee 13s infinite linear; }
+
+    /* 4 Terminal */
+    .p4 { --cyan: #00ff8a; --pink: #00ff8a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .p4 .proto-head, .p4 .search, .p4 .cat, .p4 .hero, .p4 .game { border-radius: 0; }
+    .p4 .layout-split { display: block; }
+    .p4 .hero { display: none; }
+    .terminal-table { border: 1px solid var(--line); }
+    .row { display: grid; grid-template-columns: 70px 1fr 130px 110px; gap: 14px; padding: 16px; border-bottom: 1px solid var(--line); }
+    .row:last-child { border-bottom: 0; }
+    .row b { color: var(--green); }
+    .p4 .cards { display: none; }
+
+    /* 5 Holo Bento */
+    .p5 { --cyan: #8b5cf6; --pink: #00e5ff; --green: #ff2bbd; }
+    .p5 .layout-split { display: block; }
+    .p5 .cards { grid-template-columns: 1.35fr .75fr .75fr; grid-auto-rows: 180px; }
+    .p5 .game:first-child { grid-row: span 2; min-height: 374px; }
+    .p5 .hero { display: grid; grid-template-columns: 1fr 240px; align-items: center; min-height: 160px; }
+    .p5 .game { animation: floaty 5s infinite ease-in-out; }
+
+    /* 6 Corpo */
+    .p6 { --cyan: #c8d3e8; --pink: #7c8aa3; --green: #99f6e4; --panel: #07090d; }
+    .p6 .proto-head, .p6 .side, .p6 .game, .p6 .hero, .p6 .search { border-radius: 2px; }
+    .p6 .game::before, .p6 .proto-head::after { animation-duration: 7s; opacity: .25; }
+    .p6 .cover { display: none; }
+    .p6 .game { min-height: 120px; }
+    .p6 .cards { grid-template-columns: repeat(2, 1fr); }
+
+    /* 7 Racer */
+    .p7 { --cyan: #ffe45e; --pink: #ff2b2b; --green: #00e5ff; }
+    .p7 .main { transform: skewX(-4deg); }
+    .p7 .main > * { transform: skewX(4deg); }
+    .p7 .cards { grid-template-columns: repeat(2, 1fr); }
+    .p7 .game { border-radius: 6px 28px 6px 28px; min-height: 190px; }
+    .p7 .price::after { content: " BOOST"; color: var(--yellow); font-size: 11px; margin-left: 8px; }
+
+    /* 8 Black ICE */
+    .p8 { --cyan: #69f0ff; --pink: #69f0ff; --green: #69f0ff; }
+    .p8 .cards { display: none; }
+    .scanner { display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
+    .radar {
+      width: 260px;
+      height: 260px;
+      border: 1px solid var(--cyan);
+      border-radius: 999px;
+      position: relative;
+      margin: 0 auto;
+      background: rgba(0,229,255,.04);
+      overflow: hidden;
+    }
+    .radar::before, .radar::after { content: ""; position: absolute; inset: 20%; border: 1px solid var(--line); border-radius: 999px; }
+    .radar::after { inset: 38%; }
+    .sweep { position: absolute; left: 50%; top: 50%; width: 124px; height: 2px; background: var(--cyan); transform-origin: 0 50%; animation: radar 2.2s infinite linear; }
+    .scan-list { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+    .scan-list .row { grid-template-columns: 1fr 120px 90px; }
+
+    /* 9 Pixel Arcade */
+    .p9 { --cyan: #00ff8a; --pink: #ff2bbd; --green: #ffe45e; image-rendering: pixelated; }
+    .p9 .proto-head, .p9 .search, .p9 .cat, .p9 .hero, .p9 .game, .p9 .cover { border-radius: 0; }
+    .p9 .cards { grid-template-columns: repeat(4, 1fr); }
+    .p9 .game { min-height: 170px; border-width: 2px; }
+    .p9 .cover { height: 72px; }
+    .p9 .price { font-size: 15px; }
+
+    /* 10 Megacity */
+    .p10 { --cyan: #00e5ff; --pink: #ffe45e; --green: #00ff8a; }
+    .p10 .layout-split { grid-template-columns: 180px 1fr; }
+    .p10 .main { display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px; }
+    .p10 .hero, .p10 .ticker { grid-column: 1 / -1; }
+    .p10 .cards { grid-template-columns: repeat(3, 1fr); }
+    .districts { display: grid; gap: 10px; }
+    .district { border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: rgba(255,255,255,.03); }
+
+    .only-terminal, .only-scanner, .only-megacity { display: none; }
+    .p4 .only-terminal { display: block; }
+    .p8 .only-scanner { display: block; }
+    .p10 .only-megacity { display: grid; }
+    .p4 .normal, .p8 .normal, .p10 .normal-megacity-hide { display: none; }
+
+    @media (max-width: 900px) {
+      .top, .proto-head, .layout-split, .scanner, .p10 .main { grid-template-columns: 1fr; }
+      .cards, .p1 .cards, .p2 .cards, .p3 .cards, .p5 .cards, .p6 .cards, .p7 .cards, .p9 .cards, .p10 .cards { grid-template-columns: 1fr; }
+      .side { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="top">
+      <div>
+        <h1>10 різних <span class="accent">Cyberpunk</span> стилів</h1>
+        <p class="sub">Це звичайний HTML-файл. Клікай кнопки нижче: кожен варіант має інший layout, кольори, анімації та настрій для KupujPL.</p>
+      </div>
+      <span class="live">LOCAL PREVIEW</span>
+    </div>
+
+    <nav class="tabs" id="tabs"></nav>
+
+    <section class="stage" id="stage"></section>
+  </div>
+
+  <script>
+    const styles = [
+      ["p1", "Neon Grid", "класичний каталог з неоном"],
+      ["p2", "Braindance Search", "великий пошук як центр сайту"],
+      ["p3", "Night Market", "нічний базар ключів"],
+      ["p4", "Terminal Deals", "хакерський термінал"],
+      ["p5", "Holo Bento", "premium bento-сітка"],
+      ["p6", "Corpo Chrome", "строгий corporate UI"],
+      ["p7", "Street Racer", "швидкість і драйв"],
+      ["p8", "Black ICE Scanner", "радар live-скану"],
+      ["p9", "Pixel Arcade", "аркадний pixel cyber"],
+      ["p10", "Megacity Dashboard", "міська панель угод"]
+    ];
+
+    const games = [
+      ["Cyberpunk 2077", "49,99 zl", "GOG"],
+      ["Baldur's Gate 3", "129,00 zl", "Steam"],
+      ["Elden Ring", "159,90 zl", "Kinguin"],
+      ["F1 25", "219,00 zl", "G2A"],
+      ["Hogwarts Legacy", "79,99 zl", "CDKeys"],
+      ["GTA V", "39,00 zl", "Gamivo"]
+    ];
+
+    const cats = ["Wszystkie", "RPG", "Akcja", "Wyścigi", "Strategia", "Indie", "DLC"];
+
+    function gameCards() {
+      return `<div class="cards normal normal-megacity-hide">${games.slice(0, 4).map(g => `
+        <article class="game">
+          <div>
+            <div class="cover">${g[0].slice(0, 14)}</div>
+            <div class="game-title">${g[0]}</div>
+            <div class="meta">Najlepsza oferta · ${g[2]}</div>
+          </div>
+          <div class="price">${g[1]}</div>
+        </article>
+      `).join("")}</div>`;
+    }
+
+    function terminalRows() {
+      return `<div class="terminal-table only-terminal">${games.map((g, i) => `
+        <div class="row"><span>0${i + 1}</span><span>${g[0]}</span><span>${g[2]}</span><b>${g[1]}</b></div>
+      `).join("")}</div>`;
+    }
+
+    function scanner() {
+      return `<div class="scanner only-scanner">
+        <div class="radar"><span class="sweep"></span></div>
+        <div class="scan-list">${games.slice(0, 5).map((g, i) => `
+          <div class="row"><span>${g[0]}</span><span>${g[2]}</span><b>${i < 4 ? "HIT" : "MISS"}</b></div>
+        `).join("")}</div>
+      </div>`;
+    }
+
+    function megacity() {
+      return `<div class="districts only-megacity">
+        <div class="district"><h3>Steam District</h3><p class="meta">129 active deals</p><p class="price">-42%</p></div>
+        <div class="district"><h3>Keyshop Alley</h3><p class="meta">G2A, Kinguin, CDKeys</p><p class="price">4161 hits</p></div>
+        <div class="district"><h3>DLC Tower</h3><p class="meta">Live scan queue</p><p class="price">OK</p></div>
+      </div>${gameCards().replace("normal-megacity-hide", "")}`;
+    }
+
+    function render(index) {
+      const [cls, name, desc] = styles[index];
+      document.querySelectorAll(".tab").forEach((b, i) => b.classList.toggle("active", i === index));
+      document.getElementById("stage").innerHTML = `
+        <div class="proto ${cls} active">
+          <header class="proto-head">
+            <div class="brand">Kupuj<span>PL</span></div>
+            <div class="search"><span class="caret"></span>${cls === "p4" ? "scan --shop all --sort price" : cls === "p2" ? "Podaj tytuł gry do neuro-skanu..." : "Szukaj najtańszej gry..."}</div>
+            <div class="live">${String(index + 1).padStart(2, "0")} · ${name}</div>
+          </header>
+          <div class="layout-split">
+            <aside class="side">
+              <h3>${desc}</h3>
+              ${cats.map((c, i) => `<div class="cat ${i === 0 ? "active" : ""}">${String(i + 1).padStart(2, "0")} · ${c}</div>`).join("")}
+            </aside>
+            <main class="main">
+              <div class="ticker"><span>Steam · GOG · Epic · Eneba · Kinguin · CDKeys · G2A · Gamivo · Instant Gaming · Steam · GOG · Epic · Eneba · Kinguin · CDKeys · G2A · Gamivo · Instant Gaming</span></div>
+              <section class="hero normal-megacity-hide">
+                <div>
+                  <h2>${name}</h2>
+                  <p class="sub">${desc}. Тут показано, як можуть виглядати пошук, категорії, картки і live-скан цін.</p>
+                </div>
+              </section>
+              ${terminalRows()}
+              ${scanner()}
+              ${cls === "p10" ? megacity() : gameCards()}
+            </main>
+          </div>
+        </div>
+      `;
+    }
+
+    const tabs = document.getElementById("tabs");
+    styles.forEach((s, i) => {
+      const btn = document.createElement("button");
+      btn.className = "tab" + (i === 0 ? " active" : "");
+      btn.textContent = `${i + 1}. ${s[1]}`;
+      btn.onclick = () => render(i);
+      tabs.appendChild(btn);
+    });
+
+    render(0);
+  </script>
+</body>
+</html>

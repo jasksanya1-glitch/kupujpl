@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 23 — Store tabs | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .store-tabs { display: flex; gap: 0; max-width: var(--wrap); margin: 0 auto; padding: 16px 20px 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .store-tab { padding: 12px 20px; border: none; background: none; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+        .store-tab.active { color: var(--blue-light); border-bottom-color: var(--blue); }
+        .cats { display: flex; gap: 8px; padding: 16px 20px; max-width: var(--wrap); margin: 0 auto; flex-wrap: wrap; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .store-note { max-width: var(--wrap); margin: 0 auto; padding: 0 20px 12px; font-size: 13px; color: var(--muted); }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 23</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="store-tabs">
+        <button type="button" class="store-tab active">Steam</button>
+        <button type="button" class="store-tab">GOG</button>
+        <button type="button" class="store-tab">Epic Games</button>
+        <button type="button" class="store-tab">Humble</button>
+        <button type="button" class="store-tab">Eneba</button>
+        <button type="button" class="store-tab">Kinguin</button>
+        <button type="button" class="store-tab">CDKeys</button>
+    </div>
+    <p class="store-note">Ceny z wybranego sklepu · porównaj wszystkie w karcie gry</p>
+    <div class="cats" id="cats"></div>
+    <div class="grid" id="grid"></div>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');
+    </script>
+</body>
+</html>

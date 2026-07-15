@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 5 — Aurora RPG | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f0a1a;
+            --surface: rgba(30, 20, 50, 0.85);
+            --border: rgba(120, 80, 200, 0.35);
+            --purple: #9d4edd;
+            --teal: #06d6a0;
+            --gold: #ffd166;
+            --text: #f0e6ff;
+            --muted: #a89bb8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 60% 40% at 20% 10%, rgba(157, 78, 221, 0.25), transparent),
+                radial-gradient(ellipse 50% 35% at 80% 20%, rgba(6, 214, 160, 0.15), transparent),
+                radial-gradient(ellipse 70% 50% at 50% 100%, rgba(90, 40, 140, 0.2), transparent);
+            pointer-events: none;
+        }
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; position: relative; }
+        .badge {
+            position: fixed; top: 16px; right: 16px; z-index: 99;
+            background: var(--surface);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            color: var(--gold);
+            padding: 8px 16px;
+            font-family: Cinzel, serif;
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            border-radius: 999px;
+        }
+        header {
+            display: flex; align-items: center; gap: 24px;
+            height: 72px;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            background: rgba(15, 10, 26, 0.7);
+        }
+        .logo {
+            font-family: Cinzel, serif;
+            font-size: 22px;
+            font-weight: 700;
+            text-decoration: none;
+            color: var(--gold);
+            letter-spacing: 0.06em;
+        }
+        .logo span { color: var(--teal); }
+        .search {
+            flex: 1; max-width: 420px; height: 44px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 0 20px;
+            color: var(--text);
+            font: inherit;
+        }
+        .search:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 20px rgba(157, 78, 221, 0.2); }
+        .nav a { color: var(--teal); text-decoration: none; font-weight: 600; font-size: 14px; }
+        .hero {
+            text-align: center;
+            padding: 48px 0 32px;
+        }
+        .hero h1 {
+            font-family: Cinzel, serif;
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            background: linear-gradient(135deg, var(--gold), var(--teal));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p { color: var(--muted); margin-top: 12px; font-size: 15px; }
+        .cats { display: flex; gap: 10px; flex-wrap: wrap; padding: 8px 0 24px; justify-content: center; }
+        .cat {
+            padding: 8px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--muted);
+            font: inherit; font-size: 13px;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: 0.25s;
+        }
+        .cat.active, .cat:hover {
+            border-color: var(--purple);
+            color: var(--text);
+            box-shadow: 0 0 16px rgba(157, 78, 221, 0.3);
+        }
+        .section-title {
+            font-family: Cinzel, serif;
+            font-size: 16px;
+            letter-spacing: 0.15em;
+            color: var(--gold);
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding-bottom: 48px;
+        }
+        .card {
+            background: var(--surface);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-6px);
+            border-color: var(--teal);
+            box-shadow: 0 16px 40px rgba(6, 214, 160, 0.15), 0 0 30px rgba(157, 78, 221, 0.1);
+        }
+        .card img { width: 100%; aspect-ratio: 460/215; object-fit: cover; }
+        .card-body { padding: 14px 16px; }
+        .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; line-height: 1.35; }
+        .price { color: var(--teal); font-size: 18px; font-weight: 700; }
+        .price small { color: var(--muted); font-weight: 400; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="badge">Styl 5 · Podgląd</div>
+    <header class="wrap">
+        <a class="logo" href="#">Kupuj<span>PL</span> · Gry</a>
+        <input class="search" type="search" placeholder="Szukaj legendarnych tytułów…">
+        <nav class="nav"><a href="#">Zaloguj</a></nav>
+    </header>
+    <div class="hero wrap">
+        <h1>Kraina najlepszych cen</h1>
+        <p>Porównuj oferty · 87 000+ gier · Steam, GOG, Epic, Humble</p>
+    </div>
+    <main class="wrap">
+        <div class="cats">
+            <button class="cat active">Wszystkie</button>
+            <button class="cat">RPG</button>
+            <button class="cat">Akcja</button>
+            <button class="cat">Przygodowe</button>
+            <button class="cat">Strategie</button>
+        </div>
+        <p class="section-title">— Wybrane tytuły —</p>
+        <div class="grid">
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt="">
+                <div class="card-body"><h3>Counter-Strike 2</h3><div class="price"><small>od </small>0,00 zł</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt="">
+                <div class="card-body"><h3>Wiedźmin 3: Dziki Gon</h3><div class="price"><small>od </small>29,80 zł</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt="">
+                <div class="card-body"><h3>Cyberpunk 2077</h3><div class="price"><small>od </small>119,99 zł</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt="">
+                <div class="card-body"><h3>Hades</h3><div class="price"><small>od </small>47,99 zł</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt="">
+                <div class="card-body"><h3>ELDEN RING</h3><div class="price"><small>od </small>149,99 zł</div></div>
+            </article>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 13 — Magazine | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .cats { display: flex; gap: 8px; padding: 16px 20px; max-width: var(--wrap); margin: 0 auto; flex-wrap: wrap; }
+        main { max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .hero { border-radius: 16px; overflow: hidden; margin-bottom: 16px; position: relative; }
+        .hero img { width: 100%; aspect-ratio: 21/9; object-fit: cover; }
+        .hero-cap { position: absolute; bottom: 0; left: 0; right: 0; padding: 32px 24px; background: linear-gradient(transparent, rgba(0,0,0,.9)); }
+        .hero-cap h2 { font-size: 28px; margin-bottom: 8px; }
+        .mid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+        @media (max-width: 720px) { .mid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 13</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="cats" id="cats"></div>
+    <main>
+        <article class="hero">
+            <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt="">
+            <div class="hero-cap"><h2>ELDEN RING</h2><div class="price">149,99 zł · okazja tygodnia</div></div>
+        </article>
+        <div class="mid" id="mid"></div>
+        <div class="grid" id="grid"></div>
+    </main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('mid').innerHTML = MOCK_GAMES.slice(1,4).map(cardHtml).join('');
+        document.getElementById('grid').innerHTML = MOCK_GAMES.slice(4).map(cardHtml).join('');
+    </script>
+</body>
+</html>

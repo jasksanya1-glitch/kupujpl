@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 7 — Netflix rows | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .tabs { display: flex; gap: 8px; padding: 16px 20px; max-width: var(--wrap); margin: 0 auto; overflow-x: auto; }
+        .row { margin-bottom: 28px; max-width: var(--wrap); margin-left: auto; margin-right: auto; padding: 0 20px; }
+        .row-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+        .row-scroll .card { flex: 0 0 200px; }
+        .row-scroll::-webkit-scrollbar { height: 6px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 7</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="tabs" id="tabs"></div>
+    <div class="row"><h2 class="section-title">Top w kategorii Akcja</h2><div class="row-scroll" id="r1"></div></div>
+    <div class="row"><h2 class="section-title">RPG — najlepsze ceny</h2><div class="row-scroll" id="r2"></div></div>
+    <div class="row"><h2 class="section-title">Indie perełki</h2><div class="row-scroll" id="r3"></div></div>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('tabs').innerHTML = catsHtml('cat');
+        document.getElementById('r1').innerHTML = MOCK_GAMES.slice(0,5).map(cardHtml).join('');
+        document.getElementById('r2').innerHTML = MOCK_GAMES.slice(2,7).map(cardHtml).join('');
+        document.getElementById('r3').innerHTML = MOCK_GAMES.slice(1,6).map(cardHtml).join('');
+    </script>
+</body>
+</html>

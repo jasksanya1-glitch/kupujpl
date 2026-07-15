@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KupujPL — 10 палітр кольорів (превʼю, не на сайті)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: #111;
+      color: #eee;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      text-transform: none;
+    }
+
+    .hub {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8, 8, 8, 0.94);
+      border-bottom: 2px solid #333;
+      padding: 12px 16px 14px;
+      backdrop-filter: blur(8px);
+    }
+    .hub h1 {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .hub p {
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 10px;
+      line-height: 1.45;
+    }
+    .hub-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .hub-nav a {
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border: 2px solid #444;
+      color: #ddd;
+      letter-spacing: 0.02em;
+    }
+    .hub-nav a:hover { border-color: #00f0ff; color: #00f0ff; }
+
+    .palette-wrap {
+      padding: 28px 16px 48px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .palette-section {
+      margin-bottom: 56px;
+      scroll-margin-top: 120px;
+    }
+
+    .palette-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px 16px;
+      margin-bottom: 14px;
+    }
+    .palette-meta h2 {
+      font-size: 22px;
+      font-weight: 900;
+    }
+    .palette-meta p {
+      font-size: 13px;
+      color: #999;
+    }
+    .swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .swatch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #bbb;
+    }
+    .swatch i {
+      width: 22px;
+      height: 22px;
+      border: 2px solid rgba(255,255,255,.25);
+      display: block;
+    }
+
+    /* ——— Preview frame (same layout as live site) ——— */
+    .preview {
+      --cp-cut: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+      --cp-cut-sm: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+      --font: "Arial Narrow", "Roboto Condensed", "Segoe UI Condensed", Impact, system-ui, sans-serif;
+
+      font-family: var(--font);
+      text-transform: uppercase;
+      color: var(--cp-black);
+      background:
+        linear-gradient(115deg, rgba(var(--sweep-rgb), 0.14) 0 16%, transparent 16% 100%),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+        linear-gradient(rgba(0, 0, 0, 0.07) 1px, transparent 1px),
+        var(--cp-yellow);
+      background-size: auto, 28px 28px, 28px 28px, auto;
+      border: 4px solid #222;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+      font-size: 12px;
+    }
+    .preview::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 6px, rgba(0,0,0,.05) 6px 7px),
+        linear-gradient(110deg, transparent 0 48%, rgba(var(--sweep-cyan), 0.18) 50%, transparent 53% 100%);
+      mix-blend-mode: multiply;
+      opacity: 0.45;
+    }
+    .preview > * { position: relative; z-index: 1; }
+
+    .pv-header {
+      display: grid;
+      grid-template-columns: 140px 1fr auto;
+      gap: 8px;
+      padding: 10px 12px 0;
+      align-items: stretch;
+    }
+    .pv-brand {
+      background: var(--cp-black);
+      color: var(--cp-yellow);
+      clip-path: var(--cp-cut);
+      padding: 8px 10px;
+      font-weight: 1000;
+      font-size: 18px;
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 46px;
+    }
+    .pv-brand span { color: var(--cp-cyan); font-size: 11px; }
+    .pv-search {
+      border: 3px solid var(--cp-black);
+      background: var(--cp-black);
+      clip-path: var(--cp-cut-sm);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      color: var(--cp-yellow);
+      font-weight: 800;
+      min-height: 46px;
+    }
+    .pv-lang {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .pv-lang span {
+      border: 2px solid var(--cp-black);
+      background: var(--cp-black);
+      color: var(--cp-yellow);
+      padding: 6px 8px;
+      font-weight: 900;
+      font-size: 10px;
+      clip-path: var(--cp-cut-sm);
+    }
+    .pv-lang span.on {
+      background: var(--cp-red);
+      color: var(--cp-white);
+      border-color: var(--cp-red);
+    }
+
+    .pv-shell {
+      display: grid;
+      grid-template-columns: 168px 1fr;
+      gap: 10px;
+      padding: 10px 12px 12px;
+      min-height: 520px;
+    }
+    .pv-left {
+      background: var(--cp-black);
+      color: var(--cp-yellow);
+      clip-path: var(--cp-cut);
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .pv-left h3 {
+      font-size: 11px;
+      color: var(--cp-cyan);
+      margin-bottom: 4px;
+    }
+    .pv-cat {
+      border: 2px solid rgba(252, 238, 9, 0.25);
+      padding: 7px 8px;
+      font-weight: 800;
+      font-size: 10px;
+      clip-path: var(--cp-cut-sm);
+    }
+    .pv-cat.active {
+      background: var(--cp-yellow);
+      color: var(--cp-black);
+      border-color: var(--cp-yellow);
+    }
+
+    .pv-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+    .pv-spotlight {
+      background: var(--cp-black);
+      clip-path: var(--cp-cut);
+      padding: 12px 14px;
+      color: var(--cp-yellow);
+      box-shadow: 6px 6px 0 var(--cp-red);
+    }
+    .pv-kicker {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--cp-cyan);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .pv-spotlight h4 {
+      font-size: 20px;
+      font-weight: 1000;
+      margin-bottom: 10px;
+      letter-spacing: -0.04em;
+    }
+    .pv-spot-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .pv-spot {
+      border: 2px solid rgba(252, 238, 9, 0.35);
+      background: rgba(8, 8, 8, 0.85);
+      clip-path: var(--cp-cut-sm);
+      padding: 8px;
+      min-height: 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .pv-spot .cover {
+      height: 28px;
+      background: linear-gradient(135deg, rgba(var(--sweep-cyan), .35), rgba(var(--sweep-rgb), .35));
+      border: 1px solid rgba(252, 238, 9, 0.3);
+      margin-bottom: 6px;
+    }
+    .pv-spot b { font-size: 9px; line-height: 1.2; }
+    .pv-spot em {
+      font-style: normal;
+      color: var(--cp-cyan);
+      font-weight: 1000;
+      font-size: 11px;
+    }
+
+    .pv-hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 10px;
+    }
+    .pv-hero-main,
+    .pv-feature {
+      background: var(--cp-black);
+      color: var(--cp-yellow);
+      clip-path: var(--cp-cut);
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .pv-hero-main::after,
+    .pv-feature::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(115deg, transparent 0 54%, rgba(var(--sweep-rgb), 0.2) 54% 63%, transparent 63%);
+      pointer-events: none;
+    }
+    .pv-hero-main h5 {
+      font-size: 26px;
+      font-weight: 1000;
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      margin: 6px 0 8px;
+      color: var(--cp-yellow);
+      text-shadow: 2px 0 var(--cp-cyan), -2px 0 var(--cp-red);
+    }
+    .pv-hero-main p.lead {
+      font-size: 10px;
+      line-height: 1.45;
+      color: rgba(248, 246, 220, 0.78);
+      text-transform: none;
+      margin-bottom: 10px;
+      max-width: 36em;
+    }
+    .pv-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pv-btn {
+      border: 2px solid var(--cp-black);
+      background: var(--cp-yellow);
+      color: var(--cp-black);
+      font-weight: 1000;
+      font-size: 10px;
+      padding: 8px 12px;
+      clip-path: var(--cp-cut-sm);
+    }
+    .pv-btn.red {
+      background: var(--cp-red);
+      color: var(--cp-white);
+      border-color: var(--cp-red);
+    }
+    .pv-feature h6 {
+      font-size: 18px;
+      font-weight: 1000;
+      margin: 4px 0;
+    }
+    .pv-feature .live {
+      color: var(--cp-cyan);
+      font-size: 22px;
+      font-weight: 1000;
+    }
+
+    .pv-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .pv-card {
+      background: rgba(8, 8, 8, 0.92);
+      border: 2px solid rgba(252, 238, 9, 0.32);
+      clip-path: var(--cp-cut-sm);
+      padding: 8px;
+      color: var(--cp-yellow);
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .pv-card .cover {
+      height: 40px;
+      background: linear-gradient(120deg, rgba(var(--sweep-rgb), .4), rgba(var(--sweep-cyan), .25));
+      border: 1px solid rgba(252, 238, 9, 0.25);
+      margin-bottom: 6px;
+    }
+    .pv-card .title { font-size: 9px; font-weight: 900; line-height: 1.2; }
+    .pv-card .price { color: var(--cp-cyan); font-weight: 1000; font-size: 12px; }
+    .pv-card .save { font-size: 8px; color: var(--cp-red); font-weight: 800; }
+
+    .pv-modal-row {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 10px;
+      background: var(--cp-black);
+      clip-path: var(--cp-cut);
+      padding: 12px;
+      color: var(--cp-yellow);
+    }
+    .pv-modal-cover {
+      border: 3px solid var(--cp-yellow);
+      clip-path: var(--cp-cut-sm);
+      min-height: 100px;
+      background: linear-gradient(160deg, rgba(var(--sweep-rgb), .5), rgba(var(--sweep-cyan), .3));
+    }
+    .pv-modal-main h5 {
+      font-size: 18px;
+      font-weight: 1000;
+      margin-bottom: 8px;
+      padding-right: 28px;
+    }
+    .pv-offers-title {
+      display: inline-block;
+      background: var(--cp-yellow);
+      color: var(--cp-red);
+      font-weight: 1000;
+      font-size: 10px;
+      padding: 4px 6px;
+      margin-bottom: 8px;
+    }
+    .pv-offer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "shop price" "buy buy";
+      gap: 6px 10px;
+      border: 2px solid rgba(252, 238, 9, 0.32);
+      background: rgba(8, 8, 8, 0.9);
+      clip-path: var(--cp-cut-sm);
+      padding: 8px 10px;
+      margin-bottom: 6px;
+    }
+    .pv-offer.cheapest {
+      border-color: var(--cp-cyan);
+      background: rgba(var(--sweep-cyan), 0.12);
+    }
+    .pv-offer .shop { grid-area: shop; font-weight: 1000; font-size: 11px; }
+    .pv-offer .price { grid-area: price; color: var(--cp-cyan); font-weight: 1000; }
+    .pv-offer .buy {
+      grid-area: buy;
+      text-align: center;
+      background: var(--cp-yellow);
+      color: var(--cp-black);
+      font-weight: 1000;
+      font-size: 10px;
+      padding: 7px;
+      clip-path: var(--cp-cut-sm);
+    }
+    .pv-offer.cheapest .buy {
+      background: var(--cp-cyan);
+    }
+
+    @media (max-width: 900px) {
+      .pv-shell { grid-template-columns: 1fr; }
+      .pv-hero { grid-template-columns: 1fr; }
+      .pv-cards { grid-template-columns: repeat(2, 1fr); }
+      .pv-spot-row { grid-template-columns: 1fr; }
+      .pv-modal-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hub">
+    <h1>KupujPL — 10 палітр (той самий дизайн, інші кольори)</h1>
+    <p>Локальне превʼю для вибору. <strong>Не опубліковано на kupujpl.pl</strong> — відкрийте цей файл у браузері або скажіть номер палітри, коли оберете.</p>
+    <nav class="hub-nav" id="hub-nav"></nav>
+  </header>
+
+  <main class="palette-wrap" id="palettes"></main>
+
+  <script>
+    const PALETTES = [
+      {
+        id: '01',
+        name: 'Night City',
+        desc: 'Поточний сайт — жовтий CP2077 + червоний + cyan',
+        vars: {
+          '--cp-yellow': '#fcee09',
+          '--cp-black': '#080808',
+          '--cp-red': '#ff003c',
+          '--cp-cyan': '#00f0ff',
+          '--cp-white': '#f8f6dc',
+          '--sweep-rgb': '255, 0, 60',
+          '--sweep-cyan': '0, 240, 255',
+        },
+      },
+      {
+        id: '02',
+        name: 'Neon Violet',
+        desc: 'Фіолетовий фон, magenta акцент, mint cyan',
+        vars: {
+          '--cp-yellow': '#c084fc',
+          '--cp-black': '#0c0018',
+          '--cp-red': '#ff00aa',
+          '--cp-cyan': '#5eead4',
+          '--cp-white': '#faf5ff',
+          '--sweep-rgb': '255, 0, 170',
+          '--sweep-cyan': '94, 234, 212',
+        },
+      },
+      {
+        id: '03',
+        name: 'Toxic Green',
+        desc: 'Кислотний lime, помаранчевий удар, неоновий зелений',
+        vars: {
+          '--cp-yellow': '#c6ff00',
+          '--cp-black': '#0a0f00',
+          '--cp-red': '#ff6600',
+          '--cp-cyan': '#39ff14',
+          '--cp-white': '#f4ffe8',
+          '--sweep-rgb': '255, 102, 0',
+          '--sweep-cyan': '57, 255, 20',
+        },
+      },
+      {
+        id: '04',
+        name: 'Arasaka Crimson',
+        desc: 'Темно-червоний корпо, золото, білий текст',
+        vars: {
+          '--cp-yellow': '#ffd700',
+          '--cp-black': '#120003',
+          '--cp-red': '#dc143c',
+          '--cp-cyan': '#fff5e6',
+          '--cp-white': '#fff8f0',
+          '--sweep-rgb': '220, 20, 60',
+          '--sweep-cyan': '255, 245, 230',
+        },
+      },
+      {
+        id: '05',
+        name: 'Netrunner Blue',
+        desc: 'Електрик blue фон, hot pink, sky cyan',
+        vars: {
+          '--cp-yellow': '#3b82f6',
+          '--cp-black': '#020617',
+          '--cp-red': '#ff006e',
+          '--cp-cyan': '#67e8f9',
+          '--cp-white': '#eff6ff',
+          '--sweep-rgb': '255, 0, 110',
+          '--sweep-cyan': '103, 232, 249',
+        },
+      },
+      {
+        id: '06',
+        name: 'Sunset Blaze',
+        desc: 'Помаранчевий захід, жовтий, coral red',
+        vars: {
+          '--cp-yellow': '#ff8c00',
+          '--cp-black': '#1a0800',
+          '--cp-red': '#ff3366',
+          '--cp-cyan': '#ffd000',
+          '--cp-white': '#fff4e6',
+          '--sweep-rgb': '255, 51, 102',
+          '--sweep-cyan': '255, 208, 0',
+        },
+      },
+      {
+        id: '07',
+        name: 'Arctic ICE',
+        desc: 'Холодний ice-blue, navy, яскравий cyan',
+        vars: {
+          '--cp-yellow': '#dbeafe',
+          '--cp-black': '#001428',
+          '--cp-red': '#0077ff',
+          '--cp-cyan': '#00e5ff',
+          '--cp-white': '#f0f9ff',
+          '--sweep-rgb': '0, 119, 255',
+          '--sweep-cyan': '0, 229, 255',
+        },
+      },
+      {
+        id: '08',
+        name: 'Synthwave',
+        desc: 'Magenta / purple retro, жовтий neon, cyan',
+        vars: {
+          '--cp-yellow': '#ff006e',
+          '--cp-black': '#12001a',
+          '--cp-red': '#8338ec',
+          '--cp-cyan': '#00f5ff',
+          '--cp-white': '#ffe8f5',
+          '--sweep-rgb': '131, 56, 236',
+          '--sweep-cyan': '0, 245, 255',
+        },
+      },
+      {
+        id: '09',
+        name: 'Militech Olive',
+        desc: 'Olive / military, amber warning, teal',
+        vars: {
+          '--cp-yellow': '#9acd32',
+          '--cp-black': '#0f1108',
+          '--cp-red': '#ffb000',
+          '--cp-cyan': '#00a896',
+          '--cp-white': '#f5f7eb',
+          '--sweep-rgb': '255, 176, 0',
+          '--sweep-cyan': '0, 168, 150',
+        },
+      },
+      {
+        id: '10',
+        name: 'Void Purple',
+        desc: 'Deep void purple, neon pink, violet glow',
+        vars: {
+          '--cp-yellow': '#7c3aed',
+          '--cp-black': '#050008',
+          '--cp-red': '#ff2d95',
+          '--cp-cyan': '#b967ff',
+          '--cp-white': '#f5e8ff',
+          '--sweep-rgb': '255, 45, 149',
+          '--sweep-cyan': '185, 103, 255',
+        },
+      },
+    ];
+
+    function swatch(label, color) {
+      return `<span class="swatch"><i style="background:${color}"></i>${label} ${color}</span>`;
+    }
+
+    function previewHtml() {
+      return `
+        <div class="pv-header">
+          <div class="pv-brand">Kupuj<span>PL</span><span>Gry</span></div>
+          <div class="pv-search">Szukaj gier…</div>
+          <div class="pv-lang"><span class="on">PL</span><span>UA</span><span>EN</span></div>
+        </div>
+        <div class="pv-shell">
+          <aside class="pv-left">
+            <h3>Kategorie</h3>
+            <div class="pv-cat active">Wszystkie</div>
+            <div class="pv-cat">RPG</div>
+            <div class="pv-cat">Akcja</div>
+            <div class="pv-cat">Top sprzedaż</div>
+          </aside>
+          <div class="pv-right">
+            <section class="pv-spotlight">
+              <p class="pv-kicker">night city // twój wybór</p>
+              <h4>Polecane</h4>
+              <div class="pv-spot-row">
+                <div class="pv-spot"><div class="cover"></div><b>Cyberpunk 2077</b><em>59,69 zł</em></div>
+                <div class="pv-spot"><div class="cover"></div><b>ELDEN RING</b><em>194,73 zł</em></div>
+                <div class="pv-spot"><div class="cover"></div><b>Baldur's Gate 3</b><em>186,75 zł</em></div>
+              </div>
+            </section>
+            <section class="pv-hero">
+              <div class="pv-hero-main">
+                <p class="pv-kicker">night city // najniższa cena</p>
+                <h5>Wstań<br>łowco okazji</h5>
+                <p class="lead">Porównujemy ceny w 10 sklepach — Steam, GOG, Epic, keyshopy. Skan na żywo.</p>
+                <div class="pv-btns">
+                  <span class="pv-btn">Skanuj ceny</span>
+                  <span class="pv-btn red">Zgłoś błąd</span>
+                </div>
+              </div>
+              <div class="pv-feature">
+                <p class="pv-kicker">polecana okazja</p>
+                <h6>Cyber Okazje</h6>
+                <p class="live">na żywo</p>
+                <span>10 sklepów // 5000+ gier</span>
+              </div>
+            </section>
+            <section class="pv-cards">
+              <article class="pv-card"><div class="cover"></div><span class="title">Rust</span><span class="price">119,99 zł</span></article>
+              <article class="pv-card"><div class="cover"></div><span class="title">Palworld</span><span class="price">89,00 zł</span><span class="save">−22% vs Steam</span></article>
+              <article class="pv-card"><div class="cover"></div><span class="title">Red Dead 2</span><span class="price">149,99 zł</span></article>
+              <article class="pv-card"><div class="cover"></div><span class="title">Forza Horizon 6</span><span class="price">249,00 zł</span></article>
+            </section>
+            <section class="pv-modal-row">
+              <div class="pv-modal-cover"></div>
+              <div class="pv-modal-main">
+                <h5>Cyberpunk 2077</h5>
+                <span class="pv-offers-title">Ceny w sklepach</span>
+                <div class="pv-offer cheapest">
+                  <span class="shop">GOG</span>
+                  <span class="price">59,69 zł</span>
+                  <span class="buy">Kup najtaniej — 59,69 zł</span>
+                </div>
+                <div class="pv-offer">
+                  <span class="shop">Steam</span>
+                  <span class="price">199,00 zł</span>
+                  <span class="buy">Kup</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>`;
+    }
+
+    const nav = document.getElementById('hub-nav');
+    const root = document.getElementById('palettes');
+
+    PALETTES.forEach((p) => {
+      const style = Object.entries(p.vars).map(([k, v]) => `${k}:${v}`).join(';');
+      nav.insertAdjacentHTML('beforeend', `<a href="#palette-${p.id}">${p.id} ${p.name}</a>`);
+      root.insertAdjacentHTML('beforeend', `
+        <section class="palette-section" id="palette-${p.id}">
+          <div class="palette-meta">
+            <h2>${p.id} — ${p.name}</h2>
+            <p>${p.desc}</p>
+          </div>
+          <div class="swatches">
+            ${swatch('Primary', p.vars['--cp-yellow'])}
+            ${swatch('Dark', p.vars['--cp-black'])}
+            ${swatch('Hot', p.vars['--cp-red'])}
+            ${swatch('Cool', p.vars['--cp-cyan'])}
+          </div>
+          <div class="preview" style="${style}">${previewHtml()}</div>
+        </section>`);
+    });
+  </script>
+</body>
+</html>

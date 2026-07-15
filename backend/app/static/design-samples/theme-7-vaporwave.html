@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 7 — Vaporwave | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Space+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root{--pink:#ff71ce;--purple:#b967ff;--blue:#01cdfe;--mint:#05ffa1;--bg:#1a0033;--text:#fff}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh}
+        body::before{content:'';position:fixed;inset:0;background:linear-gradient(180deg,#ff71ce33 0%,transparent 40%),repeating-linear-gradient(90deg,transparent,transparent 79px,rgba(1,205,254,.08) 79px,rgba(1,205,254,.08) 80px),linear-gradient(180deg,transparent 60%,rgba(185,103,255,.2) 100%);pointer-events:none}
+        body::after{content:'';position:fixed;bottom:0;left:0;right:0;height:40%;background:linear-gradient(transparent,rgba(1,205,254,.15));transform:perspective(200px) rotateX(60deg);transform-origin:bottom;pointer-events:none}
+        .wrap{max-width:1180px;margin:0 auto;padding:0 20px;position:relative}
+        .badge{position:fixed;top:16px;right:16px;z-index:99;background:linear-gradient(135deg,var(--pink),var(--purple));padding:8px 16px;font-family:Syncopate,sans-serif;font-size:10px;letter-spacing:.1em}
+        header{display:flex;align-items:center;gap:20px;height:70px;border-bottom:2px solid var(--pink)}
+        .logo{font-family:Syncopate,sans-serif;font-size:18px;text-decoration:none;color:var(--mint);letter-spacing:.08em}
+        .logo span{color:var(--pink)}
+        .search{flex:1;max-width:400px;height:42px;background:rgba(255,255,255,.08);border:2px solid var(--blue);padding:0 16px;color:#fff;font:inherit}
+        .nav a{color:var(--pink);text-decoration:none;font-size:13px}
+        .hero{padding:40px 0;text-align:center}
+        .hero h1{font-family:Syncopate,sans-serif;font-size:clamp(1.5rem,4vw,2.5rem);background:linear-gradient(90deg,var(--pink),var(--blue),var(--mint));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero p{color:#c8a0ff;margin-top:12px;font-size:13px}
+        .cats{display:flex;gap:10px;flex-wrap:wrap;padding:16px 0;justify-content:center}
+        .cat{padding:8px 18px;border:2px solid var(--purple);background:transparent;color:var(--pink);font:inherit;font-size:12px;cursor:pointer}
+        .cat.active{background:linear-gradient(135deg,var(--pink),var(--purple));border-color:transparent;color:#fff}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;padding-bottom:48px}
+        .card{background:rgba(255,255,255,.06);border:2px solid var(--blue);overflow:hidden;transition:.3s}
+        .card:hover{box-shadow:0 0 30px rgba(255,113,206,.4);transform:translateY(-4px)}
+        .card img{width:100%;aspect-ratio:460/215;object-fit:cover;filter:saturate(1.3) hue-rotate(-10deg)}
+        .card-body{padding:14px}
+        .card h3{font-size:14px;margin-bottom:8px}
+        .price{color:var(--mint);font-size:16px;font-weight:700}
+    </style>
+</head>
+<body>
+    <div class="badge">STYL 7</div>
+    <header class="wrap"><a class="logo" href="#">KUPUJ<span>PL</span></a><input class="search" placeholder="szukaj w synthwave..."><nav class="nav"><a href="#">Zaloguj</a></nav></header>
+    <div class="hero wrap"><h1>A E S T H E T I C<br>DEALS</h1><p>87k gier · retro-future vibes</p></div>
+    <main class="wrap">
+        <div class="cats"><button class="cat active">Wszystkie</button><button class="cat">Akcja</button><button class="cat">RPG</button><button class="cat">Indie</button></div>
+        <div class="grid">
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt=""><div class="card-body"><h3>Counter-Strike 2</h3><div class="price">0,00 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt=""><div class="card-body"><h3>Wiedźmin 3</h3><div class="price">29,80 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt=""><div class="card-body"><h3>Cyberpunk 2077</h3><div class="price">119,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt=""><div class="card-body"><h3>Hades</h3><div class="price">47,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt=""><div class="card-body"><h3>Elden Ring</h3><div class="price">149,99 zł</div></div></article>
+        </div>
+    </main>
+</body>
+</html>

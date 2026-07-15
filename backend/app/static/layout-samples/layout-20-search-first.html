@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 20 — Search first | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .hero-search { text-align: center; padding: 48px 20px 32px; max-width: 640px; margin: 0 auto; }
+        .hero-search h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin-bottom: 8px; }
+        .hero-search p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+        .big-search { width: 100%; height: 52px; border-radius: 26px; border: 2px solid var(--blue); background: var(--surface); color: #fff; font: inherit; font-size: 16px; padding: 0 24px; }
+        .big-search:focus { outline: none; box-shadow: 0 0 0 4px rgba(0,112,209,.2); }
+        .underline-tabs { display: flex; gap: 0; justify-content: center; border-bottom: 1px solid var(--border); max-width: var(--wrap); margin: 0 auto; overflow-x: auto; }
+        .utab { padding: 14px 20px; background: none; border: none; color: var(--muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+        .utab.active { color: var(--blue-light); border-bottom-color: var(--blue-light); }
+        main { max-width: var(--wrap); margin: 0 auto; padding: 28px 20px 48px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 20</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><a class="nav" href="#" style="margin-left:auto">Zaloguj</a></header>
+    <div class="hero-search">
+        <h1>Znajdź najlepszą cenę</h1>
+        <p>87 000+ gier PC · porównaj sklepy w PLN</p>
+        <input class="big-search" type="search" placeholder="Wpisz nazwę gry…">
+    </div>
+    <nav class="underline-tabs" id="tabs"></nav>
+    <main><div class="grid" id="grid"></div></main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('tabs').innerHTML = MOCK_CATS.map((c,i)=>`<button class="utab${i===0?' active':''}">${c}</button>`).join('');
+        document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');
+    </script>
+</body>
+</html>

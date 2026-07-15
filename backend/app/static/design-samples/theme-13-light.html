@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 13 — Clean Light | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#f5f7fa;--surface:#fff;--border:#e2e8f0;--accent:#6366f1;--accent2:#8b5cf6;--text:#1e293b;--muted:#64748b;--price:#059669}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+        .badge{position:fixed;top:16px;right:16px;z-index:99;background:var(--accent);color:#fff;padding:6px 14px;font-size:11px;font-weight:700;border-radius:8px}
+        header{display:flex;align-items:center;gap:24px;height:64px;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.05)}
+        .logo{font-size:20px;font-weight:700;text-decoration:none;color:var(--text)}
+        .logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .search{flex:1;max-width:420px;height:40px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0 14px;color:var(--text);font:inherit}
+        .search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+        .nav a{color:var(--accent);text-decoration:none;font-weight:600;font-size:14px}
+        .hero{padding:48px 0 32px}
+        .hero h1{font-size:clamp(2rem,4vw,2.8rem);font-weight:700;letter-spacing:-.02em;line-height:1.2}
+        .hero p{color:var(--muted);margin-top:12px;font-size:16px}
+        .cats{display:flex;gap:8px;flex-wrap:wrap;padding:8px 0 24px}
+        .cat{padding:8px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted);font:inherit;font-size:13px;font-weight:500;cursor:pointer}
+        .cat.active{background:var(--accent);border-color:var(--accent);color:#fff}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding-bottom:48px}
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+        .card:hover{box-shadow:0 8px 24px rgba(99,102,241,.12);border-color:var(--accent);transform:translateY(-2px)}
+        .card img{width:100%;aspect-ratio:460/215;object-fit:cover}
+        .card-body{padding:14px 16px}
+        .card h3{font-size:15px;font-weight:600;margin-bottom:6px}
+        .price{color:var(--price);font-size:17px;font-weight:700}
+    </style>
+</head>
+<body>
+    <div class="badge">STYL 13</div>
+    <header class="wrap"><a class="logo" href="#">Kupuj<span>PL</span> Gry</a><input class="search" placeholder="Szukaj gier..."><nav class="nav"><a href="#">Zaloguj</a></nav></header>
+    <div class="hero wrap"><h1>Jasny sklep.<br>Bez zbędnego szumu.</h1><p>87 000+ gier PC · czytelne porównanie cen</p></div>
+    <main class="wrap">
+        <div class="cats"><button class="cat active">Wszystkie</button><button class="cat">Akcja</button><button class="cat">RPG</button><button class="cat">Indie</button></div>
+        <div class="grid">
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt=""><div class="card-body"><h3>Counter-Strike 2</h3><div class="price">0,00 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt=""><div class="card-body"><h3>Wiedźmin 3</h3><div class="price">29,80 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt=""><div class="card-body"><h3>Cyberpunk 2077</h3><div class="price">119,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt=""><div class="card-body"><h3>Hades</h3><div class="price">47,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt=""><div class="card-body"><h3>Elden Ring</h3><div class="price">149,99 zł</div></div></article>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 16 — FAB filtr | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        main { max-width: var(--wrap); margin: 0 auto; padding: 24px 20px 80px; }
+        .head { margin-bottom: 20px; }
+        .head h1 { font-size: 26px; margin-bottom: 4px; }
+        .head p { color: var(--muted); font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+        .fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--blue); color: #fff; border: none; font-size: 22px; cursor: pointer; box-shadow: 0 8px 24px rgba(0,112,209,.45); z-index: 50; }
+        .fab-panel { position: fixed; bottom: 90px; right: 24px; width: 260px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; z-index: 50; box-shadow: 0 16px 48px rgba(0,0,0,.5); }
+        .fab-panel h3 { font-size: 13px; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; }
+        .fab-panel .cat { display: block; width: 100%; text-align: left; margin-bottom: 6px; border: none; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 16</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <main>
+        <div class="head"><h1>Katalog gier</h1><p>Pełna szerokość siatki · filtry w FAB</p></div>
+        <div class="grid" id="grid"></div>
+    </main>
+    <div class="fab-panel"><h3>Kategorie</h3><div id="cats"></div></div>
+    <button class="fab" type="button" title="Filtry">☰</button>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = MOCK_CATS.map((c,i)=>`<button class="cat${i===0?' active':''}">${c}</button>`).join('');
+        document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');
+    </script>
+</body>
+</html>

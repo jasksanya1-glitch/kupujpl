@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 1 — Sidebar kategorii | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .layout { display: grid; grid-template-columns: 220px 1fr; gap: 24px; padding: 24px 20px 48px; max-width: var(--wrap); margin: 0 auto; }
+        .sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; height: fit-content; position: sticky; top: 80px; }
+        .sidebar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 12px; }
+        .sidebar .cat { display: block; width: 100%; text-align: left; border-radius: 8px; margin-bottom: 6px; border: none; }
+        .sidebar .cat.active { background: rgba(0,112,209,.2); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+        .main-head { margin-bottom: 16px; }
+        .main-head h1 { font-size: 22px; margin-bottom: 4px; }
+        .main-head p { color: var(--muted); font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 1</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj gry…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>Kategorie</h2>
+            <button class="cat active">Wszystkie</button>
+            <button class="cat">Akcja</button>
+            <button class="cat">RPG</button>
+            <button class="cat">Indie</button>
+            <button class="cat">Sport</button>
+            <button class="cat">Strategie</button>
+            <button class="cat">Przygodowe</button>
+        </aside>
+        <div>
+            <div class="main-head"><h1>Wszystkie gry</h1><p>87 000+ tytułów · kategorie po lewej</p></div>
+            <div class="grid" id="grid"></div>
+        </div>
+    </div>
+    <script src="layout-shared.js"></script>
+    <script>document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');</script>
+</body>
+</html>

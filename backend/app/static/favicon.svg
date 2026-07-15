@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="KupujPL Gry">
+  <rect width="32" height="32" fill="#fcee09"/>
+  <path d="M3 3h26v26H3z" fill="#080808"/>
+  <path d="M3 3h8L3 11V3zm26 26h-8l8-8v8z" fill="#ff003c"/>
+  <path d="M7 6h5v20H7z" fill="#00f0ff"/>
+  <path d="M11 6h5v8l7-8h6l-9 10 9 10h-7l-6-7v7h-5z" fill="#fcee09"/>
+  <path d="M22 5h5v5h-5z" fill="#ff003c"/>
+</svg>

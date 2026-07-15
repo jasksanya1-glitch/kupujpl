@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 3 — Dropdown + chipy | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .filters { max-width: var(--wrap); margin: 0 auto; padding: 20px 20px 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .filters select { height: 40px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: #fff; padding: 0 14px; font: inherit; min-width: 160px; }
+        .chips { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+        .chip { padding: 6px 14px; border-radius: 999px; font-size: 12px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); cursor: pointer; }
+        .chip.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+        main { max-width: var(--wrap); margin: 0 auto; padding: 20px 20px 48px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 3</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj gry…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="filters">
+        <select><option>Wszystkie kategorie</option><option>Akcja</option><option>RPG</option><option>Indie</option></select>
+        <select><option>Sortuj: Trafność</option><option>Cena rosnąco</option><option>Cena malejąco</option></select>
+        <div class="chips">
+            <span class="chip on">Steam</span><span class="chip">GOG</span><span class="chip">Epic</span><span class="chip">Poniżej 50 zł</span>
+        </div>
+    </div>
+    <main><div class="grid" id="grid"></div></main>
+    <script src="layout-shared.js"></script>
+    <script>document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');</script>
+</body>
+</html>

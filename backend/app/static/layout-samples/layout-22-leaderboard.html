@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 22 — Leaderboard | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        main { max-width: 720px; margin: 0 auto; padding: 20px 20px 48px; }
+        .cats { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+        .lb-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer; transition: .15s; }
+        .lb-row:hover { border-color: var(--blue); background: rgba(0,112,209,.08); }
+        .lb-rank { width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+        .lb-row:nth-child(1) .lb-rank { background: linear-gradient(135deg,#ffd700,#ffb300); color: #000; }
+        .lb-row:nth-child(2) .lb-rank { background: linear-gradient(135deg,#c0c0c0,#909090); color: #000; }
+        .lb-row:nth-child(3) .lb-rank { background: linear-gradient(135deg,#cd7f32,#a0522d); color: #fff; }
+        .lb-row img { width: 72px; height: 34px; object-fit: cover; border-radius: 6px; }
+        .lb-info { flex: 1; min-width: 0; }
+        .lb-info h3 { font-size: 15px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lb-info span { font-size: 12px; color: var(--muted); }
+        .lb-price { font-size: 18px; font-weight: 700; color: var(--blue-light); }
+        .lb-badge { font-size: 11px; background: rgba(5,255,161,.15); color: #05ffa1; padding: 3px 8px; border-radius: 999px; margin-left: 8px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 22</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <main>
+        <div class="cats" id="cats"></div>
+        <div id="rows"></div>
+    </main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('rows').innerHTML = MOCK_GAMES.map((g, i) => `
+            <div class="lb-row">
+                <div class="lb-rank">${i + 1}</div>
+                <img src="${g.img}" alt="">
+                <div class="lb-info"><h3>${g.title}</h3><span>Steam · GOG · Epic</span></div>
+                <div><span class="lb-price">${g.price}</span>${i < 3 ? '<span class="lb-badge">HIT</span>' : ''}</div>
+            </div>
+        `).join('');
+    </script>
+</body>
+</html>

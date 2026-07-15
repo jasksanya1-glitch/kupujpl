@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KupujPL — Gamer Cyberpunk Prototype</title>
+  <style>
+    :root {
+      --bg: #03040a;
+      --ink: #eef8ff;
+      --muted: #7f9bb7;
+      --cyan: #00e7ff;
+      --pink: #ff2ac6;
+      --violet: #8b5cff;
+      --green: #00ff8a;
+      --yellow: #ffe45c;
+      --danger: #ff3d5a;
+      --panel: rgba(8, 13, 26, .84);
+      --panel-2: rgba(15, 22, 42, .88);
+      --stroke: rgba(104, 214, 255, .28);
+      --stroke-hot: rgba(0, 231, 255, .72);
+      --radius: 20px;
+      --font: Inter, "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 16% 8%, rgba(255, 42, 198, .22), transparent 34%),
+        radial-gradient(circle at 76% 10%, rgba(0, 231, 255, .2), transparent 36%),
+        radial-gradient(circle at 50% 92%, rgba(139, 92, 255, .2), transparent 38%),
+        var(--bg);
+      font-family: var(--font);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(0, 231, 255, .06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 231, 255, .045) 1px, transparent 1px),
+        repeating-linear-gradient(0deg, transparent 0 6px, rgba(255,255,255,.018) 6px 7px);
+      background-size: 54px 54px, 54px 54px, 100% 7px;
+      mask-image: linear-gradient(to bottom, #000 0%, transparent 80%);
+      z-index: -2;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(115deg, transparent 0 40%, rgba(0,231,255,.08) 48%, transparent 55% 100%);
+      animation: globalSweep 9s infinite linear;
+      z-index: -1;
+    }
+
+    @keyframes globalSweep {
+      from { transform: translateX(-80%); }
+      to { transform: translateX(80%); }
+    }
+
+    @keyframes scanX {
+      from { transform: translateX(-120%); }
+      to { transform: translateX(220%); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: .48; transform: scale(.92); }
+      50% { opacity: 1; transform: scale(1.1); }
+    }
+
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes equalizer {
+      0%, 100% { height: 18%; }
+      50% { height: 94%; }
+    }
+
+    @keyframes orbit {
+      to { transform: rotate(360deg); }
+    }
+
+    .app {
+      max-width: 1520px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    .topbar {
+      height: 74px;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      border: 1px solid var(--stroke);
+      background: rgba(3, 6, 14, .74);
+      border-radius: 24px;
+      padding: 12px 14px;
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 14px;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--ink);
+      min-width: 0;
+    }
+
+    .logo-mark {
+      width: 46px;
+      height: 46px;
+      border: 1px solid var(--cyan);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+      font-weight: 1000;
+      background: rgba(0, 231, 255, .1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo-mark::after {
+      content: "";
+      position: absolute;
+      inset: -30%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+      animation: scanX 3s infinite linear;
+    }
+
+    .brand-title {
+      font-size: 25px;
+      font-weight: 1000;
+      letter-spacing: -.05em;
+      line-height: .95;
+    }
+
+    .brand-title span { color: var(--cyan); text-shadow: 0 0 24px rgba(0,231,255,.7); }
+    .brand-sub { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .16em; margin-top: 4px; }
+
+    .search {
+      height: 48px;
+      border: 1px solid rgba(0, 231, 255, .62);
+      border-radius: 16px;
+      background: rgba(0, 231, 255, .08);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      color: #bceeff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .search::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 90px;
+      background: rgba(0, 231, 255, .16);
+      transform: skewX(-20deg);
+      animation: scanX 4s infinite linear;
+    }
+
+    .search span { position: relative; z-index: 1; }
+    .cursor { width: 2px; height: 22px; background: var(--cyan); animation: pulse 1s infinite; }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pill {
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      padding: 10px 13px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      background: rgba(255,255,255,.035);
+    }
+
+    .pill.hot { color: var(--green); border-color: rgba(0,255,138,.5); background: rgba(0,255,138,.08); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr) 320px;
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .sidebar, .hud, .hero, .game-card, .scan-card, .deal-strip {
+      border: 1px solid var(--stroke);
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+    }
+
+    .sidebar {
+      border-radius: 24px;
+      padding: 18px;
+      position: sticky;
+      top: 106px;
+    }
+
+    .side-title, .section-kicker {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      font-weight: 900;
+    }
+
+    .cats {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .cat {
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.035);
+      border-radius: 14px;
+      padding: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #bad4e8;
+      font-weight: 800;
+    }
+
+    .cat.active {
+      color: var(--ink);
+      border-color: var(--cyan);
+      background: rgba(0,231,255,.12);
+      box-shadow: inset 0 0 24px rgba(0,231,255,.08);
+    }
+
+    .cat small { color: var(--muted); }
+
+    .side-eq {
+      margin-top: 18px;
+      height: 116px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      padding: 16px;
+      display: flex;
+      align-items: end;
+      gap: 7px;
+      background: rgba(255,255,255,.03);
+    }
+
+    .bar {
+      flex: 1;
+      min-height: 12px;
+      background: var(--cyan);
+      border-radius: 999px;
+      animation: equalizer 1.4s infinite ease-in-out;
+      opacity: .8;
+    }
+
+    .bar:nth-child(2) { animation-delay: .12s; background: var(--pink); }
+    .bar:nth-child(3) { animation-delay: .24s; background: var(--green); }
+    .bar:nth-child(4) { animation-delay: .36s; background: var(--violet); }
+    .bar:nth-child(5) { animation-delay: .48s; background: var(--yellow); }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .hero {
+      min-height: 430px;
+      border-radius: 30px;
+      padding: 26px;
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 22px;
+      align-items: stretch;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 74% 34%, rgba(255,42,198,.18), transparent 36%),
+        linear-gradient(125deg, rgba(0,231,255,.16), transparent 44%);
+      pointer-events: none;
+    }
+
+    .hero-main {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-width: 0;
+    }
+
+    .hero h1 {
+      font-size: clamp(46px, 7vw, 104px);
+      line-height: .86;
+      letter-spacing: -.075em;
+      text-transform: uppercase;
+      max-width: 820px;
+      margin-top: 16px;
+    }
+
+    .hero h1 span {
+      color: var(--cyan);
+      text-shadow: 0 0 34px rgba(0,231,255,.7);
+    }
+
+    .hero-copy {
+      color: #b5c8dc;
+      font-size: 17px;
+      line-height: 1.6;
+      max-width: 680px;
+      margin-top: 18px;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .btn {
+      border: 1px solid var(--cyan);
+      border-radius: 14px;
+      padding: 14px 18px;
+      background: rgba(0,231,255,.12);
+      color: var(--ink);
+      font-weight: 1000;
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: 13px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+      animation: scanX 3.5s infinite linear;
+    }
+
+    .btn.alt {
+      border-color: var(--pink);
+      background: rgba(255,42,198,.1);
+    }
+
+    .hero-art {
+      position: relative;
+      z-index: 1;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 26px;
+      background:
+        linear-gradient(150deg, rgba(0,231,255,.18), transparent 42%),
+        linear-gradient(330deg, rgba(255,42,198,.22), transparent 48%),
+        rgba(4, 8, 18, .72);
+      padding: 18px;
+      overflow: hidden;
+      animation: floaty 6s infinite ease-in-out;
+    }
+
+    .hero-art::before {
+      content: "";
+      position: absolute;
+      inset: 24px;
+      border: 1px solid rgba(0,231,255,.38);
+      border-radius: 50%;
+    }
+
+    .hero-art::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 160px;
+      height: 3px;
+      background: var(--cyan);
+      transform-origin: left center;
+      animation: orbit 3s infinite linear;
+    }
+
+    .cover-title {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 24px;
+      z-index: 2;
+    }
+
+    .cover-title h2 {
+      font-size: 38px;
+      line-height: .95;
+      text-transform: uppercase;
+    }
+
+    .cover-title p {
+      color: var(--green);
+      font-size: 24px;
+      font-weight: 1000;
+      margin-top: 12px;
+    }
+
+    .deal-strip {
+      border-radius: 22px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .deal-strip::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: var(--green);
+      box-shadow: 0 0 22px var(--green);
+    }
+
+    .deal-strip strong { font-size: 18px; }
+    .deal-strip span { color: var(--muted); font-size: 13px; }
+
+    .grid-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 14px;
+      margin: 4px 2px -2px;
+    }
+
+    .grid-head h2 {
+      font-size: 30px;
+      letter-spacing: -.04em;
+    }
+
+    .games {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .game-card {
+      border-radius: 22px;
+      padding: 13px;
+      min-height: 260px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .18s ease, border-color .18s ease;
+    }
+
+    .game-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--stroke-hot);
+    }
+
+    .game-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 22px;
+      height: 2px;
+      width: 80%;
+      background: var(--cyan);
+      opacity: .7;
+      animation: scanX 4s infinite linear;
+    }
+
+    .thumb {
+      height: 138px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.08);
+      background:
+        linear-gradient(135deg, rgba(0,231,255,.26), transparent 44%),
+        linear-gradient(315deg, rgba(255,42,198,.24), transparent 46%),
+        #0a1020;
+      display: flex;
+      align-items: end;
+      padding: 12px;
+      color: #9eb6cc;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    .game-card h3 {
+      margin-top: 13px;
+      font-size: 20px;
+      letter-spacing: -.035em;
+    }
+
+    .shops {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .shop {
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .card-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .card-price {
+      color: var(--green);
+      font-weight: 1000;
+      font-size: 24px;
+    }
+
+    .save {
+      color: var(--yellow);
+      font-size: 12px;
+      font-weight: 1000;
+      text-transform: uppercase;
+    }
+
+    .hud {
+      border-radius: 24px;
+      padding: 18px;
+      position: sticky;
+      top: 106px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .scan-card {
+      border-radius: 20px;
+      padding: 16px;
+      background: rgba(3, 7, 16, .74);
+    }
+
+    .radar {
+      width: 174px;
+      height: 174px;
+      margin: 14px auto;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      position: relative;
+      background: rgba(0,231,255,.045);
+      overflow: hidden;
+    }
+
+    .radar::before, .radar::after {
+      content: "";
+      position: absolute;
+      border: 1px solid rgba(0,231,255,.25);
+      border-radius: 50%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .radar::before { width: 112px; height: 112px; }
+    .radar::after { width: 56px; height: 56px; }
+
+    .sweep {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 82px;
+      height: 2px;
+      background: var(--cyan);
+      transform-origin: left center;
+      animation: orbit 2.2s infinite linear;
+      box-shadow: 0 0 18px var(--cyan);
+    }
+
+    .scan-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      border-top: 1px solid rgba(255,255,255,.08);
+      padding: 10px 0;
+      color: #c4d7e8;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 16px var(--green);
+      animation: pulse 1.4s infinite;
+    }
+
+    .dot.miss { background: var(--danger); box-shadow: 0 0 16px var(--danger); }
+
+    .leaderboard {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .leader {
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(255,255,255,.035);
+    }
+
+    .leader b { display: block; }
+    .leader span { color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 240px minmax(0, 1fr); }
+      .hud { grid-column: 1 / -1; position: static; display: grid; grid-template-columns: repeat(3, 1fr); }
+      .hero { grid-template-columns: 1fr; }
+      .hero-art { min-height: 320px; }
+    }
+
+    @media (max-width: 820px) {
+      .app { padding: 12px; }
+      .topbar { position: static; grid-template-columns: 1fr; height: auto; }
+      .top-actions { flex-wrap: wrap; }
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
+      .games { grid-template-columns: 1fr; }
+      .hud { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 48px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="#">
+        <span class="logo-mark">K</span>
+        <span>
+          <span class="brand-title">Kupuj<span>PL</span></span>
+          <span class="brand-sub">gaming price hub</span>
+        </span>
+      </a>
+      <div class="search">
+        <span class="cursor"></span>
+        <span>Szukaj gry, DLC albo najtańszego keyshopu...</span>
+      </div>
+      <div class="top-actions">
+        <span class="pill hot">live scan</span>
+        <span class="pill">9 shops</span>
+        <span class="pill">5000 games</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <p class="side-title">districts</p>
+        <div class="cats">
+          <div class="cat active"><span>Wszystkie gry</span><small>5k</small></div>
+          <div class="cat"><span>RPG / Open World</span><small>812</small></div>
+          <div class="cat"><span>Akcja</span><small>693</small></div>
+          <div class="cat"><span>Wyścigi</span><small>214</small></div>
+          <div class="cat"><span>DLC / Editions</span><small>1.2k</small></div>
+          <div class="cat"><span>Największe zniżki</span><small>hot</small></div>
+        </div>
+        <div class="side-eq" aria-hidden="true">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="hero">
+          <div class="hero-main">
+            <div>
+              <p class="section-kicker">next-gen gamer cyberpunk</p>
+              <h1>Find the <span>cheapest</span> game before the city wakes</h1>
+              <p class="hero-copy">
+                Bardziej gamer, mniej biedny landing. Neonowy launcher, mocny hero, aktywny skaner cen,
+                kategorie jak dzielnice miasta i karty gier z efektem live-deal.
+              </p>
+              <div class="cta-row">
+                <a class="btn" href="#deals">Start price hunt</a>
+                <a class="btn alt" href="#scan">Watch live scan</a>
+              </div>
+            </div>
+            <div class="deal-strip">
+              <span class="pill hot">best now</span>
+              <div>
+                <strong>Cyberpunk 2077 Ultimate Edition</strong>
+                <br><span>GOG · tracked 2 min ago · official store</span>
+              </div>
+              <strong class="card-price">49,99 zl</strong>
+            </div>
+          </div>
+
+          <div class="hero-art">
+            <div class="cover-title">
+              <p class="section-kicker">featured deal</p>
+              <h2>Cyberpunk<br>2077</h2>
+              <p>49,99 zl</p>
+            </div>
+          </div>
+        </section>
+
+        <div id="deals" class="grid-head">
+          <div>
+            <p class="section-kicker">hot deals</p>
+            <h2>Cyber deals dla graczy</h2>
+          </div>
+          <span class="pill">sorted by lowest price</span>
+        </div>
+
+        <section class="games">
+          <article class="game-card">
+            <div class="thumb">open world</div>
+            <h3>Cyberpunk 2077</h3>
+            <div class="shops"><span class="shop">GOG</span><span class="shop">Steam</span><span class="shop">Kinguin</span></div>
+            <div class="card-foot"><span class="card-price">49,99 zl</span><span class="save">save 72%</span></div>
+          </article>
+          <article class="game-card">
+            <div class="thumb">rpg party</div>
+            <h3>Baldur's Gate 3</h3>
+            <div class="shops"><span class="shop">Steam</span><span class="shop">GOG</span><span class="shop">CDKeys</span></div>
+            <div class="card-foot"><span class="card-price">129,00 zl</span><span class="save">official</span></div>
+          </article>
+          <article class="game-card">
+            <div class="thumb">soulslike</div>
+            <h3>Elden Ring</h3>
+            <div class="shops"><span class="shop">Kinguin</span><span class="shop">G2A</span><span class="shop">Gamivo</span></div>
+            <div class="card-foot"><span class="card-price">159,90 zl</span><span class="save">key hit</span></div>
+          </article>
+          <article class="game-card">
+            <div class="thumb">racing</div>
+            <h3>F1 25</h3>
+            <div class="shops"><span class="shop">G2A</span><span class="shop">CDKeys</span><span class="shop">Steam</span></div>
+            <div class="card-foot"><span class="card-price">219,00 zl</span><span class="save">new</span></div>
+          </article>
+          <article class="game-card">
+            <div class="thumb">magic</div>
+            <h3>Hogwarts Legacy</h3>
+            <div class="shops"><span class="shop">Steam</span><span class="shop">G2A</span><span class="shop">Eneba</span></div>
+            <div class="card-foot"><span class="card-price">79,99 zl</span><span class="save">-64%</span></div>
+          </article>
+          <article class="game-card">
+            <div class="thumb">crime city</div>
+            <h3>Grand Theft Auto V</h3>
+            <div class="shops"><span class="shop">Gamivo</span><span class="shop">Kinguin</span><span class="shop">G2A</span></div>
+            <div class="card-foot"><span class="card-price">39,00 zl</span><span class="save">fast scan</span></div>
+          </article>
+        </section>
+      </main>
+
+      <aside id="scan" class="hud">
+        <section class="scan-card">
+          <p class="section-kicker">price scanner</p>
+          <div class="radar"><span class="sweep"></span></div>
+          <div class="scan-row"><span>Steam</span><span class="dot"></span></div>
+          <div class="scan-row"><span>GOG</span><span class="dot"></span></div>
+          <div class="scan-row"><span>G2A feed</span><span class="dot"></span></div>
+          <div class="scan-row"><span>Gamivo</span><span class="dot miss"></span></div>
+        </section>
+
+        <section class="scan-card">
+          <p class="section-kicker">shop leaderboard</p>
+          <div class="leaderboard">
+            <div class="leader"><b>GOG</b><span>best official offers</span></div>
+            <div class="leader"><b>G2A</b><span>4161 feed hits in last scan</span></div>
+            <div class="leader"><b>Kinguin</b><span>keyshop district active</span></div>
+          </div>
+        </section>
+
+        <section class="scan-card">
+          <p class="section-kicker">modal concept</p>
+          <p style="color: var(--muted); line-height: 1.55; margin-top: 10px;">
+            Модалка гри в такому стилі: великий cover зліва, справа animated scan status,
+            офери як бойові cards, зелена підсвітка найкращої ціни.
+          </p>
+        </section>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KupujPL — Wybierz styl strony</title>
+    <base href="/games/static/design-samples/">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Inter, sans-serif;
+            background: #0a0c10;
+            color: #e8ecf4;
+            min-height: 100vh;
+            padding: 40px 20px 60px;
+        }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+        h1 {
+            font-family: Rajdhani, sans-serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        h2.section {
+            font-family: Rajdhani, sans-serif;
+            font-size: 1.25rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #6b9fff;
+            margin: 48px 0 20px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #2a3344;
+        }
+        h2.section:first-of-type { margin-top: 0; }
+        .sub { color: #8b95a5; margin-bottom: 36px; max-width: 680px; line-height: 1.6; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+        }
+        .pick {
+            background: #141820;
+            border: 1px solid #2a3344;
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+        .pick.new { border-color: #3d5a80; }
+        .pick.new .pick-num { color: #05ffa1; }
+        .pick:hover {
+            transform: translateY(-4px);
+            border-color: #4a90d9;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        }
+        .pick-preview {
+            height: 200px;
+            border-bottom: 1px solid #2a3344;
+            position: relative;
+            overflow: hidden;
+        }
+        .pick-preview iframe {
+            width: 200%;
+            height: 200%;
+            border: 0;
+            transform: scale(0.5);
+            transform-origin: top left;
+            pointer-events: none;
+        }
+        .pick-body { padding: 20px; }
+        .pick-num {
+            font-family: Rajdhani, sans-serif;
+            font-size: 13px;
+            letter-spacing: 0.15em;
+            color: #6b9fff;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .pick h3 {
+            font-family: Rajdhani, sans-serif;
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            letter-spacing: 0.03em;
+        }
+        .pick p { font-size: 14px; color: #9aa3b5; line-height: 1.5; margin-bottom: 16px; }
+        .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+        .tag {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #1e2430;
+            color: #b0bac8;
+            border: 1px solid #333d4f;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 18px;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 8px;
+        }
+        .btn:hover { filter: brightness(1.1); }
+        .back {
+            display: inline-block;
+            margin-bottom: 24px;
+            color: #6b9fff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .hint {
+            margin-top: 40px;
+            padding: 16px 20px;
+            background: #141820;
+            border-radius: 12px;
+            border: 1px dashed #3d4a5c;
+            color: #9aa3b5;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <a class="back" href="/games/">← Wróć na KupujPL Gry</a>
+        <h1>Wybierz styl strony</h1>
+        <p class="sub">15 propozycji w stylu gaming. Otwórz pełny podgląd, porównaj i napisz numer (6–15 to nowa seria) — wtedy wdrożę wybrany motyw na całą stronę.</p>
+
+        <h2 class="section">Nowa seria — 10 propozycji</h2>
+        <div class="grid">
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-6-arcade.html" title="Arcade"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 6 · NEW</div>
+                    <h3>Arcade Cabinet</h3>
+                    <p>Automat do gier — pixel font, żółty/cyan, „INSERT COIN”.</p>
+                    <div class="tags"><span class="tag">Retro</span><span class="tag">Arcade</span><span class="tag">Colorful</span></div>
+                    <a class="btn" href="theme-6-arcade.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-7-vaporwave.html" title="Vaporwave"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 7 · NEW</div>
+                    <h3>Vaporwave</h3>
+                    <p>Róż/fiolet/niebieski, siatka synthwave, retro-future lat 80.</p>
+                    <div class="tags"><span class="tag">Synthwave</span><span class="tag">Aesthetic</span><span class="tag">80s</span></div>
+                    <a class="btn" href="theme-7-vaporwave.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-8-matrix.html" title="Matrix"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 8 · NEW</div>
+                    <h3>Matrix Terminal</h3>
+                    <p>Zielony tekst na czerni, terminal/hacker, filtry na okładkach.</p>
+                    <div class="tags"><span class="tag">Hacker</span><span class="tag">Terminal</span><span class="tag">Minimal</span></div>
+                    <a class="btn" href="theme-8-matrix.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-9-xbox.html" title="Xbox"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 9 · NEW</div>
+                    <h3>Xbox Green</h3>
+                    <p>Czarny + zieleń Xbox, czysty UI, zaokrąglone karty.</p>
+                    <div class="tags"><span class="tag">Console</span><span class="tag">Xbox</span><span class="tag">Sleek</span></div>
+                    <a class="btn" href="theme-9-xbox.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-10-playstation.html" title="PlayStation"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 10 · NEW</div>
+                    <h3>PlayStation Blue</h3>
+                    <p>PS5 vibe — niebieski akcent, czarne tło, eleganckie pill-buttony.</p>
+                    <div class="tags"><span class="tag">Console</span><span class="tag">PlayStation</span><span class="tag">Premium</span></div>
+                    <a class="btn" href="theme-10-playstation.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-11-horror.html" title="Horror"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 11 · NEW</div>
+                    <h3>Dark Horror</h3>
+                    <p>Krew, mrok, Creepster font — klimat horror/soulslike.</p>
+                    <div class="tags"><span class="tag">Horror</span><span class="tag">Dark</span><span class="tag">Gothic</span></div>
+                    <a class="btn" href="theme-11-horror.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-12-glass.html" title="Glass"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 12 · NEW</div>
+                    <h3>Glass UI</h3>
+                    <p>Gradient tło + frosted glass, nowoczesny mobile game store.</p>
+                    <div class="tags"><span class="tag">Glassmorphism</span><span class="tag">Modern</span><span class="tag">Colorful</span></div>
+                    <a class="btn" href="theme-12-glass.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-13-light.html" title="Light"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 13 · NEW</div>
+                    <h3>Clean Light</h3>
+                    <p>Jasny, czysty sklep — biały + fiolet, bez ciemnego motywu.</p>
+                    <div class="tags"><span class="tag">Light</span><span class="tag">Minimal</span><span class="tag">Readable</span></div>
+                    <a class="btn" href="theme-13-light.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-14-tactical.html" title="Tactical"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 14 · NEW</div>
+                    <h3>Tactical Military</h3>
+                    <p>Oliwkowa zieleń, kamuflaż, military HUD — FPS/tactical vibe.</p>
+                    <div class="tags"><span class="tag">Military</span><span class="tag">FPS</span><span class="tag">Tactical</span></div>
+                    <a class="btn" href="theme-14-tactical.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick new">
+                <div class="pick-preview"><iframe src="theme-15-anime.html" title="Anime"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 15 · NEW</div>
+                    <h3>Anime Pop</h3>
+                    <p>Róż + niebieski, zaokrąglone karty, kawaii game store.</p>
+                    <div class="tags"><span class="tag">Anime</span><span class="tag">Kawaii</span><span class="tag">Colorful</span></div>
+                    <a class="btn" href="theme-15-anime.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+        </div>
+
+        <h2 class="section">Poprzednia seria — 5 propozycji</h2>
+        <div class="grid">
+            <article class="pick">
+                <div class="pick-preview"><iframe src="theme-1-neon.html" title="Neon"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 1</div>
+                    <h3>Cyber Neon</h3>
+                    <p>Ciemny cyberpunk, neony cyan i róż.</p>
+                    <div class="tags"><span class="tag">Dark</span><span class="tag">Neon</span></div>
+                    <a class="btn" href="theme-1-neon.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="theme-2-steam.html" title="Steam"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 2</div>
+                    <h3>Steam Dark</h3>
+                    <p>Klasyczny ciemny klient PC jak Steam.</p>
+                    <div class="tags"><span class="tag">Steam-like</span></div>
+                    <a class="btn" href="theme-2-steam.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="theme-3-pixel.html" title="Pixel"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 3</div>
+                    <h3>Retro Pixel</h3>
+                    <p>Pixel-art, zielony HUD, retro indie.</p>
+                    <div class="tags"><span class="tag">Retro</span><span class="tag">Pixel</span></div>
+                    <a class="btn" href="theme-3-pixel.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="theme-4-esports.html" title="Esports"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 4</div>
+                    <h3>Esports Arena</h3>
+                    <p>Czerń + czerwień, strona turniejowa.</p>
+                    <div class="tags"><span class="tag">Esports</span></div>
+                    <a class="btn" href="theme-4-esports.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="theme-5-aurora.html" title="Aurora"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Styl 5</div>
+                    <h3>Aurora RPG</h3>
+                    <p>Fiolet + turkus, fantasy RPG.</p>
+                    <div class="tags"><span class="tag">RPG</span><span class="tag">Fantasy</span></div>
+                    <a class="btn" href="theme-5-aurora.html" target="_blank">Otwórz podgląd →</a>
+                </div>
+            </article>
+        </div>
+
+        <p class="hint">💬 Napisz np. <strong>„Styl 12”</strong>, <strong>„Glass UI”</strong> lub <strong>„Anime Pop”</strong> — wdrożę wybrany motyw na cały kupujpl.pl/games.</p>
+    </div>
+</body>
+</html>

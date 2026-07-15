@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 12 — Accordion | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        main { max-width: var(--wrap); margin: 0 auto; padding: 24px 20px 48px; }
+        .acc { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; overflow: hidden; background: var(--surface); }
+        .acc-head { padding: 14px 18px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; background: var(--surface-2); }
+        .acc-body { padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+        .acc .card h3 { font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 12</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <main id="main"></main>
+    <script src="layout-shared.js"></script>
+    <script>
+        const sections = [
+            { name: "Akcja", games: MOCK_GAMES.slice(0,4) },
+            { name: "RPG", games: MOCK_GAMES.slice(2,6) },
+            { name: "Indie", games: MOCK_GAMES.slice(4,8) },
+        ];
+        document.getElementById('main').innerHTML = sections.map((s,i)=>`
+            <div class="acc">
+                <div class="acc-head">${s.name} <span>${s.games.length} gier</span></div>
+                <div class="acc-body">${s.games.map(cardHtml).join('')}</div>
+            </div>
+        `).join('');
+    </script>
+</body>
+</html>

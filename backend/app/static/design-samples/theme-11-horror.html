@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 11 — Dark Horror | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#0a0505;--surface:#140a0a;--blood:#8b0000;--blood-light:#cc2222;--bone:#d4c5a9;--text:#e8ddd0;--muted:#6b5a50}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Crimson Pro',serif;background:var(--bg);color:var(--text);min-height:100vh}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(139,0,0,.2),transparent 60%);pointer-events:none}
+        .wrap{max-width:1180px;margin:0 auto;padding:0 20px;position:relative}
+        .badge{position:fixed;top:16px;right:16px;z-index:99;border:1px solid var(--blood);color:var(--blood-light);padding:6px 14px;font-family:Creepster,cursive;font-size:14px;letter-spacing:.05em}
+        header{display:flex;align-items:center;gap:20px;height:72px;border-bottom:1px solid var(--blood)}
+        .logo{font-family:Creepster,cursive;font-size:28px;text-decoration:none;color:var(--blood-light);letter-spacing:.04em}
+        .logo span{color:var(--bone)}
+        .search{flex:1;max-width:400px;height:40px;background:var(--surface);border:1px solid var(--blood);padding:0 14px;color:var(--bone);font:inherit;font-size:16px}
+        .nav a{color:var(--blood-light);text-decoration:none;font-size:16px}
+        .hero{padding:40px 0}
+        .hero h1{font-family:Creepster,cursive;font-size:clamp(2rem,5vw,3.2rem);color:var(--blood-light);text-shadow:0 0 30px rgba(139,0,0,.5)}
+        .hero p{color:var(--muted);margin-top:12px;font-size:17px;font-style:italic}
+        .cats{display:flex;gap:8px;flex-wrap:wrap;padding:16px 0}
+        .cat{padding:8px 16px;background:var(--surface);border:1px solid var(--blood);color:var(--muted);font:inherit;font-size:15px;cursor:pointer}
+        .cat.active{background:var(--blood);color:var(--bone);border-color:var(--blood-light)}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding-bottom:40px}
+        .card{background:var(--surface);border:1px solid #2a1515;overflow:hidden;transition:.3s;position:relative}
+        .card::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.7));pointer-events:none}
+        .card:hover{border-color:var(--blood-light);box-shadow:0 0 24px rgba(139,0,0,.3)}
+        .card img{width:100%;aspect-ratio:460/215;object-fit:cover;filter:brightness(.75) contrast(1.1)}
+        .card-body{padding:14px;position:relative;z-index:1}
+        .card h3{font-size:16px;font-weight:600;margin-bottom:6px}
+        .price{color:var(--blood-light);font-family:Creepster,cursive;font-size:20px;letter-spacing:.05em}
+    </style>
+</head>
+<body>
+    <div class="badge">STYL 11</div>
+    <header class="wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj mrocznych tytułów..."><nav class="nav"><a href="#">Zaloguj</a></nav></header>
+    <div class="hero wrap"><h1>Ciemne oferty.<br>Głębokie zniżki.</h1><p>Horror · Soulslike · Dark RPG — 87 000+ gier</p></div>
+    <main class="wrap">
+        <div class="cats"><button class="cat active">Wszystkie</button><button class="cat">Horror</button><button class="cat">RPG</button><button class="cat">Akcja</button></div>
+        <div class="grid">
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt=""><div class="card-body"><h3>Counter-Strike 2</h3><div class="price">0,00 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt=""><div class="card-body"><h3>Wiedźmin 3</h3><div class="price">29,80 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt=""><div class="card-body"><h3>Cyberpunk 2077</h3><div class="price">119,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt=""><div class="card-body"><h3>Hades</h3><div class="price">47,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt=""><div class="card-body"><h3>Elden Ring</h3><div class="price">149,99 zł</div></div></article>
+        </div>
+    </main>
+</body>
+</html>

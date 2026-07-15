@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 10 — Bottom nav | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        body { padding-bottom: 72px; }
+        main { max-width: 600px; margin: 0 auto; padding: 16px 16px 24px; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .card h3 { font-size: 13px; }
+        .price { font-size: 14px; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; overflow-x: auto; padding: 8px 12px; gap: 6px; z-index: 100; }
+        .bottom-nav .cat { flex: 1; min-width: 72px; text-align: center; padding: 10px 8px; font-size: 11px; border-radius: 12px; }
+        .page-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .page-sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 10</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <main>
+        <h1 class="page-title">Gry PC</h1>
+        <p class="page-sub">Kategorie na dole — wygodne na telefonie</p>
+        <div class="grid" id="grid"></div>
+    </main>
+    <nav class="bottom-nav" id="cats"></nav>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = MOCK_CATS.map((c,i) =>
+            `<button type="button" class="cat${i===0?' active':''}">${c}</button>`
+        ).join('');
+        document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');
+    </script>
+</body>
+</html>

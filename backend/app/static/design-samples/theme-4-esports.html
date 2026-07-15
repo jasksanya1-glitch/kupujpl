@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 4 — Esports Arena | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0d;
+            --surface: #161616;
+            --border: #2a2a2a;
+            --red: #e50914;
+            --red-dark: #8b0000;
+            --text: #ffffff;
+            --muted: #888;
+            --price: #ff4444;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Barlow, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 40px,
+                rgba(229, 9, 20, 0.03) 40px,
+                rgba(229, 9, 20, 0.03) 41px
+            );
+            pointer-events: none;
+        }
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; position: relative; }
+        .badge {
+            position: fixed; top: 0; right: 0; z-index: 99;
+            background: var(--red);
+            color: #fff;
+            padding: 8px 20px;
+            font-family: Bebas Neue, sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.15em;
+            clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%);
+        }
+        header {
+            display: flex; align-items: center; gap: 20px;
+            height: 72px;
+            border-bottom: 3px solid var(--red);
+        }
+        .logo {
+            font-family: Bebas Neue, sans-serif;
+            font-size: 32px;
+            letter-spacing: 0.05em;
+            text-decoration: none;
+            color: #fff;
+        }
+        .logo span { color: var(--red); }
+        .search {
+            flex: 1; max-width: 400px; height: 44px;
+            background: #000;
+            border: 2px solid var(--border);
+            border-left: 4px solid var(--red);
+            padding: 0 16px;
+            color: #fff;
+            font: inherit;
+            font-weight: 600;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
+        }
+        .nav a {
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            padding: 8px 16px;
+            border: 2px solid var(--red);
+        }
+        .hero {
+            padding: 32px 0;
+            background: linear-gradient(90deg, var(--red-dark) 0%, transparent 60%);
+            margin: 0 -20px;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        .hero h1 {
+            font-family: Bebas Neue, sans-serif;
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            letter-spacing: 0.04em;
+            line-height: 0.95;
+        }
+        .hero p { color: var(--muted); margin-top: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; }
+        .cats { display: flex; gap: 0; padding: 20px 0; flex-wrap: wrap; }
+        .cat {
+            padding: 10px 20px;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-right: none;
+            color: var(--muted);
+            font: inherit; font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+        }
+        .cat:last-child { border-right: 2px solid var(--border); }
+        .cat.active { background: var(--red); border-color: var(--red); color: #fff; }
+        .section-title {
+            font-family: Bebas Neue, sans-serif;
+            font-size: 28px;
+            letter-spacing: 0.08em;
+            color: var(--red);
+            margin-bottom: 16px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .section-title::after { content: ''; flex: 1; height: 2px; background: var(--red); }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 2px;
+            background: var(--border);
+            padding-bottom: 40px;
+        }
+        .card {
+            background: var(--surface);
+            overflow: hidden;
+            transition: 0.2s;
+            position: relative;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
+            background: var(--red);
+            transform: scaleY(0);
+            transition: 0.2s;
+        }
+        .card:hover::before { transform: scaleY(1); }
+        .card:hover { background: #1f1f1f; }
+        .card img { width: 100%; aspect-ratio: 460/215; object-fit: cover; display: block; }
+        .card-body { padding: 12px 12px 12px 16px; }
+        .card h3 { font-size: 15px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+        .price { color: var(--price); font-family: Bebas Neue, sans-serif; font-size: 24px; letter-spacing: 0.05em; }
+    </style>
+</head>
+<body>
+    <div class="badge">STYL 4 · PODGLĄD</div>
+    <header class="wrap">
+        <a class="logo" href="#">KUPUJ<span>PL</span></a>
+        <input class="search" type="search" placeholder="SZUKAJ GRY…">
+        <nav class="nav"><a href="#">Zaloguj</a></nav>
+    </header>
+    <div class="hero wrap">
+        <h1>Najlepsze ceny<br>na gry PC</h1>
+        <p>87 000+ tytułów · wszystkie sklepy w jednym miejscu</p>
+    </div>
+    <main class="wrap">
+        <div class="cats">
+            <button class="cat active">Wszystkie</button>
+            <button class="cat">Akcja</button>
+            <button class="cat">RPG</button>
+            <button class="cat">Indie</button>
+            <button class="cat">Esports</button>
+        </div>
+        <p class="section-title">TOP PICKS</p>
+        <div class="grid">
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt="">
+                <div class="card-body"><h3>Counter-Strike 2</h3><div class="price">0,00 ZŁ</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt="">
+                <div class="card-body"><h3>Wiedźmin 3</h3><div class="price">29,80 ZŁ</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt="">
+                <div class="card-body"><h3>Cyberpunk 2077</h3><div class="price">119,99 ZŁ</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt="">
+                <div class="card-body"><h3>Hades</h3><div class="price">47,99 ZŁ</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt="">
+                <div class="card-body"><h3>Elden Ring</h3><div class="price">149,99 ZŁ</div></div>
+            </article>
+        </div>
+    </main>
+</body>
+</html>

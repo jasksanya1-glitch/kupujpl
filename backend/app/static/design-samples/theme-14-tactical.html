@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 14 — Tactical Military | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#1c1f16;--surface:#2a2f22;--olive:#4a5d23;--olive-light:#6b8e23;--tan:#c4a35a;--text:#d4cfc0;--muted:#8a8578;--price:#c4a35a}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Roboto Condensed',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+            background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%234a5d23' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+        .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+        .badge{position:fixed;top:0;right:0;z-index:99;background:var(--olive);color:var(--tan);padding:8px 20px;font-family:'Black Ops One',cursive;font-size:11px;clip-path:polygon(0 0,100% 0,100% 100%,15px 100%)}
+        header{display:flex;align-items:center;gap:16px;height:68px;border-bottom:3px solid var(--olive);background:var(--surface)}
+        .logo{font-family:'Black Ops One',cursive;font-size:20px;text-decoration:none;color:var(--tan);letter-spacing:.04em}
+        .logo span{color:var(--olive-light)}
+        .search{flex:1;max-width:380px;height:38px;background:#1a1d14;border:2px solid var(--olive);padding:0 12px;color:var(--text);font:inherit;font-size:15px;text-transform:uppercase;letter-spacing:.05em}
+        .nav a{color:var(--olive-light);text-decoration:none;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.08em}
+        .hero{padding:32px 0;border-left:4px solid var(--olive);padding-left:20px;margin-left:-20px}
+        .hero h1{font-family:'Black Ops One',cursive;font-size:clamp(1.6rem,4vw,2.4rem);color:var(--tan);text-transform:uppercase;letter-spacing:.06em}
+        .hero p{color:var(--muted);margin-top:8px;font-size:15px;text-transform:uppercase;letter-spacing:.1em}
+        .cats{display:flex;gap:0;flex-wrap:wrap;padding:20px 0}
+        .cat{padding:10px 18px;background:var(--surface);border:2px solid var(--olive);margin-right:-2px;color:var(--muted);font:inherit;font-size:13px;font-weight:700;text-transform:uppercase;cursor:pointer}
+        .cat.active{background:var(--olive);color:var(--tan);border-color:var(--olive-light)}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding-bottom:40px}
+        .card{background:var(--surface);border:2px solid var(--olive);overflow:hidden;transition:.2s}
+        .card:hover{border-color:var(--tan);box-shadow:0 4px 16px rgba(0,0,0,.4)}
+        .card img{width:100%;aspect-ratio:460/215;object-fit:cover;filter:sepia(.2) contrast(1.05)}
+        .card-body{padding:12px;border-top:2px solid var(--olive)}
+        .card h3{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+        .price{color:var(--price);font-family:'Black Ops One',cursive;font-size:18px}
+    </style>
+</head>
+<body>
+    <div class="badge">STYL 14</div>
+    <header class="wrap"><a class="logo" href="#">KUPUJ<span>PL</span> OPS</a><input class="search" placeholder="TARGET ACQUIRED..."><nav class="nav"><a href="#">Login</a></nav></header>
+    <div class="hero wrap"><h1>Mission: Best Price</h1><p>87000+ targets · all shops locked</p></div>
+    <main class="wrap">
+        <div class="cats"><button class="cat active">All</button><button class="cat">FPS</button><button class="cat">Tactical</button><button class="cat">Sim</button></div>
+        <div class="grid">
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt=""><div class="card-body"><h3>Counter-Strike 2</h3><div class="price">0 ZL</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt=""><div class="card-body"><h3>Wiedzmin 3</h3><div class="price">29 ZL</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt=""><div class="card-body"><h3>Cyberpunk 2077</h3><div class="price">119 ZL</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt=""><div class="card-body"><h3>Hades</h3><div class="price">47 ZL</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt=""><div class="card-body"><h3>Elden Ring</h3><div class="price">149 ZL</div></div></article>
+        </div>
+    </main>
+</body>
+</html>

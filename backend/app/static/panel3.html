@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/games/static/favicon.svg?v=cp2077-11" type="image/svg+xml">
+    <link rel="icon" href="/games/static/favicon.ico" sizes="any">
+    <link rel="icon" href="/games/static/icons/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/games/static/icons/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" href="/games/static/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/games/static/site.webmanifest">
+    <meta name="theme-color" content="#0070d1">
+
+    <meta name="robots" content="noindex, nofollow">
+    <base href="/games/">
+    <title>Panel3 — Адмін ігор | KupujPL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/panel3.css?v=13">
+</head>
+<body class="panel3-admin">
+    <header class="panel3-header">
+        <div class="panel3-header__lead">
+            <p class="panel3-header__badge">Panel3 · Адмін ігор</p>
+            <h1>KupujPL Games</h1>
+            <p class="panel3-header__sub" id="generated-at">Завантаження…</p>
+        </div>
+        <div class="panel3-header__actions">
+            <a href="panel3/live" class="panel3-btn panel3-btn--ghost">LIVE</a>
+            <a href="./" class="panel3-btn panel3-btn--ghost">Магазин</a>
+            <a href="panel3/logout" class="panel3-btn panel3-btn--ghost">Вийти</a>
+        </div>
+    </header>
+
+    <main class="panel3-main">
+        <section class="panel3-section panel3-section--tier-a" id="section-tier-a">
+            <div class="panel3-section-head">
+                <h2>Tier A — скан top-5000</h2>
+                <span class="panel3-live-badge" id="tier-a-live-badge" hidden>LIVE</span>
+            </div>
+            <p class="panel3-section-lead">
+                Щоденний повний скан популярних ігор: <strong>10:00</strong> VPS (Steam, GOG, Epic) ·
+                <strong>10:05</strong> ноутбук (Instant Gaming, Kinguin, G2A) ·
+                <strong>10:05</strong> ПК (CDKeys, Gamivo). Оновлення кожні 5 с.
+            </p>
+            <div class="panel3-kpis" id="tier-a-kpis"></div>
+            <div class="panel3-scan-actions" id="tier-a-scan-actions">
+                <button type="button" class="panel3-btn panel3-btn--danger" id="btn-stop-vps">Зупинити VPS</button>
+                <button type="button" class="panel3-btn panel3-btn--danger" id="btn-stop-local">Зупинити ПК/ноутбук</button>
+                <button type="button" class="panel3-btn panel3-btn--danger" id="btn-stop-all-scans">Зупинити все</button>
+                <span class="panel3-muted" id="scan-stop-status"></span>
+            </div>
+            <div class="panel3-grid-2">
+                <div class="panel3-card panel3-card--scan">
+                    <h3>VPS — official shops</h3>
+                    <div class="panel3-scan-meta" id="tier-a-vps-meta"></div>
+                    <div class="panel3-progress">
+                        <div class="panel3-progress__bar" id="tier-a-vps-bar" style="width:0%"></div>
+                    </div>
+                    <p class="panel3-scan-detail" id="tier-a-vps-detail"></p>
+                </div>
+                <div class="panel3-card panel3-card--scan">
+                    <h3>Ноутбук — Eneba, Kinguin</h3>
+                    <div class="panel3-scan-meta" id="tier-a-laptop-meta"></div>
+                    <div class="panel3-progress">
+                        <div class="panel3-progress__bar panel3-progress__bar--laptop" id="tier-a-laptop-bar" style="width:0%"></div>
+                    </div>
+                    <p class="panel3-scan-detail" id="tier-a-laptop-detail"></p>
+                </div>
+                <div class="panel3-card panel3-card--scan">
+                    <h3>ПК — CDKeys, Gamivo</h3>
+                    <div class="panel3-scan-meta" id="tier-a-pc-meta"></div>
+                    <div class="panel3-progress">
+                        <div class="panel3-progress__bar panel3-progress__bar--pc" id="tier-a-pc-bar" style="width:0%"></div>
+                    </div>
+                    <p class="panel3-scan-detail" id="tier-a-pc-detail"></p>
+                </div>
+            </div>
+            <p class="panel3-muted panel3-tier-a-foot" id="tier-a-foot"></p>
+        </section>
+
+        <section class="panel3-section" id="section-scan-controls">
+            <h2>Керування сканами магазинів</h2>
+            <p class="panel3-section-lead">
+                Тут можна швидко увімкнути або вимкнути скан конкретного магазину.
+                Вимкнення впливає тільки на нові скани; уже збережені ціни залишаються в базі.
+            </p>
+            <div class="panel3-card">
+                <div id="scan-controls" class="panel3-scan-controls">
+                    <p class="panel3-muted">Завантаження стану сканів…</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel3-section">
+            <h2>Трафік на сайті</h2>
+            <div class="panel3-kpis" id="traffic-kpis"></div>
+            <div id="traffic-user-legend" class="panel3-traffic-legend-bar" aria-label="Типи відвідувачів"></div>
+            <div class="panel3-grid-2">
+                <div class="panel3-card">
+                    <h3 class="panel3-card-title-with-icons">
+                        <span>Останні візити</span>
+                    </h3>
+                    <div class="panel3-table-wrap" id="traffic-recent"></div>
+                </div>
+                <div class="panel3-card">
+                    <h3>Популярні сторінки (24 год)</h3>
+                    <ul class="panel3-path-list" id="traffic-paths"></ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel3-section" id="section-affiliate-clicks">
+            <h2>Кліки «Kup» (афіліат)</h2>
+            <p class="panel3-section-lead">
+                Кожен клік через <code>/api/go/{offer_id}</code> логується тут.
+                <strong>Tracked</strong> = посилання з валідним partner ID або Awin pclick.
+                Steam/Epic не дають комісії.
+            </p>
+            <div class="panel3-kpis" id="click-kpis"></div>
+            <div class="panel3-grid-2">
+                <div class="panel3-card">
+                    <h3>Кліки за магазином (7 днів)</h3>
+                    <div class="panel3-table-wrap" id="click-by-shop"></div>
+                </div>
+                <div class="panel3-card">
+                    <h3>Partner ID у .env</h3>
+                    <div class="panel3-table-wrap" id="affiliate-config-box"></div>
+                </div>
+            </div>
+            <div class="panel3-card" style="margin-top:12px">
+                <h3>Останні кліки</h3>
+                <div class="panel3-table-wrap" id="click-recent"></div>
+            </div>
+        </section>
+
+        <section class="panel3-section">
+            <h2>Користувачі</h2>
+            <div class="panel3-kpis" id="user-kpis"></div>
+            <div class="panel3-grid-2">
+                <div class="panel3-card">
+                    <h3>Онлайн (15 хв)</h3>
+                    <div class="panel3-table-wrap" id="users-online"></div>
+                </div>
+                <div class="panel3-card">
+                    <h3>Останні реєстрації</h3>
+                    <div class="panel3-table-wrap" id="users-recent"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel3-section" id="section-offer-coverage">
+            <h2>Стан бази VPS — пропозиції цін</h2>
+            <p class="panel3-section-lead">
+                Тут видно, <strong>скільки ігор уже мають збережені ціни</strong> у SQLite на сервері
+                (таблиця <code>offers</code>). Це <em>не</em> нові ігри в каталозі — лише результат
+                скану магазинів: «гра X у магазині Y коштує Z&nbsp;zł».
+                Один рядок у БД = одна <strong>пропозиція</strong> (ціна в одному магазині для однієї гри).
+            </p>
+            <div class="panel3-kpis" id="coverage-kpis"></div>
+            <div class="panel3-grid-2">
+                <div class="panel3-card">
+                    <h3>Пропозиції за магазином</h3>
+                    <p class="panel3-card-hint">
+                        Скільки ігор мають збережену ціну <code>in_stock</code> у кожному магазині.
+                        Колонка «без ціни» — серед ігор, у яких уже є <em>хоча б одна</em> ціна, скільки
+                        ще не мають ціни саме в цьому магазині (треба доп. скан або PC-worker).
+                    </p>
+                    <div class="panel3-table-wrap" id="coverage-shops-table"></div>
+                </div>
+                <div class="panel3-card">
+                    <h3>Скільки магазинів на гру</h3>
+                    <p class="panel3-card-hint">
+                        Наприклад «3 магазини — 1200 ігор» означає: у 1200 ігор знайдено ціни рівно в 3
+                        різних магазинах. Чим більше — тим корисніше порівняння для відвідувача.
+                        Ціль системи — щонайменше <span id="coverage-target-hint">4</span> магазини на гру
+                        (зараз перевіряємо 8: Steam, GOG, Epic, EA, Eneba, Kinguin, CDKeys, G2A).
+                    </p>
+                    <ul class="panel3-path-list" id="coverage-distribution"></ul>
+                </div>
+            </div>
+            <div class="panel3-card panel3-card--worker">
+                <h3>Прискорення з домашнього PC</h3>
+                <p class="panel3-muted panel3-worker-lead">
+                    G2A, CDKeys і Eneba часто блокують IP сервера. Запустіть скрипт на своєму комп’ютері —
+                    він забере чергу ігор з VPS, збере ціни та надішле їх назад.
+                </p>
+                <pre class="panel3-pre panel3-worker-cmd" id="worker-cmd"></pre>
+                <div class="panel3-worker-stats" id="worker-stats"></div>
+            </div>
+        </section>
+
+        <section class="panel3-section">
+            <h2>Каталог ігор</h2>
+            <div class="panel3-kpis" id="catalog-kpis"></div>
+            <div class="panel3-grid-2">
+                <div class="panel3-card">
+                    <h3>Пропозиції за магазинами</h3>
+                    <ul class="panel3-path-list" id="offers-shops"></ul>
+                </div>
+                <div class="panel3-card">
+                    <h3>Найчастіше відстежують</h3>
+                    <ul class="panel3-path-list" id="top-watched"></ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel3-section">
+            <h2>Планувальник і імпорт</h2>
+            <div class="panel3-card" id="scheduler-box"></div>
+        </section>
+    </main>
+
+    <div id="panel3-notifications" class="panel3-notif-stack" aria-live="polite"></div>
+
+    <script src="static/panel3.js?v=20"></script>
+</body>
+</html>

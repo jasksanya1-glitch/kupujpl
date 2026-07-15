@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KupujPL — favicon variants</title>
+  <style>
+    :root {
+      --yellow: #fcee09;
+      --black: #080808;
+      --red: #ff003c;
+      --cyan: #00f0ff;
+      --white: #f8f6dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,.08) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,.07) 1px, transparent 1px),
+        var(--yellow);
+      background-size: 34px 34px;
+      color: var(--black);
+      font-family: "Arial Narrow", Impact, system-ui, sans-serif;
+      text-transform: uppercase;
+      padding: 28px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(34px, 6vw, 72px);
+      line-height: .86;
+      letter-spacing: -.06em;
+      text-shadow: 3px 0 var(--cyan), -3px 0 var(--red);
+    }
+    .lead {
+      margin: 0 0 24px;
+      max-width: 760px;
+      font-family: system-ui, sans-serif;
+      text-transform: none;
+      font-weight: 700;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--black);
+      color: var(--yellow);
+      border: 4px solid var(--black);
+      clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px));
+      padding: 16px;
+      min-height: 260px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+    }
+    .num {
+      display: inline-block;
+      width: fit-content;
+      padding: 4px 8px;
+      background: var(--red);
+      color: var(--white);
+      font-weight: 1000;
+      letter-spacing: .08em;
+    }
+    .icon-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 118px;
+      background: rgba(252,238,9,.08);
+      border: 2px solid rgba(252,238,9,.35);
+    }
+    svg {
+      width: 88px;
+      height: 88px;
+      image-rendering: auto;
+    }
+    h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: .95;
+      letter-spacing: -.04em;
+    }
+    p {
+      margin: 7px 0 0;
+      color: rgba(252,238,9,.75);
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      line-height: 1.35;
+      text-transform: none;
+      font-weight: 650;
+    }
+    .small-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 1000;
+    }
+    .mini {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>10 favicon варіантів</h1>
+  <p class="lead">Вибери номер. Я після цього поставлю обраний SVG як основний значок вкладки для всього сайту.</p>
+
+  <main class="grid">
+    <article class="card">
+      <span class="num">01</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M3 3h21l5 5v21H8l-5-5z" fill="#080808"/><path d="M7 7h13l3 3H10z" fill="#fcee09"/><path d="M8 14h14v4H8z" fill="#00f0ff"/><text x="16" y="27" text-anchor="middle" font-family="Impact,Arial" font-size="9" fill="#fcee09">KP</text></svg>
+      </div>
+      <div><h2>Classic KP Cut</h2><p>Схожий на поточний стиль сайту: жовтий фон, чорна гостра плашка, KP.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M3 3h21l5 5v21H8l-5-5z" fill="#080808"/><text x="16" y="24" text-anchor="middle" font-family="Impact" font-size="10" fill="#fcee09">KP</text></svg> Добре читається 16px</div>
+    </article>
+
+    <article class="card">
+      <span class="num">02</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#080808"/><path d="M4 4h24v18l-6 6H4z" fill="#fcee09"/><path d="M7 7h18v5H7z" fill="#080808"/><path d="M7 15h8v4H7z" fill="#ff003c"/><path d="M18 15h7v4h-7z" fill="#00f0ff"/><text x="16" y="27" text-anchor="middle" font-family="Impact" font-size="7" fill="#080808">PL</text></svg>
+      </div>
+      <div><h2>Yellow Chip</h2><p>Більше схоже на чіп/карту доступу з Night City. Дуже яскраво у вкладці.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#080808"/><path d="M4 4h24v18l-6 6H4z" fill="#fcee09"/></svg> Найжовтіший варіант</div>
+    </article>
+
+    <article class="card">
+      <span class="num">03</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M16 3l13 7v12l-13 7-13-7V10z" fill="#080808"/><path d="M16 7l8 5v8l-8 5-8-5v-8z" fill="#00f0ff"/><path d="M16 10l5 3v6l-5 3-5-3v-6z" fill="#080808"/><circle cx="16" cy="16" r="3" fill="#ff003c"/></svg>
+      </div>
+      <div><h2>Scanner Core</h2><p>Іконка-сканер/реактор. Підійде, якщо хочемо підкреслити live scan цін.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M16 3l13 7v12l-13 7-13-7V10z" fill="#080808"/></svg> Найбільш “сканер”</div>
+    </article>
+
+    <article class="card">
+      <span class="num">04</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#080808"/><path d="M2 2h28v8H2z" fill="#fcee09"/><path d="M2 12h18v7H2z" fill="#00f0ff"/><path d="M12 21h18v9H12z" fill="#ff003c"/><text x="16" y="9" text-anchor="middle" font-family="Impact" font-size="7" fill="#080808">K</text><text x="16" y="28" text-anchor="middle" font-family="Impact" font-size="7" fill="#fff">P</text></svg>
+      </div>
+      <div><h2>Glitch Blocks</h2><p>Абстрактний glitch знак: менше тексту, більше енергії та агресивних блоків.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#080808"/><path d="M2 2h28v8H2z" fill="#fcee09"/><path d="M12 21h18v9H12z" fill="#ff003c"/></svg> Найбільш glitch</div>
+    </article>
+
+    <article class="card">
+      <span class="num">05</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M5 5h22v22H5z" fill="#080808"/><path d="M8 9h16v3H8zm0 6h10v3H8z" fill="#fcee09"/><path d="M20 15h4v8h-4z" fill="#ff003c"/><path d="M8 22h9v3H8z" fill="#00f0ff"/></svg>
+      </div>
+      <div><h2>Terminal Panel</h2><p>Міні-HUD/термінал. Добре пасує до адмін-панелі й технічного вайбу.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M5 5h22v22H5z" fill="#080808"/></svg> Найбільш HUD</div>
+    </article>
+
+    <article class="card">
+      <span class="num">06</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#080808"/><path d="M16 3l11 6v14l-11 6-11-6V9z" fill="#fcee09"/><path d="M10 10h12v4H10z" fill="#080808"/><path d="M10 17h7v5h-7z" fill="#ff003c"/><path d="M19 17h3v5h-3z" fill="#00f0ff"/></svg>
+      </div>
+      <div><h2>Hex Deal Badge</h2><p>Шестикутний знак як badge/achievement. Добре виглядає маленьким.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#080808"/><path d="M16 3l11 6v14l-11 6-11-6V9z" fill="#fcee09"/></svg> Найбільш badge</div>
+    </article>
+
+    <article class="card">
+      <span class="num">07</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M4 8h18l6 6v10H4z" fill="#080808"/><path d="M8 14h6v6H8z" fill="#00f0ff"/><circle cx="22" cy="17" r="2.2" fill="#ff003c"/><circle cx="25" cy="20" r="2.2" fill="#fcee09"/><path d="M4 5h16v2H4z" fill="#ff003c"/></svg>
+      </div>
+      <div><h2>Cyber Gamepad</h2><p>Ближче до “games”: gamepad, але в жовто-чорній CP стилістиці.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M4 8h18l6 6v10H4z" fill="#080808"/></svg> Найбільш gaming</div>
+    </article>
+
+    <article class="card">
+      <span class="num">08</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#080808"/><path d="M2 2h28v28H2z" fill="#fcee09"/><path d="M5 5h22v22H5z" fill="#080808"/><path d="M8 8h8v8H8z" fill="#fcee09"/><path d="M16 16h8v8h-8z" fill="#00f0ff"/><path d="M8 21h5v3H8z" fill="#ff003c"/></svg>
+      </div>
+      <div><h2>Pixel Punk</h2><p>Піксельний, більш ігровий і простий. Має хороший контраст у вкладці.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M5 5h22v22H5z" fill="#080808"/></svg> Найбільш pixel</div>
+    </article>
+
+    <article class="card">
+      <span class="num">09</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M4 4h24v24H4z" fill="#080808"/><path d="M8 8h16v16H8z" fill="none" stroke="#00f0ff" stroke-width="2"/><path d="M16 7v18M7 16h18" stroke="#00f0ff" stroke-width="1.5"/><circle cx="16" cy="16" r="4" fill="#ff003c"/><circle cx="16" cy="16" r="1.5" fill="#fcee09"/></svg>
+      </div>
+      <div><h2>Target Price</h2><p>Приціл на найнижчу ціну. Найкраще передає “знайти найвигідніше”.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M4 4h24v24H4z" fill="#080808"/><circle cx="16" cy="16" r="4" fill="#ff003c"/></svg> Найбільш price-hunt</div>
+    </article>
+
+    <article class="card">
+      <span class="num">10</span>
+      <div class="icon-wrap">
+        <svg viewBox="0 0 32 32"><rect width="32" height="32" fill="#fcee09"/><path d="M2 2h28v28H2z" fill="#080808"/><path d="M5 5h22v5H5z" fill="#ff003c"/><path d="M5 13h22v5H5z" fill="#fcee09"/><path d="M5 21h22v6H5z" fill="#00f0ff"/><text x="16" y="18" text-anchor="middle" font-family="Impact" font-size="7" fill="#080808">K</text></svg>
+      </div>
+      <div><h2>Signal Bars</h2><p>Три сигнали: deals, catalog, scan. Абстрактний, чистий, без дрібних деталей.</p></div>
+      <div class="small-row"><svg class="mini" viewBox="0 0 32 32"><rect width="32" height="32" fill="#080808"/><path d="M5 5h22v5H5z" fill="#ff003c"/><path d="M5 13h22v5H5z" fill="#fcee09"/><path d="M5 21h22v6H5z" fill="#00f0ff"/></svg> Найчистіший</div>
+    </article>
+  </main>
+</body>
+</html>

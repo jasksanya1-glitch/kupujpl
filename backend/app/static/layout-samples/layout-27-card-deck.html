@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 27 — Card deck | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        main { max-width: 420px; margin: 0 auto; padding: 32px 20px 48px; text-align: center; }
+        .deck { position: relative; height: 340px; margin-bottom: 24px; }
+        .deck .card { position: absolute; left: 50%; width: 280px; transform: translateX(-50%); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+        .deck .card:nth-child(1) { top: 0; z-index: 4; }
+        .deck .card:nth-child(2) { top: 12px; z-index: 3; transform: translateX(-50%) rotate(-2deg); opacity: .95; }
+        .deck .card:nth-child(3) { top: 24px; z-index: 2; transform: translateX(-50%) rotate(2deg); opacity: .9; }
+        .deck .card:nth-child(4) { top: 36px; z-index: 1; transform: translateX(-50%) rotate(-1deg); opacity: .85; }
+        .deck-nav { display: flex; gap: 12px; justify-content: center; }
+        .deck-nav button { padding: 12px 24px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: #fff; font: inherit; cursor: pointer; }
+        .deck-nav button.primary { background: var(--blue); border-color: var(--blue); }
+        .cats { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 27</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <main>
+        <div class="cats" id="cats"></div>
+        <div class="deck" id="deck"></div>
+        <div class="deck-nav">
+            <button type="button">← Poprzednia</button>
+            <button type="button" class="primary">Szczegóły →</button>
+            <button type="button">Następna →</button>
+        </div>
+    </main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('deck').innerHTML = MOCK_GAMES.slice(0,4).map(cardHtml).join('');
+    </script>
+</body>
+</html>

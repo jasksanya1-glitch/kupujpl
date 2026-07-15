@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KupujPL — Wybierz układ strony</title>
+    <base href="/games/static/layout-samples/">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Inter, sans-serif; background: #000; color: #fff; padding: 40px 20px 60px; }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 8px; letter-spacing: -.02em; }
+        .sub { color: #aaa; margin-bottom: 12px; max-width: 680px; line-height: 1.6; }
+        .links { margin-bottom: 32px; font-size: 14px; }
+        .links a { color: #2d9cff; text-decoration: none; margin-right: 16px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+        .pick { background: #1f1f1f; border: 1px solid #333; border-radius: 16px; overflow: hidden; transition: .2s; }
+        .pick:hover { border-color: #0070d1; transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,112,209,.2); }
+        .pick-preview { height: 200px; border-bottom: 1px solid #333; overflow: hidden; }
+        .pick-preview iframe { width: 200%; height: 200%; border: 0; transform: scale(.5); transform-origin: top left; pointer-events: none; }
+        .pick-body { padding: 20px; }
+        .pick-num { font-size: 12px; letter-spacing: .12em; color: #2d9cff; text-transform: uppercase; margin-bottom: 6px; }
+        .pick h2 { font-size: 1.35rem; margin-bottom: 8px; }
+        .pick p { font-size: 14px; color: #aaa; line-height: 1.5; margin-bottom: 14px; }
+        .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+        .tag { font-size: 11px; padding: 4px 10px; border-radius: 999px; background: #2a2a2a; color: #ccc; border: 1px solid #444; }
+        .btn { display: inline-block; padding: 10px 18px; background: #0070d1; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; border-radius: 8px; }
+        .btn:hover { background: #005fa8; }
+        .hint { margin-top: 40px; padding: 16px 20px; background: #1f1f1f; border-radius: 12px; border: 1px dashed #444; color: #aaa; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="links">
+            <a href="/games/">← Strona główna</a>
+            <a href="/games/designs">Kolory / motywy →</a>
+        </div>
+        <h1>Wybierz układ gier i kategorii</h1>
+        <p class="sub">30 propozycji rozmieszczenia kategorii i siatki gier (PlayStation Blue). Otwórz podgląd i napisz numer — wdrożę na cały kupujpl.pl/games.</p>
+
+        <h2 style="font-size:1.1rem;color:#2d9cff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:20px;padding-bottom:8px;border-bottom:1px solid #333">Seria 1 — układy 1–10</h2>
+        <div class="grid">
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-1-sidebar.html" title="Sidebar"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 1</div>
+                    <h2>Sidebar kategorii</h2>
+                    <p>Lista kategorii po lewej (sticky), siatka gier po prawej — jak sklep e-commerce.</p>
+                    <div class="tags"><span class="tag">Sidebar</span><span class="tag">Desktop</span></div>
+                    <a class="btn" href="layout-1-sidebar.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-2-sticky-tabs.html" title="Tabs"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 2</div>
+                    <h2>Sticky tabs</h2>
+                    <p>Kategorie jako poziome zakładki przyklejone pod nagłówkiem podczas scrollu.</p>
+                    <div class="tags"><span class="tag">Tabs</span><span class="tag">Scroll</span></div>
+                    <a class="btn" href="layout-2-sticky-tabs.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-3-dropdown.html" title="Dropdown"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 3</div>
+                    <h2>Dropdown + chipy</h2>
+                    <p>Dropdown kategorii + sortowanie + chipy filtrów sklepów/ceny.</p>
+                    <div class="tags"><span class="tag">Filtry</span><span class="tag">Zaawansowane</span></div>
+                    <a class="btn" href="layout-3-dropdown.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-4-compact.html" title="Compact"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 4</div>
+                    <h2>Kompaktowa siatka</h2>
+                    <p>Małe karty — więcej gier na ekranie, szybkie skanowanie katalogu.</p>
+                    <div class="tags"><span class="tag">Gęsto</span><span class="tag">Katalog</span></div>
+                    <a class="btn" href="layout-4-compact.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-5-large.html" title="Large"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 5</div>
+                    <h2>Duże karty</h2>
+                    <p>2 kolumny, duże okładki z tytułem na gradientcie — wizualny, premium.</p>
+                    <div class="tags"><span class="tag">Duże</span><span class="tag">Wizualny</span></div>
+                    <a class="btn" href="layout-5-large.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-6-steam.html" title="Steam"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 6</div>
+                    <h2>Steam Store</h2>
+                    <p>Poziomy karuzela „Polecane” + panel filtrów + siatka — jak Steam.</p>
+                    <div class="tags"><span class="tag">Steam-like</span><span class="tag">Featured</span></div>
+                    <a class="btn" href="layout-6-steam.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-7-netflix.html" title="Netflix"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 7</div>
+                    <h2>Netflix rows</h2>
+                    <p>Sekcje poziome per kategoria — „Top Akcja”, „RPG”, „Indie” — przewijane rzędy.</p>
+                    <div class="tags"><span class="tag">Rows</span><span class="tag">Home</span></div>
+                    <a class="btn" href="layout-7-netflix.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-8-split.html" title="Split"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 8</div>
+                    <h2>Split featured</h2>
+                    <p>Duża gra po lewej (hero), lista pozostałych po prawej — akcent na okazję dnia.</p>
+                    <div class="tags"><span class="tag">Hero</span><span class="tag">Lista</span></div>
+                    <a class="btn" href="layout-8-split.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-9-masonry.html" title="Masonry"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 9</div>
+                    <h2>Masonry mix</h2>
+                    <p>Sticky kategorie u góry + siatka z większymi kartami co druga — dynamiczny układ.</p>
+                    <div class="tags"><span class="tag">Masonry</span><span class="tag">Mix</span></div>
+                    <a class="btn" href="layout-9-masonry.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick">
+                <div class="pick-preview"><iframe src="layout-10-bottom-nav.html" title="Bottom"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num">Układ 10</div>
+                    <h2>Bottom nav</h2>
+                    <p>Kategorie na dole ekranu (mobile-first), siatka 2 kolumny — jak aplikacja.</p>
+                    <div class="tags"><span class="tag">Mobile</span><span class="tag">App-like</span></div>
+                    <a class="btn" href="layout-10-bottom-nav.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+        </div>
+
+        <h2 style="font-size:1.1rem;color:#05ffa1;text-transform:uppercase;letter-spacing:.1em;margin:48px 0 20px;padding-bottom:8px;border-bottom:1px solid #333">Seria 2 — układy 11–20 · NEW</h2>
+        <div class="grid">
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-11-sidebar-right.html" title="Sidebar right"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 11 · NEW</div>
+                    <h2>Sidebar prawy</h2>
+                    <p>Filtry po prawej stronie — więcej miejsca na siatkę gier po lewej.</p>
+                    <div class="tags"><span class="tag">Sidebar</span><span class="tag">Prawy</span></div>
+                    <a class="btn" href="layout-11-sidebar-right.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-12-accordion.html" title="Accordion"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 12 · NEW</div>
+                    <h2>Accordion</h2>
+                    <p>Każda kategoria to rozwijana sekcja z grami wewnątrz.</p>
+                    <div class="tags"><span class="tag">Accordion</span><span class="tag">Sekcje</span></div>
+                    <a class="btn" href="layout-12-accordion.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-13-magazine.html" title="Magazine"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 13 · NEW</div>
+                    <h2>Magazine</h2>
+                    <p>Duży banner hero + 3 średnie karty + siatka — styl magazynu gaming.</p>
+                    <div class="tags"><span class="tag">Hero</span><span class="tag">Magazine</span></div>
+                    <a class="btn" href="layout-13-magazine.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-14-table-list.html" title="Table"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 14 · NEW</div>
+                    <h2>Lista / tabela</h2>
+                    <p>Widok listy: miniatura, tytuł, cena, sklepy — szybkie porównanie.</p>
+                    <div class="tags"><span class="tag">Lista</span><span class="tag">Tabela</span></div>
+                    <a class="btn" href="layout-14-table-list.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-15-icon-cats.html" title="Icons"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 15 · NEW</div>
+                    <h2>Ikony kategorii</h2>
+                    <p>Siatka ikon z emoji/-symbolami — kategorie na pierwszy rzut oka.</p>
+                    <div class="tags"><span class="tag">Ikony</span><span class="tag">Wizualne</span></div>
+                    <a class="btn" href="layout-15-icon-cats.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-16-fab-filter.html" title="FAB"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 16 · NEW</div>
+                    <h2>FAB filtr</h2>
+                    <p>Pełna siatka gier + pływający przycisk filtrów w rogu.</p>
+                    <div class="tags"><span class="tag">FAB</span><span class="tag">Minimal</span></div>
+                    <a class="btn" href="layout-16-fab-filter.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-17-dual-filters.html" title="Dual"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 17 · NEW</div>
+                    <h2>Dwa rzędy filtrów</h2>
+                    <p>Gatunki w pierwszym rzędzie, sklepy/cena w drugim — precyzyjne filtrowanie.</p>
+                    <div class="tags"><span class="tag">Dual</span><span class="tag">Filtry</span></div>
+                    <a class="btn" href="layout-17-dual-filters.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-18-hero-carousel.html" title="Carousel"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 18 · NEW</div>
+                    <h2>Hero karuzela</h2>
+                    <p>Pełnoekranowa karuzela na górze + kategorie + siatka.</p>
+                    <div class="tags"><span class="tag">Karuzela</span><span class="tag">Hero</span></div>
+                    <a class="btn" href="layout-18-hero-carousel.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-19-bento.html" title="Bento"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 19 · NEW</div>
+                    <h2>Bento box</h2>
+                    <p>Nierówna siatka kafelków — duże i małe karty w jednym układzie.</p>
+                    <div class="tags"><span class="tag">Bento</span><span class="tag">Kafelki</span></div>
+                    <a class="btn" href="layout-19-bento.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#3d5a80">
+                <div class="pick-preview"><iframe src="layout-20-search-first.html" title="Search"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#05ffa1">Układ 20 · NEW</div>
+                    <h2>Search first</h2>
+                    <p>Wyszukiwarka na środku strony, kategorie jako underline tabs — fokus na szukanie.</p>
+                    <div class="tags"><span class="tag">Search</span><span class="tag">Prosty</span></div>
+                    <a class="btn" href="layout-20-search-first.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+        </div>
+
+        <h2 style="font-size:1.1rem;color:#ff6b9d;text-transform:uppercase;letter-spacing:.1em;margin:48px 0 20px;padding-bottom:8px;border-bottom:1px solid #333">Seria 3 — układy 21–30 · NEW</h2>
+        <div class="grid">
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-21-coverwall.html" title="Cover wall"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 21 · NEW</div>
+                    <h2>Cover wall</h2>
+                    <p>Mozaika okładek — tytuł i cena po najechaniu, Pinterest-style.</p>
+                    <div class="tags"><span class="tag">Mozaika</span><span class="tag">Wizualny</span></div>
+                    <a class="btn" href="layout-21-coverwall.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-22-leaderboard.html" title="Leaderboard"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 22 · NEW</div>
+                    <h2>Leaderboard</h2>
+                    <p>Ranking z medalami — numer, okładka, tytuł, cena, badge HIT.</p>
+                    <div class="tags"><span class="tag">Ranking</span><span class="tag">Top</span></div>
+                    <a class="btn" href="layout-22-leaderboard.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-23-store-tabs.html" title="Store tabs"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 23 · NEW</div>
+                    <h2>Store tabs</h2>
+                    <p>Zakładki sklepów (Steam, GOG, Epic…) — filtruj po platformie.</p>
+                    <div class="tags"><span class="tag">Sklepy</span><span class="tag">Tabs</span></div>
+                    <a class="btn" href="layout-23-store-tabs.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-24-split-screen.html" title="Split"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 24 · NEW</div>
+                    <h2>Split screen</h2>
+                    <p>Pełnoekranowy podział — kategorie po lewej, gry po prawej, bez scrollu strony.</p>
+                    <div class="tags"><span class="tag">Split</span><span class="tag">Desktop</span></div>
+                    <a class="btn" href="layout-24-split-screen.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-25-tag-cloud.html" title="Tag cloud"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 25 · NEW</div>
+                    <h2>Tag cloud</h2>
+                    <p>Chmura tagów kategorii o różnych rozmiarach + siatka gier.</p>
+                    <div class="tags"><span class="tag">Chmura</span><span class="tag">Kategorie</span></div>
+                    <a class="btn" href="layout-25-tag-cloud.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-26-price-bands.html" title="Price bands"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 26 · NEW</div>
+                    <h2>Price bands</h2>
+                    <p>Sekcje wg ceny: Darmowe, Do 50 zł, 50–150 zł, Premium — poziome rzędy.</p>
+                    <div class="tags"><span class="tag">Cena</span><span class="tag">Sekcje</span></div>
+                    <a class="btn" href="layout-26-price-bands.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-27-card-deck.html" title="Deck"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 27 · NEW</div>
+                    <h2>Card deck</h2>
+                    <p>Stos kart jak w Tinderze — przewijaj jedną grę na raz.</p>
+                    <div class="tags"><span class="tag">Deck</span><span class="tag">Mobile</span></div>
+                    <a class="btn" href="layout-27-card-deck.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-28-timeline-feed.html" title="Feed"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 28 · NEW</div>
+                    <h2>Timeline feed</h2>
+                    <p>Feed jak w social media — avatar okładki, meta, cena w wąskiej kolumnie.</p>
+                    <div class="tags"><span class="tag">Feed</span><span class="tag">Lista</span></div>
+                    <a class="btn" href="layout-28-timeline-feed.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-29-compact-3col.html" title="Compact"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 29 · NEW</div>
+                    <h2>Compact 3-col</h2>
+                    <p>Gęsta siatka 3 kolumn — miniatura + tytuł + cena w jednym wierszu.</p>
+                    <div class="tags"><span class="tag">Gęsto</span><span class="tag">3 kolumny</span></div>
+                    <a class="btn" href="layout-29-compact-3col.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+            <article class="pick" style="border-color:#4a3060">
+                <div class="pick-preview"><iframe src="layout-30-dashboard.html" title="Dashboard"></iframe></div>
+                <div class="pick-body">
+                    <div class="pick-num" style="color:#ff6b9d">Układ 30 · NEW</div>
+                    <h2>Dashboard</h2>
+                    <p>Widgety statystyk (gry, kategorie, sklepy) + kategorie + siatka.</p>
+                    <div class="tags"><span class="tag">Stats</span><span class="tag">Panel</span></div>
+                    <a class="btn" href="layout-30-dashboard.html" target="_blank">Podgląd →</a>
+                </div>
+            </article>
+        </div>
+
+        <p class="hint">💬 Napisz np. <strong>„Układ 24”</strong>, <strong>„Split screen”</strong> lub <strong>„Dashboard”</strong> — zmienię układ kategorii i gier na całej stronie.</p>
+    </div>
+</body>
+</html>

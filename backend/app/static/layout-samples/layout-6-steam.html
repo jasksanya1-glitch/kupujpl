@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 6 — Steam Store | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .featured { display: flex; gap: 14px; overflow-x: auto; padding: 20px; max-width: var(--wrap); margin: 0 auto; }
+        .featured .card { flex: 0 0 280px; }
+        .body { display: grid; grid-template-columns: 200px 1fr; gap: 20px; max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .filter-panel { background: var(--surface); border-radius: 12px; padding: 14px; height: fit-content; }
+        .filter-panel h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+        .filter-panel label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; cursor: pointer; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 6</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <p class="section-title wrap" style="padding-top:16px">Polecane</p>
+    <div class="featured" id="feat"></div>
+    <div class="body">
+        <aside class="filter-panel">
+            <h3>Genres</h3>
+            <label><input type="checkbox" checked> Akcja</label>
+            <label><input type="checkbox"> RPG</label>
+            <label><input type="checkbox"> Indie</label>
+            <label><input type="checkbox"> Sport</label>
+            <h3 style="margin-top:16px">Cena</h3>
+            <label><input type="radio" name="p"> Dowolna</label>
+            <label><input type="radio" name="p"> Do 50 zł</label>
+        </aside>
+        <div class="grid" id="grid"></div>
+    </div>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('feat').innerHTML = MOCK_GAMES.slice(0,4).map(cardHtml).join('');
+        document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');
+    </script>
+</body>
+</html>

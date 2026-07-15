@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 9 — Xbox Green | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#0e0e0e;--surface:#1a1a1a;--green:#107c10;--green-light:#3fb950;--text:#fff;--muted:#999}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+        .badge{position:fixed;top:16px;right:16px;z-index:99;background:var(--green);padding:6px 14px;font-size:11px;font-weight:700;border-radius:4px}
+        header{display:flex;align-items:center;gap:24px;height:56px;background:var(--surface)}
+        .logo{font-size:20px;font-weight:700;text-decoration:none;color:#fff;display:flex;align-items:center;gap:8px}
+        .logo-icon{width:28px;height:28px;background:var(--green);border-radius:50%;display:grid;place-items:center;font-size:14px}
+        .search{flex:1;max-width:440px;height:36px;background:#2d2d2d;border:none;border-radius:4px;padding:0 14px;color:#fff;font:inherit}
+        .nav a{color:var(--green-light);text-decoration:none;font-weight:600;font-size:14px}
+        .hero{padding:36px 0;background:linear-gradient(135deg,#107c1022,transparent);margin:0 -20px;padding-left:20px;padding-right:20px}
+        .hero h1{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:700}
+        .hero p{color:var(--muted);margin-top:8px}
+        .cats{display:flex;gap:8px;flex-wrap:wrap;padding:20px 0}
+        .cat{padding:8px 16px;background:var(--surface);border:none;border-radius:4px;color:var(--muted);font:inherit;font-size:13px;cursor:pointer}
+        .cat.active,.cat:hover{background:var(--green);color:#fff}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding-bottom:40px}
+        .card{background:var(--surface);border-radius:8px;overflow:hidden;transition:.2s}
+        .card:hover{transform:scale(1.02);box-shadow:0 8px 24px rgba(16,124,16,.25)}
+        .card img{width:100%;aspect-ratio:460/215;object-fit:cover}
+        .card-body{padding:14px}
+        .card h3{font-size:15px;font-weight:600;margin-bottom:6px}
+        .price{color:var(--green-light);font-size:18px;font-weight:700}
+    </style>
+</head>
+<body>
+    <div class="badge">STYL 9</div>
+    <header class="wrap"><a class="logo" href="#"><span class="logo-icon">K</span>KupujPL Gry</a><input class="search" placeholder="Szukaj gier..."><nav class="nav"><a href="#">Zaloguj</a></nav></header>
+    <div class="hero wrap"><h1>Game Pass vibes.<br>Najlepsze ceny.</h1><p>87 000+ tytułów · Steam, GOG, Epic, Humble</p></div>
+    <main class="wrap">
+        <div class="cats"><button class="cat active">Wszystkie</button><button class="cat">Akcja</button><button class="cat">RPG</button><button class="cat">Sport</button></div>
+        <div class="grid">
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt=""><div class="card-body"><h3>Counter-Strike 2</h3><div class="price">0,00 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt=""><div class="card-body"><h3>Wiedźmin 3</h3><div class="price">29,80 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt=""><div class="card-body"><h3>Cyberpunk 2077</h3><div class="price">119,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt=""><div class="card-body"><h3>Hades</h3><div class="price">47,99 zł</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt=""><div class="card-body"><h3>Elden Ring</h3><div class="price">149,99 zł</div></div></article>
+        </div>
+    </main>
+</body>
+</html>

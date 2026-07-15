@@ -1,0 +1,17 @@
+{
+  "version": "1",
+  "name": "KupujPL Tier A Scan",
+  "description": "Daily top-5000 scan progress (VPS poll + laptop local)",
+  "charts": {
+    "tier_a.vps_progress": {
+      "title": "VPS official scan %",
+      "units": "percent",
+      "type": "line"
+    },
+    "tier_a.laptop_progress": {
+      "title": "Laptop keyshops scan %",
+      "units": "percent",
+      "type": "line"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 19 — Bento box | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .cats { display: flex; gap: 8px; padding: 16px 20px; max-width: var(--wrap); margin: 0 auto; overflow-x: auto; }
+        main { max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .bento { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 120px); gap: 12px; }
+        @media (max-width: 800px) { .bento { grid-template-columns: repeat(2, 1fr); grid-template-rows: auto; } }
+        .bento .card { position: relative; overflow: hidden; }
+        .bento .card img { width: 100%; height: 100%; object-fit: cover; }
+        .bento .card .card-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 10px 12px; background: linear-gradient(transparent, rgba(0,0,0,.85)); }
+        .bento .card h3 { font-size: 13px; margin: 0; }
+        .bento .a { grid-column: span 2; grid-row: span 2; }
+        .bento .b { grid-column: span 2; }
+        .bento .c { grid-row: span 2; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 19</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="cats" id="cats"></div>
+    <main><div class="bento" id="bento"></div></main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        const cls = ['a','b','','c','','','',''];
+        document.getElementById('bento').innerHTML = MOCK_GAMES.slice(0,8).map((g,i)=>`
+            <article class="card ${cls[i]||''}"><img src="${g.img}" alt=""><div class="card-body"><h3>${g.title}</h3><div class="price">${g.price}</div></div></article>
+        `).join('');
+    </script>
+</body>
+</html>

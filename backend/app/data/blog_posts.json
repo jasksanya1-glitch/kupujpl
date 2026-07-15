@@ -1,0 +1,32 @@
+{
+  "jak-kupowac-gry-taniej": {
+    "title": "Jak kupować gry taniej w Polsce — poradnik 2026",
+    "description": "Sprawdzone sposoby na tańsze gry PC: Steam, keyshopy, sezony wyprzedaży i porównywarki cen.",
+    "date": "2026-06-15",
+    "body_html": "<p>Gry PC w Polsce można kupić taniej, jeśli porównujesz ceny w wielu sklepach zamiast kliknąć „Kup” od razu w Steam.</p><h2>1. Porównuj ceny</h2><p>Najtańsza oferta często jest w autoryzowanym resellerze lub oficjalnym sklepie konkurencji (GOG, Epic).</p><h2>2. Wyprzedaże sezonowe</h2><p>Letnie i zimowe wyprzedaże Steam to dobry moment — ale keyshopy często obniżają ceny wcześniej.</p><h2>3. Śledź cenę</h2><p>Ustaw alert cenowy na grę, którą chcesz — dostaniesz maila lub wiadomość na Telegramie przy spadku.</p><h2>4. Sprawdź region klucza</h2><p>Klucze globalne działają w Polsce; unikaj wyłącznie regionalnych wersji bez PLN.</p>"
+  },
+  "steam-vs-keyshopy": {
+    "title": "Steam vs keyshopy — co to jest i czy to legalne?",
+    "description": "Wyjaśniamy różnicę między oficjalnymi sklepami a marketplace kluczy oraz na co uważać.",
+    "date": "2026-06-18",
+    "body_html": "<p><strong>Steam</strong> to oficjalny sklep Valve. Płacisz bezpośrednio platformie, masz zwroty i pełne wsparcie.</p><p><strong>Keyshopy</strong> (marketplace) sprzedają klucze aktywacyjne od pośredników. Część resellerów jest autoryzowana przez wydawców, część to rynek wtórny.</p><h2>Czy to legalne?</h2><p>Kupno klucza do gry na Steam jest legalne, jeśli klucz pochodzi z autoryzowanego kanału dystrybucji. Unikaj podejrzanie tanich ofert bez opinii sprzedawcy.</p><h2>Co sprawdzić przed zakupem?</h2><ul><li>Czy sklep ma politykę zwrotów</li><li>Czy klucz jest na Steam / global</li><li>Czy cena nie jest „za dobra”, by była prawdziwa</li></ul>"
+  },
+  "gdzie-kupic-klucz-steam": {
+    "title": "Gdzie kupić klucz Steam — porównanie sklepów",
+    "description": "GOG, Epic, Green Man Gaming, Instant Gaming i inne — kiedy który sklep ma sens.",
+    "date": "2026-06-22",
+    "body_html": "<p>Klucz Steam możesz kupić w oficjalnym sklepie Steam lub u autoryzowanych partnerów. Marketplace oferuje czasem niższą cenę, ale wymaga uwagi.</p><h2>Oficjalne sklepy</h2><p>Steam, GOG, Epic Games — najwyższy poziom zaufania i zwrotów.</p><h2>Autoryzowani resellerzy</h2><p>Green Man Gaming, Instant Gaming — często tańsze promocje, klucze bezpośrednio od wydawcy.</p><h2>Marketplace</h2><p>G2A, Kinguin — porównuj sprzedawców i oceny. Kupuj tylko u zaufanych.</p>"
+  },
+  "alert-cenowy-jak-dziala": {
+    "title": "Alert cenowy — jak działa na KupujPL Gry",
+    "description": "Włącz śledzenie gry i alert e-mail lub Telegram gdy cena spadnie.",
+    "date": "2026-06-25",
+    "body_html": "<p>Po zalogowaniu kliknij <strong>Śledź</strong> przy grze, potem włącz <strong>Alert cenowy</strong>. Ustaw opcjonalnie docelową cenę.</p><p>Powiadomienie dostaniesz gdy najlepsza cena spadnie względem ceny bazowej (cooldown 24 h).</p><h2>Telegram</h2><p>W panelu wygeneruj token i wyślij <code>/start TOKEN</code> do bota. Potem <code>/watch slug-gry</code>.</p>"
+  },
+  "najwieksze-oszczednosci-steam": {
+    "title": "Największe oszczędności vs Steam — jak czytać badge −X%",
+    "description": "Badge oszczędności pokazuje różnicę między Steam a najtańszą ofertą w porównaniu.",
+    "date": "2026-06-28",
+    "body_html": "<p>Badge <strong>−X% vs Steam</strong> pojawia się tylko gdy mamy aktualną cenę Steam i tańszą ofertę w innym sklepie.</p><p>Jeśli Steam jest najtańszy lub równy — badge się nie wyświetla. To normalne przy wyprzedażach Steam.</p><p>Sprawdź listę <a href=\"/games/najwieksze-okazje\">największych okazji</a> lub ustaw alert na grę z listy życzeń.</p>"
+  }
+}

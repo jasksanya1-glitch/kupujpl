@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/games/static/favicon.svg?v=cp2077-11" type="image/svg+xml">
+    <link rel="icon" href="/games/static/favicon.ico" sizes="any">
+    <link rel="icon" href="/games/static/icons/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/games/static/icons/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" href="/games/static/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/games/static/site.webmanifest">
+    <meta name="theme-color" content="#0070d1">
+
+    <meta name="robots" content="noindex, nofollow">
+    <base href="/games/panel3/">
+    <title>Panel3 — Адмін ігор | KupujPL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../static/panel3.css?v=6">
+</head>
+<body class="panel3-gate">
+    <main class="panel3-gate__card">
+        <p class="panel3-gate__badge">🎮 Panel3</p>
+        <h1>Адмін — KupujPL Ігри</h1>
+        <p class="panel3-gate__lead">Введіть код доступу до панелі адміністратора ігор.</p>
+        <p class="panel3-gate__error" id="gate-error" hidden>Невірний код доступу.</p>
+        <form method="post" action="/games/panel3/unlock">
+            <label for="access_code">Код доступу</label>
+            <input type="password" id="access_code" name="access_code" autocomplete="off" required autofocus>
+            <button type="submit" class="panel3-btn panel3-btn--primary">Увійти</button>
+        </form>
+        <p class="panel3-gate__hint"><a href="/games/">← Назад до магазину ігор</a></p>
+    </main>
+    <script>
+        if (new URLSearchParams(location.search).get('err') === '1') {
+            var el = document.getElementById('gate-error');
+            if (el) el.hidden = false;
+        }
+    </script>
+</body>
+</html>

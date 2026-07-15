@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 6 — Arcade Cabinet | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg:#1a0a2e; --surface:#2d1b4e; --yellow:#ffd700; --red:#ff3366; --cyan:#00ffff; --text:#fff; --muted:#c4a8e8; }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:VT323,monospace;font-size:20px;background:var(--bg);color:var(--text);min-height:100vh;
+            background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px)}
+        .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+        .badge{position:fixed;top:12px;right:12px;z-index:99;background:var(--red);color:#fff;padding:8px 12px;font-family:'Press Start 2P',cursive;font-size:8px}
+        header{display:flex;align-items:center;gap:16px;height:72px;border-bottom:4px solid var(--yellow);background:var(--surface)}
+        .logo{font-family:'Press Start 2P',cursive;font-size:14px;text-decoration:none;color:var(--yellow);text-shadow:3px 3px 0 var(--red)}
+        .logo span{color:var(--cyan)}
+        .search{flex:1;max-width:360px;height:40px;background:#000;border:3px solid var(--cyan);padding:0 12px;color:var(--cyan);font:inherit;font-size:18px}
+        .nav a{color:var(--yellow);text-decoration:none;font-size:22px}
+        .hero{padding:28px 0;text-align:center}
+        .hero h1{font-family:'Press Start 2P',cursive;font-size:clamp(14px,3vw,22px);line-height:1.8;color:var(--yellow);text-shadow:2px 2px 0 var(--red)}
+        .hero p{color:var(--muted);margin-top:12px;font-size:22px}
+        .cats{display:flex;gap:8px;flex-wrap:wrap;padding:16px 0}
+        .cat{padding:8px 16px;background:#000;border:3px solid var(--cyan);color:var(--cyan);font:inherit;cursor:pointer}
+        .cat.active{background:var(--cyan);color:#000;border-color:var(--yellow)}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding-bottom:40px}
+        .card{background:var(--surface);border:4px solid var(--yellow);overflow:hidden;transition:.15s}
+        .card:hover{transform:scale(1.03);border-color:var(--cyan);box-shadow:0 0 20px var(--cyan)}
+        .card img{width:100%;aspect-ratio:460/215;object-fit:cover;image-rendering:pixelated}
+        .card-body{padding:12px}
+        .card h3{font-size:18px;margin-bottom:8px}
+        .price{color:var(--yellow);font-family:'Press Start 2P',cursive;font-size:12px}
+    </style>
+</head>
+<body>
+    <div class="badge">STYL 6</div>
+    <header class="wrap"><a class="logo" href="#">KUPUJ<span>PL</span></a><input class="search" placeholder="INSERT COIN TO SEARCH..."><nav class="nav"><a href="#">LOGIN</a></nav></header>
+    <div class="hero wrap"><h1>INSERT COIN<br>PLAY BEST PRICES</h1><p>87 000+ gier · wszystkie sklepy</p></div>
+    <main class="wrap">
+        <div class="cats"><button class="cat active">ALL</button><button class="cat">ACTION</button><button class="cat">RPG</button><button class="cat">INDIE</button></div>
+        <div class="grid">
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt=""><div class="card-body"><h3>Counter-Strike 2</h3><div class="price">0 ZL</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt=""><div class="card-body"><h3>Wiedzmin 3</h3><div class="price">29 ZL</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt=""><div class="card-body"><h3>Cyberpunk 2077</h3><div class="price">119 ZL</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt=""><div class="card-body"><h3>Hades</h3><div class="price">47 ZL</div></div></article>
+            <article class="card"><img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt=""><div class="card-body"><h3>Elden Ring</h3><div class="price">149 ZL</div></div></article>
+        </div>
+    </main>
+</body>
+</html>

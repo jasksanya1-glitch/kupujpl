@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/games/static/favicon.svg?v=cp2077-11" type="image/svg+xml">
+    <meta name="robots" content="noindex, nofollow">
+    <base href="/games/">
+    <title>LIVE · KupujPL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/panel_live.css?v=6">
+</head>
+<body class="live-dash">
+    <header class="live-head">
+        <div class="live-head__left">
+            <span class="live-pulse" id="live-pulse" aria-hidden="true"></span>
+            <h1>KupujPL <span class="live-head__tag">LIVE</span></h1>
+            <span class="live-head__status" id="live-status">завантаження…</span>
+        </div>
+        <div class="live-head__right">
+            <button type="button" class="live-btn" id="btn-sound" title="Звук при новій події">🔔</button>
+            <a href="panel3" class="live-btn live-btn--ghost">Panel3</a>
+            <span class="live-clock" id="live-clock">—</span>
+        </div>
+    </header>
+
+    <section class="live-kpis" id="live-kpis" aria-label="Показники"></section>
+
+    <section class="live-sessions-wrap" id="live-sessions-wrap" hidden>
+        <h2 class="live-feed-title">На сайті зараз</h2>
+        <div class="live-sessions" id="live-sessions" role="list"></div>
+    </section>
+
+    <section class="live-feed-wrap">
+        <h2 class="live-feed-title">Останні події</h2>
+        <div class="live-feed" id="live-feed" role="log" aria-live="polite"></div>
+    </section>
+
+    <footer class="live-foot">
+        <span id="live-foot-left">Оновлення кожні 4 с</span>
+        <span id="live-foot-right">panel3/live</span>
+    </footer>
+
+    <script src="static/panel_live.js?v=5"></script>
+</body>
+</html>

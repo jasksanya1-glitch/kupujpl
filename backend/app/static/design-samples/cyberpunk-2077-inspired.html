@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KupujPL — Cyberpunk 2077 Inspired Style</title>
+  <style>
+    :root {
+      --yellow: #fcee09;
+      --yellow-2: #d7c900;
+      --black: #080808;
+      --ink: #121212;
+      --red: #ff003c;
+      --cyan: #00f0ff;
+      --blue: #0a5cff;
+      --white: #f8f8ef;
+      --muted: #58533a;
+      --panel: rgba(10, 10, 10, .92);
+      --radius-cut: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px));
+      --font: "Arial Narrow", "Roboto Condensed", "Segoe UI Condensed", Impact, system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background:
+        linear-gradient(115deg, rgba(255,0,60,.14) 0 16%, transparent 16% 100%),
+        linear-gradient(90deg, rgba(0,0,0,.09) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,.08) 1px, transparent 1px),
+        var(--yellow);
+      background-size: auto, 36px 36px, 36px 36px, auto;
+      color: var(--black);
+      font-family: var(--font);
+      overflow-x: hidden;
+      text-transform: uppercase;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 8px, rgba(0,0,0,.08) 8px 9px),
+        linear-gradient(110deg, transparent 0 48%, rgba(0,240,255,.2) 50%, transparent 53% 100%);
+      mix-blend-mode: multiply;
+      animation: sweep 7s infinite linear;
+      z-index: 20;
+      opacity: .55;
+    }
+
+    @keyframes sweep {
+      from { transform: translateX(-70%); }
+      to { transform: translateX(70%); }
+    }
+
+    @keyframes glitch {
+      0%, 100% { transform: translate(0); text-shadow: 4px 0 var(--cyan), -4px 0 var(--red); }
+      20% { transform: translate(-2px, 1px); text-shadow: -6px 0 var(--cyan), 5px 0 var(--red); }
+      40% { transform: translate(2px, -1px); text-shadow: 6px 0 var(--red), -5px 0 var(--cyan); }
+      60% { transform: translate(-1px, 0); }
+      80% { transform: translate(1px, 1px); }
+    }
+
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: .12; }
+    }
+
+    @keyframes scan {
+      from { transform: translateX(-110%); }
+      to { transform: translateX(220%); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: .45; transform: scale(.92); }
+      50% { opacity: 1; transform: scale(1.12); }
+    }
+
+    .page {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .topbar {
+      height: 78px;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .brand {
+      background: var(--black);
+      color: var(--yellow);
+      clip-path: var(--radius-cut);
+      padding: 14px 18px;
+      font-size: 30px;
+      font-weight: 1000;
+      letter-spacing: -0.06em;
+      line-height: .9;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand::after, .search::after, .card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 80px;
+      background: rgba(0,240,255,.24);
+      transform: skewX(-18deg);
+      animation: scan 4s infinite linear;
+    }
+
+    .brand span { color: var(--cyan); }
+
+    .search {
+      height: 58px;
+      background: rgba(0,0,0,.86);
+      color: var(--yellow);
+      border: 3px solid var(--black);
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 18px;
+      font-size: 20px;
+      font-weight: 900;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cursor {
+      width: 12px;
+      height: 28px;
+      background: var(--red);
+      animation: blink .72s infinite;
+      flex: 0 0 auto;
+    }
+
+    .status {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .tag {
+      background: var(--black);
+      color: var(--yellow);
+      border: 2px solid var(--black);
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 1000;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+    }
+
+    .tag.red { background: var(--red); color: var(--white); }
+    .tag.cyan { background: var(--cyan); color: var(--black); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr) 286px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      color: var(--yellow);
+      border: 3px solid var(--black);
+      clip-path: var(--radius-cut);
+      position: relative;
+    }
+
+    .left {
+      padding: 16px;
+      position: sticky;
+      top: 18px;
+    }
+
+    .kicker {
+      display: inline-block;
+      color: var(--red);
+      background: var(--yellow);
+      padding: 5px 8px;
+      font-size: 12px;
+      font-weight: 1000;
+      letter-spacing: .08em;
+      margin-bottom: 12px;
+    }
+
+    .cat {
+      display: grid;
+      grid-template-columns: 26px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border-bottom: 1px solid rgba(252,238,9,.28);
+      padding: 13px 0;
+      color: var(--white);
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .cat:first-of-type {
+      color: var(--cyan);
+    }
+
+    .cat small { color: var(--yellow); font-size: 12px; }
+    .cat-num { color: var(--red); }
+
+    .warning-box {
+      margin-top: 18px;
+      background: var(--red);
+      color: var(--white);
+      padding: 14px;
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .hero {
+      min-height: 560px;
+      background:
+        linear-gradient(125deg, rgba(0,0,0,.94) 0 46%, rgba(255,0,60,.9) 46% 52%, rgba(0,0,0,.9) 52% 100%),
+        var(--black);
+      border: 4px solid var(--black);
+      clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 34px 100%, 0 calc(100% - 34px));
+      color: var(--yellow);
+      padding: 30px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "NO FUTURE // BEST PRICE // NO FUTURE // BEST PRICE";
+      position: absolute;
+      left: -20px;
+      right: -20px;
+      top: 32px;
+      color: rgba(252,238,9,.1);
+      font-size: 42px;
+      font-weight: 1000;
+      white-space: nowrap;
+      transform: rotate(-7deg);
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-width: 0;
+    }
+
+    .hero h1 {
+      font-size: clamp(54px, 6.4vw, 112px);
+      line-height: .82;
+      letter-spacing: -.07em;
+      margin: 20px 0;
+      animation: glitch 2.9s infinite steps(1);
+    }
+
+    .hero h1 span {
+      color: var(--white);
+    }
+
+    .hero p {
+      color: #fff8ad;
+      font-size: 20px;
+      max-width: 660px;
+      line-height: 1.35;
+      text-transform: none;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .btn {
+      border: 0;
+      background: var(--yellow);
+      color: var(--black);
+      font-size: 18px;
+      font-weight: 1000;
+      padding: 16px 22px;
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn.red { background: var(--red); color: var(--white); }
+
+    .feature-card {
+      position: relative;
+      z-index: 1;
+      background: var(--yellow);
+      color: var(--black);
+      padding: 18px;
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%);
+      min-height: 230px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border: 4px solid var(--black);
+      opacity: .16;
+    }
+
+    .cover-label {
+      color: var(--red);
+      font-size: 15px;
+      font-weight: 1000;
+      letter-spacing: .12em;
+    }
+
+    .feature-card h2 {
+      font-size: 48px;
+      line-height: .86;
+      letter-spacing: -.05em;
+      margin-top: 18px;
+    }
+
+    .feature-price {
+      font-size: 42px;
+      color: var(--red);
+      font-weight: 1000;
+    }
+
+    .ticker {
+      height: 46px;
+      background: var(--red);
+      color: var(--white);
+      border: 3px solid var(--black);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      font-weight: 1000;
+      font-size: 18px;
+      white-space: nowrap;
+    }
+
+    .ticker span {
+      display: inline-block;
+      min-width: max-content;
+      animation: ticker 18s infinite linear;
+    }
+
+    @keyframes ticker {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--black);
+    }
+
+    .section-head h2 {
+      font-size: 44px;
+      letter-spacing: -.06em;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      min-height: 286px;
+      padding: 14px;
+      background: var(--black);
+      color: var(--yellow);
+      border: 3px solid var(--black);
+      clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform .14s ease;
+    }
+
+    .card:hover { transform: translateY(-5px) skewX(-1deg); }
+
+    .thumb {
+      height: 132px;
+      background:
+        linear-gradient(135deg, rgba(252,238,9,.96), rgba(252,238,9,.2) 40%, transparent 40%),
+        linear-gradient(315deg, rgba(255,0,60,.8), transparent 45%),
+        #151515;
+      border: 2px solid var(--yellow);
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%);
+      display: flex;
+      align-items: end;
+      padding: 10px;
+      color: var(--black);
+      font-weight: 1000;
+      font-size: 13px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card h3 {
+      font-size: 25px;
+      line-height: .94;
+      letter-spacing: -.04em;
+      margin-top: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .shops {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .shop {
+      background: var(--yellow);
+      color: var(--black);
+      padding: 5px 7px;
+      font-size: 11px;
+      font-weight: 1000;
+    }
+
+    .foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      margin-top: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .price {
+      color: var(--cyan);
+      font-size: 30px;
+      font-weight: 1000;
+      text-shadow: 2px 0 var(--red);
+    }
+
+    .save {
+      color: var(--red);
+      background: var(--yellow);
+      padding: 5px 7px;
+      font-weight: 1000;
+      font-size: 12px;
+    }
+
+    .right {
+      padding: 16px;
+      position: sticky;
+      top: 18px;
+    }
+
+    .scanner {
+      height: 220px;
+      background: var(--yellow);
+      color: var(--black);
+      clip-path: var(--radius-cut);
+      padding: 15px;
+      margin-bottom: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .scanner h3 {
+      font-size: 24px;
+      letter-spacing: -.04em;
+    }
+
+    .scan-grid {
+      position: absolute;
+      inset: 60px 18px 18px;
+      border: 3px solid var(--black);
+      background:
+        linear-gradient(var(--black) 2px, transparent 2px),
+        linear-gradient(90deg, var(--black) 2px, transparent 2px);
+      background-size: 24px 24px;
+      opacity: .7;
+    }
+
+    .scan-line {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      top: 92px;
+      height: 7px;
+      background: var(--red);
+      box-shadow: 0 0 18px var(--red);
+      animation: scanDown 2.4s infinite ease-in-out;
+    }
+
+    @keyframes scanDown {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(92px); }
+    }
+
+    .offer-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(252,238,9,.25);
+      color: var(--white);
+      font-weight: 900;
+    }
+
+    .offer-row b { color: var(--cyan); }
+
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 220px 1fr; }
+      .right { grid-column: 1 / -1; position: static; display: grid; grid-template-columns: 300px 1fr; gap: 14px; }
+      .hero { grid-template-columns: 1fr; }
+      .feature-card { min-height: 320px; }
+    }
+
+    @media (max-width: 820px) {
+      .page { padding: 10px; }
+      .topbar, .layout, .right { grid-template-columns: 1fr; }
+      .topbar { height: auto; }
+      .left, .right { position: static; }
+      .cards { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 58px; }
+      .hero { padding: 18px; }
+      .section-head { flex-direction: column; align-items: start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">Kupuj<span>PL</span><br>Games</div>
+      <div class="search"><span class="cursor"></span><span>search database: cyberdeals / steam / gog / keyshops</span></div>
+      <div class="status"><span class="tag red">critical deals</span><span class="tag cyan">live scan</span><span class="tag">9 shops</span></div>
+    </header>
+
+    <div class="layout">
+      <aside class="panel left">
+        <span class="kicker">district menu</span>
+        <div class="cat"><span class="cat-num">01</span><span>All Games</span><small>5000</small></div>
+        <div class="cat"><span class="cat-num">02</span><span>RPG / Open World</span><small>812</small></div>
+        <div class="cat"><span class="cat-num">03</span><span>Action</span><small>693</small></div>
+        <div class="cat"><span class="cat-num">04</span><span>Racing</span><small>214</small></div>
+        <div class="cat"><span class="cat-num">05</span><span>DLC / Editions</span><small>1200</small></div>
+        <div class="warning-box">Warning: prices unstable. Scan before buying.</div>
+      </aside>
+
+      <main class="main">
+        <section class="hero">
+          <div class="hero-copy">
+            <div>
+              <span class="kicker">no future / only best price</span>
+              <h1>Wake up<br><span>deal hunter</span></h1>
+              <p>
+                Styl inspirowany Cyberpunk 2077: agresywny żółto-czarny interfejs,
+                czerwone ostrzeżenia, glitch typografia i karty gier jak panel w launcherze.
+              </p>
+              <div class="cta">
+                <a href="#deals" class="btn">Start scan</a>
+                <a href="#scanner" class="btn red">Open HUD</a>
+              </div>
+            </div>
+            <div class="ticker"><span>Steam // GOG // Epic // Eneba // Kinguin // CDKeys // G2A // Gamivo // Instant Gaming // Steam // GOG // Epic // Eneba // Kinguin // CDKeys // G2A // Gamivo // Instant Gaming //</span></div>
+          </div>
+
+          <div class="feature-card">
+            <div>
+              <div class="cover-label">featured offer</div>
+              <h2>Cyberpunk<br>2077<br>Ultimate</h2>
+            </div>
+            <div>
+              <div class="feature-price">49,99 zl</div>
+              <strong>GOG // official store</strong>
+            </div>
+          </div>
+        </section>
+
+        <div id="deals" class="section-head">
+          <div>
+            <span class="kicker">hot database entries</span>
+            <h2>Best prices in Night City</h2>
+          </div>
+          <span class="tag">sorted by lowest</span>
+        </div>
+
+        <section class="cards">
+          <article class="card"><div><div class="thumb">open world</div><h3>Cyberpunk 2077</h3><div class="shops"><span class="shop">GOG</span><span class="shop">Steam</span><span class="shop">Kinguin</span></div></div><div class="foot"><span class="price">49,99</span><span class="save">-72%</span></div></article>
+          <article class="card"><div><div class="thumb">rpg party</div><h3>Baldur's Gate 3</h3><div class="shops"><span class="shop">Steam</span><span class="shop">GOG</span><span class="shop">CDKeys</span></div></div><div class="foot"><span class="price">129,00</span><span class="save">official</span></div></article>
+          <article class="card"><div><div class="thumb">soulslike</div><h3>Elden Ring</h3><div class="shops"><span class="shop">Kinguin</span><span class="shop">G2A</span><span class="shop">Gamivo</span></div></div><div class="foot"><span class="price">159,90</span><span class="save">key hit</span></div></article>
+          <article class="card"><div><div class="thumb">racing</div><h3>F1 25</h3><div class="shops"><span class="shop">G2A</span><span class="shop">CDKeys</span><span class="shop">Steam</span></div></div><div class="foot"><span class="price">219,00</span><span class="save">new</span></div></article>
+          <article class="card"><div><div class="thumb">magic</div><h3>Hogwarts Legacy</h3><div class="shops"><span class="shop">Steam</span><span class="shop">G2A</span><span class="shop">Eneba</span></div></div><div class="foot"><span class="price">79,99</span><span class="save">-64%</span></div></article>
+          <article class="card"><div><div class="thumb">crime city</div><h3>Grand Theft Auto V</h3><div class="shops"><span class="shop">Gamivo</span><span class="shop">Kinguin</span><span class="shop">G2A</span></div></div><div class="foot"><span class="price">39,00</span><span class="save">fast</span></div></article>
+        </section>
+      </main>
+
+      <aside id="scanner" class="panel right">
+        <div class="scanner">
+          <h3>price scanner</h3>
+          <div class="scan-grid"></div>
+          <div class="scan-line"></div>
+        </div>
+        <span class="kicker">shop signals</span>
+        <div class="offer-row"><span>Steam official</span><b>ONLINE</b></div>
+        <div class="offer-row"><span>GOG official</span><b>ONLINE</b></div>
+        <div class="offer-row"><span>G2A feed</span><b>4161 HIT</b></div>
+        <div class="offer-row"><span>Kinguin alley</span><b>ACTIVE</b></div>
+        <div class="offer-row"><span>Gamivo tunnel</span><b style="color: var(--red)">SLOW</b></div>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>

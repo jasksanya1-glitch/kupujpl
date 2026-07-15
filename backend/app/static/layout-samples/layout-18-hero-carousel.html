@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 18 — Hero karuzela | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .carousel { display: flex; gap: 0; overflow-x: auto; scroll-snap-type: x mandatory; max-width: 100%; margin-bottom: 8px; }
+        .slide { flex: 0 0 100%; scroll-snap-align: start; position: relative; }
+        .slide img { width: 100%; aspect-ratio: 21/8; object-fit: cover; display: block; }
+        .slide-cap { position: absolute; bottom: 24px; left: max(20px, calc(50% - 570px)); }
+        .slide-cap h2 { font-size: 32px; margin-bottom: 8px; text-shadow: 0 2px 12px #000; }
+        .dots { display: flex; gap: 8px; justify-content: center; padding: 12px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+        .dot.on { background: var(--blue-light); width: 24px; border-radius: 4px; }
+        .cats { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; padding: 8px 20px 20px; max-width: var(--wrap); margin: 0 auto; }
+        main { max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 18</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="carousel" id="carousel"></div>
+    <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>
+    <div class="cats" id="cats"></div>
+    <main><div class="grid" id="grid"></div></main>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('carousel').innerHTML = MOCK_GAMES.slice(0,3).map(g=>`
+            <div class="slide"><img src="${g.img}" alt=""><div class="slide-cap"><h2>${g.title}</h2><div class="price">${g.price}</div></div></div>
+        `).join('');
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');
+    </script>
+</body>
+</html>

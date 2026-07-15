@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KupujPL — фон Matrix (превʼю, не на сайті)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      background: #020804;
+      color: #d8ffe4;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      text-transform: none;
+    }
+
+    #matrix-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 45%, transparent 0%, rgba(0, 0, 0, 0.55) 100%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, transparent 18%, transparent 82%, rgba(0, 0, 0, 0.5) 100%);
+    }
+
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: var(--scan-opacity, 0.12);
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0 2px,
+        rgba(0, 0, 0, 0.35) 2px 3px
+      );
+    }
+
+    .page {
+      position: relative;
+      z-index: 3;
+    }
+
+    .hub {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      margin: 0 12px;
+      padding: 14px 16px;
+      background: rgba(0, 12, 4, 0.88);
+      border: 2px solid rgba(0, 255, 65, 0.35);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 24px rgba(0, 255, 65, 0.08);
+    }
+    .hub h1 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #00ff41;
+      text-shadow: 0 0 12px rgba(0, 255, 65, 0.45);
+      margin-bottom: 6px;
+    }
+    .hub p {
+      font-size: 13px;
+      color: rgba(180, 255, 200, 0.72);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    .hub-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+    }
+    .hub-controls label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(200, 255, 210, 0.85);
+    }
+    .hub-controls input[type="range"] {
+      width: 120px;
+      accent-color: #00ff41;
+    }
+    .hub-controls button {
+      border: 2px solid #00ff41;
+      background: rgba(0, 255, 65, 0.12);
+      color: #00ff41;
+      font-weight: 800;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .hub-controls button:hover {
+      background: rgba(0, 255, 65, 0.28);
+      box-shadow: 0 0 16px rgba(0, 255, 65, 0.25);
+    }
+    .hub-controls button.active {
+      background: #00ff41;
+      color: #001208;
+    }
+
+    .variants {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px 12px 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    .variant-meta {
+      margin-bottom: 12px;
+    }
+    .variant-meta h2 {
+      font-size: 20px;
+      font-weight: 900;
+      color: #00ff41;
+      margin-bottom: 4px;
+    }
+    .variant-meta p {
+      font-size: 13px;
+      color: rgba(180, 255, 200, 0.65);
+    }
+
+    /* ——— Site mock (current CP layout, panels opaque over matrix) ——— */
+    .preview {
+      --cp-yellow: #fcee09;
+      --cp-black: #080808;
+      --cp-red: #ff003c;
+      --cp-cyan: #00f0ff;
+      --cp-white: #f8f6dc;
+      --cp-cut: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+      --cp-cut-sm: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+      --font: "Arial Narrow", "Roboto Condensed", "Segoe UI Condensed", Impact, system-ui, sans-serif;
+
+      font-family: var(--font);
+      text-transform: uppercase;
+      border: 3px solid rgba(0, 255, 65, 0.35);
+      box-shadow:
+        0 0 40px rgba(0, 255, 65, 0.12),
+        inset 0 0 0 1px rgba(0, 255, 65, 0.15);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 8, 2, var(--panel-dim, 0.72));
+      pointer-events: none;
+      z-index: 0;
+    }
+    .preview > * { position: relative; z-index: 1; }
+
+    .preview.mode-full {
+      --cp-yellow: #00ff41;
+      --cp-black: #000a04;
+      --cp-red: #00cc33;
+      --cp-cyan: #7dff9a;
+      --cp-white: #e8ffe8;
+      --panel-dim: 0.82;
+    }
+    .preview.mode-full::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0, 255, 65, 0.06) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .pv-header {
+      display: grid;
+      grid-template-columns: 140px 1fr auto;
+      gap: 8px;
+      padding: 10px 12px 0;
+    }
+    .pv-brand {
+      background: var(--cp-black);
+      color: var(--cp-yellow);
+      clip-path: var(--cp-cut);
+      padding: 8px 10px;
+      font-weight: 1000;
+      font-size: 18px;
+      line-height: 0.95;
+    }
+    .pv-brand span { color: var(--cp-cyan); font-size: 11px; }
+    .pv-search {
+      border: 3px solid var(--cp-black);
+      background: var(--cp-black);
+      clip-path: var(--cp-cut-sm);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      color: var(--cp-yellow);
+      font-weight: 800;
+      min-height: 46px;
+    }
+    .pv-lang span {
+      border: 2px solid var(--cp-black);
+      background: var(--cp-black);
+      color: var(--cp-yellow);
+      padding: 6px 8px;
+      font-weight: 900;
+      font-size: 10px;
+      clip-path: var(--cp-cut-sm);
+      margin-left: 4px;
+    }
+    .pv-lang span.on {
+      background: var(--cp-red);
+      color: var(--cp-white);
+    }
+
+    .pv-shell {
+      display: grid;
+      grid-template-columns: 168px 1fr;
+      gap: 10px;
+      padding: 10px 12px 12px;
+      min-height: 480px;
+    }
+    .pv-left {
+      background: var(--cp-black);
+      color: var(--cp-yellow);
+      clip-path: var(--cp-cut);
+      padding: 12px 10px;
+    }
+    .pv-left h3 { font-size: 11px; color: var(--cp-cyan); margin-bottom: 8px; }
+    .pv-cat {
+      border: 2px solid color-mix(in srgb, var(--cp-yellow) 28%, transparent);
+      padding: 7px 8px;
+      font-weight: 800;
+      font-size: 10px;
+      margin-bottom: 6px;
+      clip-path: var(--cp-cut-sm);
+    }
+    .pv-cat.active {
+      background: var(--cp-yellow);
+      color: var(--cp-black);
+    }
+
+    .pv-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+    .pv-spotlight {
+      background: var(--cp-black);
+      clip-path: var(--cp-cut);
+      padding: 12px 14px;
+      color: var(--cp-yellow);
+      box-shadow: 6px 6px 0 var(--cp-red);
+    }
+    .pv-kicker {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--cp-cyan);
+      margin-bottom: 4px;
+    }
+    .pv-spotlight h4 {
+      font-size: 20px;
+      font-weight: 1000;
+      margin-bottom: 10px;
+    }
+    .pv-spot-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .pv-spot {
+      border: 2px solid color-mix(in srgb, var(--cp-yellow) 32%, transparent);
+      background: rgba(8, 8, 8, 0.88);
+      clip-path: var(--cp-cut-sm);
+      padding: 8px;
+      min-height: 72px;
+    }
+    .pv-spot .cover {
+      height: 28px;
+      background: linear-gradient(135deg, rgba(0, 255, 65, 0.25), rgba(0, 240, 255, 0.2));
+      margin-bottom: 6px;
+    }
+    .pv-spot b { font-size: 9px; display: block; }
+    .pv-spot em {
+      font-style: normal;
+      color: var(--cp-cyan);
+      font-weight: 1000;
+      font-size: 11px;
+    }
+
+    .pv-hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 10px;
+    }
+    .pv-hero-main,
+    .pv-feature {
+      background: var(--cp-black);
+      color: var(--cp-yellow);
+      clip-path: var(--cp-cut);
+      padding: 14px;
+    }
+    .pv-hero-main h5 {
+      font-size: 26px;
+      font-weight: 1000;
+      line-height: 0.95;
+      margin: 6px 0 8px;
+      text-shadow: 2px 0 var(--cp-cyan), -2px 0 var(--cp-red);
+    }
+    .pv-hero-main p.lead {
+      font-size: 10px;
+      line-height: 1.45;
+      color: color-mix(in srgb, var(--cp-yellow) 78%, transparent);
+      text-transform: none;
+      margin-bottom: 10px;
+    }
+    .pv-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pv-btn {
+      border: 2px solid var(--cp-black);
+      background: var(--cp-yellow);
+      color: var(--cp-black);
+      font-weight: 1000;
+      font-size: 10px;
+      padding: 8px 12px;
+      clip-path: var(--cp-cut-sm);
+    }
+    .pv-btn.red {
+      background: var(--cp-red);
+      color: var(--cp-white);
+    }
+    .pv-feature h6 { font-size: 18px; font-weight: 1000; }
+    .pv-feature .live { color: var(--cp-cyan); font-size: 22px; font-weight: 1000; }
+
+    .pv-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .pv-card {
+      background: rgba(8, 8, 8, 0.92);
+      border: 2px solid color-mix(in srgb, var(--cp-yellow) 32%, transparent);
+      clip-path: var(--cp-cut-sm);
+      padding: 8px;
+      color: var(--cp-yellow);
+      min-height: 96px;
+    }
+    .pv-card .cover {
+      height: 36px;
+      background: linear-gradient(120deg, rgba(0, 255, 65, 0.35), rgba(255, 0, 60, 0.2));
+      margin-bottom: 6px;
+    }
+    .pv-card .title { font-size: 9px; font-weight: 900; }
+    .pv-card .price { color: var(--cp-cyan); font-weight: 1000; font-size: 12px; }
+
+    @media (max-width: 900px) {
+      .pv-shell, .pv-hero { grid-template-columns: 1fr; }
+      .pv-cards { grid-template-columns: repeat(2, 1fr); }
+      .pv-spot-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix-canvas" aria-hidden="true"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <div class="page">
+    <header class="hub">
+      <h1>Фон Matrix — превʼю (не на kupujpl.pl)</h1>
+      <p>
+        Анімований «цифровий дощ» за макетом поточного сайту.
+        Два варіанти нижче: <strong>жовтий UI + Matrix фон</strong> або <strong>повністю зелена Matrix-палітра</strong>.
+        Налаштуйте інтенсивність дощу — потім скажіть, чи додавати на сайт.
+      </p>
+      <div class="hub-controls">
+        <label>Дощ <input type="range" id="rain-speed" min="0.3" max="2.5" step="0.1" value="1"></label>
+        <label>Густина <input type="range" id="rain-density" min="0.4" max="1.6" step="0.1" value="1"></label>
+        <label>Сканлінії <input type="range" id="scan-lines" min="0" max="0.35" step="0.01" value="0.12"></label>
+        <button type="button" id="btn-pause">Pause</button>
+      </div>
+    </header>
+
+    <main class="variants">
+      <section id="v1">
+        <div class="variant-meta">
+          <h2>A — Поточний дизайн + Matrix фон</h2>
+          <p>Панелі лишаються жовто-червоно-cyan (CP2077). За UI — дощ Matrix.</p>
+        </div>
+        <div class="preview mode-blend" id="preview-a"></div>
+      </section>
+
+      <section id="v2">
+        <div class="variant-meta">
+          <h2>B — Повна Matrix палітра + дощ</h2>
+          <p>UI теж зелений, як термінал. Фон — той самий дощ.</p>
+        </div>
+        <div class="preview mode-full" id="preview-b"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const MOCK_HTML = `
+      <div class="pv-header">
+        <div class="pv-brand">Kupuj<span>PL</span><span>Gry</span></div>
+        <div class="pv-search">Szukaj gier…</div>
+        <div class="pv-lang"><span class="on">PL</span><span>UA</span><span>EN</span></div>
+      </div>
+      <div class="pv-shell">
+        <aside class="pv-left">
+          <h3>Kategorie</h3>
+          <div class="pv-cat active">Wszystkie</div>
+          <div class="pv-cat">RPG</div>
+          <div class="pv-cat">Akcja</div>
+          <div class="pv-cat">Top sprzedaż</div>
+        </aside>
+        <div class="pv-right">
+          <section class="pv-spotlight">
+            <p class="pv-kicker">night city // twój wybór</p>
+            <h4>Polecane</h4>
+            <div class="pv-spot-row">
+              <div class="pv-spot"><div class="cover"></div><b>Cyberpunk 2077</b><em>59,69 zł</em></div>
+              <div class="pv-spot"><div class="cover"></div><b>ELDEN RING</b><em>194,73 zł</em></div>
+              <div class="pv-spot"><div class="cover"></div><b>Baldur's Gate 3</b><em>186,75 zł</em></div>
+            </div>
+          </section>
+          <section class="pv-hero">
+            <div class="pv-hero-main">
+              <p class="pv-kicker">matrix // najniższa cena</p>
+              <h5>Wstań<br>łowco okazji</h5>
+              <p class="lead">Porównujemy ceny w 10 sklepach. Skan na żywo — Steam, GOG, Epic, keyshopy.</p>
+              <div class="pv-btns">
+                <span class="pv-btn">Skanuj ceny</span>
+                <span class="pv-btn red">Zgłoś błąd</span>
+              </div>
+            </div>
+            <div class="pv-feature">
+              <p class="pv-kicker">polecana okazja</p>
+              <h6>Cyber Okazje</h6>
+              <p class="live">na żywo</p>
+            </div>
+          </section>
+          <section class="pv-cards">
+            <article class="pv-card"><div class="cover"></div><span class="title">Rust</span><span class="price">119,99 zł</span></article>
+            <article class="pv-card"><div class="cover"></div><span class="title">Palworld</span><span class="price">89,00 zł</span></article>
+            <article class="pv-card"><div class="cover"></div><span class="title">Red Dead 2</span><span class="price">149,99 zł</span></article>
+            <article class="pv-card"><div class="cover"></div><span class="title">Cyberpunk 2077</span><span class="price">59,69 zł</span></article>
+          </section>
+        </div>
+      </div>`;
+
+    document.getElementById('preview-a').innerHTML = MOCK_HTML;
+    document.getElementById('preview-b').innerHTML = MOCK_HTML;
+
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx = canvas.getContext('2d');
+    let cols = [];
+    let fontSize = 16;
+    let running = true;
+    let speedMul = 1;
+    let densityMul = 1;
+
+    const glyphs = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ0123456789ABCDEFKUPUJPL$#<>[]{}';
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      fontSize = Math.max(14, Math.round(window.innerWidth / 80));
+      const columnCount = Math.ceil(window.innerWidth / fontSize);
+      cols = new Array(columnCount).fill(0).map(() => Math.random() * -80);
+    }
+
+    function drawFrame() {
+      if (!running) return;
+      ctx.fillStyle = 'rgba(0, 8, 2, 0.08)';
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.font = fontSize + 'px "Consolas", "Courier New", monospace';
+
+      for (let i = 0; i < cols.length; i++) {
+        if (Math.random() > 0.975 * densityMul) continue;
+        const char = glyphs[Math.floor(Math.random() * glyphs.length)];
+        const x = i * fontSize;
+        const y = cols[i] * fontSize;
+        const head = y <= fontSize * 2;
+        ctx.fillStyle = head ? '#ccffcc' : `rgba(0, 255, 65, ${0.35 + Math.random() * 0.55})`;
+        if (head) {
+          ctx.shadowColor = '#00ff41';
+          ctx.shadowBlur = 8;
+        } else {
+          ctx.shadowBlur = 0;
+        }
+        ctx.fillText(char, x, y);
+        if (y > window.innerHeight + fontSize * 4 && Math.random() > 0.975) {
+          cols[i] = 0;
+        } else {
+          cols[i] += (0.4 + Math.random() * 0.9) * speedMul;
+        }
+      }
+      ctx.shadowBlur = 0;
+      requestAnimationFrame(drawFrame);
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    requestAnimationFrame(drawFrame);
+
+    document.getElementById('rain-speed').addEventListener('input', (e) => {
+      speedMul = Number(e.target.value);
+    });
+    document.getElementById('rain-density').addEventListener('input', (e) => {
+      densityMul = Number(e.target.value);
+    });
+    document.getElementById('scan-lines').addEventListener('input', (e) => {
+      document.documentElement.style.setProperty('--scan-opacity', e.target.value);
+    });
+    const pauseBtn = document.getElementById('btn-pause');
+    pauseBtn.addEventListener('click', () => {
+      running = !running;
+      pauseBtn.textContent = running ? 'Pause' : 'Play';
+      pauseBtn.classList.toggle('active', !running);
+      if (running) requestAnimationFrame(drawFrame);
+    });
+  </script>
+</body>
+</html>

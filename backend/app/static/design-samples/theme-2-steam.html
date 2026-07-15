@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styl 2 — Steam Dark | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Motiva+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1b2838;
+            --surface: #2a475e;
+            --surface2: #171a21;
+            --border: #3d5a73;
+            --text: #c7d5e0;
+            --muted: #8f98a0;
+            --accent: #66c0f4;
+            --price: #beee11;
+            --brand: #d32f2f;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(180deg, #1b2838 0%, #171a21 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+        .badge { position: fixed; top: 12px; right: 12px; z-index: 99; background: var(--surface2); border: 1px solid var(--border); color: var(--accent); padding: 6px 14px; font-size: 11px; border-radius: 3px; }
+        header {
+            background: var(--surface2);
+            border-bottom: 1px solid #000;
+            display: flex; align-items: center; gap: 20px; height: 64px;
+        }
+        .logo { font-size: 20px; font-weight: 700; text-decoration: none; color: #fff; }
+        .logo span { color: var(--brand); }
+        .search {
+            flex: 1; max-width: 400px; height: 38px;
+            background: #316282;
+            border: 1px solid #000;
+            border-radius: 3px;
+            padding: 0 12px;
+            color: #fff;
+            font: inherit;
+        }
+        .search::placeholder { color: #8f98a0; }
+        .nav a { color: var(--accent); text-decoration: none; font-size: 13px; }
+        .hero {
+            background: linear-gradient(90deg, #2a475e 0%, #1b2838 100%);
+            padding: 24px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero h1 { font-size: 1.5rem; color: #fff; font-weight: 400; }
+        .hero p { color: var(--muted); font-size: 13px; margin-top: 6px; }
+        .cats { display: flex; gap: 4px; padding: 16px 0; flex-wrap: wrap; }
+        .cat {
+            padding: 6px 14px;
+            background: rgba(255,255,255,0.05);
+            border: none;
+            color: var(--muted);
+            font: inherit; font-size: 13px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+        .cat.active { background: var(--accent); color: #1b2838; font-weight: 600; }
+        .cat:hover:not(.active) { background: rgba(255,255,255,0.1); color: #fff; }
+        .section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            padding-bottom: 40px;
+        }
+        .card {
+            background: var(--surface);
+            border-radius: 3px;
+            overflow: hidden;
+            transition: 0.15s;
+        }
+        .card:hover { background: #3d6a8a; }
+        .card img { width: 100%; aspect-ratio: 460/215; object-fit: cover; }
+        .card-body { padding: 10px 12px; background: rgba(0,0,0,0.2); }
+        .card h3 { font-size: 13px; color: #fff; margin-bottom: 6px; }
+        .price { color: var(--price); font-size: 14px; font-weight: 600; }
+        .price small { color: var(--muted); font-weight: 400; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <div class="badge">PODGLĄD · STYL 2</div>
+    <header class="wrap">
+        <a class="logo" href="#">Kupuj<span>PL</span> Gry</a>
+        <input class="search" type="search" placeholder="Szukaj w sklepie…">
+        <nav class="nav"><a href="#">Zaloguj</a></nav>
+    </header>
+    <div class="hero wrap">
+        <h1>Porównuj ceny gier PC w PLN</h1>
+        <p>87 000+ tytułów · Steam, GOG, Epic Games, Humble Store i więcej</p>
+    </div>
+    <main class="wrap">
+        <div class="cats">
+            <button class="cat active">Wszystkie</button>
+            <button class="cat">Akcja</button>
+            <button class="cat">RPG</button>
+            <button class="cat">Indie</button>
+            <button class="cat">Strategie</button>
+        </div>
+        <p class="section-title">Polecane</p>
+        <div class="grid">
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg" alt="">
+                <div class="card-body"><h3>Counter-Strike 2</h3><div class="price"><small>od </small>0,00 zł</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg" alt="">
+                <div class="card-body"><h3>Wiedźmin 3: Dziki Gon</h3><div class="price"><small>od </small>29,80 zł</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg" alt="">
+                <div class="card-body"><h3>Cyberpunk 2077</h3><div class="price"><small>od </small>119,99 zł</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg" alt="">
+                <div class="card-body"><h3>Hades</h3><div class="price"><small>od </small>47,99 zł</div></div>
+            </article>
+            <article class="card">
+                <img src="https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg" alt="">
+                <div class="card-body"><h3>ELDEN RING</h3><div class="price"><small>od </small>149,99 zł</div></div>
+            </article>
+        </div>
+    </main>
+</body>
+</html>

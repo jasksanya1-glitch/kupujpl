@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/games/static/favicon.svg?v=cp2077-11" type="image/svg+xml">
+    <link rel="icon" href="/games/static/favicon.ico" sizes="any">
+    <link rel="icon" href="/games/static/icons/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/games/static/icons/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" href="/games/static/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/games/static/site.webmanifest">
+    <meta name="theme-color" content="#fcee09">
+    <script>
+    (function(){try{var t=localStorage.getItem('kupujpl-theme');document.documentElement.dataset.theme=(!t||['night','ice','void','matrix'].indexOf(t)<0)?'night':t;}catch(e){document.documentElement.dataset.theme='night';}})();
+    </script>
+
+    <base href="/games/">
+    <title>Panel — KupujPL Gry</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/style.css?v=66">
+</head>
+<body class="panel-page-cp">
+    <header class="header">
+        <div class="wrap header-inner">
+            <a href="./" class="brand"><span class="brand-name">Kupuj<span class="brand-accent">PL</span></span><span class="brand-sub">Gry</span></a>
+            <nav id="auth-nav" class="auth-nav"></nav>
+        </div>
+    </header>
+
+    <main class="wrap panel-cp-main">
+        <section class="panel-cp-hero" aria-label="Profil">
+            <div class="panel-cp-hero-bg" aria-hidden="true"></div>
+            <div class="panel-cp-hero-grid">
+                <div class="panel-cp-identity">
+                    <div class="panel-cp-avatar" id="panel-avatar" aria-hidden="true">?</div>
+                    <div class="panel-cp-identity-text">
+                        <p class="panel-cp-kicker" data-i18n="panel.kicker">night city // twój stash</p>
+                        <h1><span data-i18n="panel.title">Twój</span> <span data-i18n="panel.title_span">panel</span></h1>
+                        <p id="panel-welcome" class="panel-cp-email" data-i18n="panel.loading">Ładowanie…</p>
+                    </div>
+                </div>
+                <div id="panel-stats" class="panel-cp-stats" hidden></div>
+            </div>
+        </section>
+
+        <div class="panel-cp-layout">
+            <aside class="panel-cp-aside">
+                <nav class="panel-cp-nav" aria-label="Sekcje panelu">
+                    <button type="button" class="panel-cp-nav-btn" data-panel="spotlight" id="nav-spotlight" hidden>
+                        <span class="panel-cp-nav-icon" aria-hidden="true">★</span>
+                        <span data-i18n="panel.spotlight_nav">Główna</span>
+                    </button>
+                    <button type="button" class="panel-cp-nav-btn active" data-panel="watchlist">
+                        <span class="panel-cp-nav-icon" aria-hidden="true">◉</span>
+                        <span data-i18n="panel.watchlist">Śledzone gry</span>
+                    </button>
+                    <button type="button" class="panel-cp-nav-btn" data-panel="account">
+                        <span class="panel-cp-nav-icon" aria-hidden="true">⚙</span>
+                        <span data-i18n="panel.account">Konto</span>
+                    </button>
+                </nav>
+                <div class="panel-cp-aside-foot">
+                    <a href="./" class="cp-btn panel-cp-back" data-i18n="panel.back">← Katalog gier</a>
+                    <a href="forgot-password" class="panel-cp-muted-link" data-i18n="panel.reset_pw">Reset hasła e-mailem</a>
+                </div>
+            </aside>
+
+            <div class="panel-cp-content">
+                <section id="panel-watchlist" class="panel-cp-section">
+                    <header class="panel-cp-section-head">
+                        <div>
+                            <h2 data-i18n="panel.watchlist">Śledzone gry</h2>
+                            <p class="panel-cp-section-sub" data-i18n="panel.watch_sub">Import wishlisty, alerty cenowe i lista tytułów</p>
+                        </div>
+                        <div class="panel-cp-toolbar">
+                            <label class="panel-cp-field">
+                                <span data-i18n="panel.sort">Sortuj</span>
+                                <select id="fav-sort" class="panel-cp-select">
+                                    <option value="newest" data-i18n="panel.sort_newest">Najnowsze</option>
+                                    <option value="price-asc" data-i18n="panel.sort_price_asc">Cena rosnąco</option>
+                                    <option value="price-desc" data-i18n="panel.sort_price_desc">Cena malejąco</option>
+                                    <option value="name" data-i18n="panel.sort_name">Alfabetycznie</option>
+                                </select>
+                            </label>
+                            <label class="panel-cp-check">
+                                <input type="checkbox" id="fav-only-priced">
+                                <span data-i18n="panel.only_priced">Tylko z ceną</span>
+                            </label>
+                            <button type="button" id="btn-refresh-prices" class="cp-btn cp-btn-red panel-cp-refresh" data-i18n="panel.refresh_prices">Odśwież ceny</button>
+                        </div>
+                    </header>
+                    <p id="panel-count" class="panel-cp-section-sub panel-cp-count-line"></p>
+                    <article class="panel-cp-card panel-cp-alerts-card">
+                        <header class="panel-cp-card-head">
+                            <span class="panel-cp-card-icon" aria-hidden="true">⚡</span>
+                            <h3 data-i18n="panel.alerts">Alerty cenowe</h3>
+                        </header>
+                        <p class="panel-cp-muted">Włącz alert przy każdej grze poniżej — powiadomimy e-mailem lub na Telegramie, gdy cena spadnie.</p>
+                        <label class="panel-cp-check panel-cp-check--block">
+                            <input type="checkbox" id="acc-email-alerts" checked>
+                            <span>Powiadomienia e-mail o spadku ceny</span>
+                        </label>
+                        <div id="telegram-link-box" class="panel-cp-telegram">
+                            <p class="panel-cp-muted">Połącz Telegram, aby dostawać alerty w messengerze.</p>
+                            <p id="telegram-start-cmd" class="panel-cp-code"></p>
+                            <a id="telegram-bot-link" class="cp-btn panel-cp-tg-link" href="#" target="_blank" rel="noopener">Otwórz bota Telegram</a>
+                        </div>
+                        <div id="push-alerts-box" class="panel-cp-push">
+                            <p class="panel-cp-muted">Powiadomienia push w przeglądarce (PWA) — bez Telegrama, działają też gdy masz zamkniętą kartę.</p>
+                            <p id="push-status-line" class="panel-cp-push-status panel-cp-muted">Sprawdzanie…</p>
+                            <div class="panel-cp-push-actions">
+                                <button type="button" class="cp-btn" id="btn-push-enable" hidden>Włącz powiadomienia push</button>
+                                <button type="button" class="cp-btn cp-btn-red" id="btn-push-disable" hidden>Wyłącz push</button>
+                            </div>
+                            <details class="panel-cp-wishlist-help panel-cp-push-help">
+                                <summary>Jak włączyć powiadomienia push (instrukcja)</summary>
+                                <ol class="panel-cp-wishlist-steps">
+                                    <li>Zaloguj się i kliknij <strong>Włącz powiadomienia push</strong> powyżej.</li>
+                                    <li>Przeglądarka zapyta o zgodę — wybierz <strong>Zezwól</strong>.</li>
+                                    <li><strong>Chrome / Edge (Android, PC):</strong> działa od razu; opcjonalnie „Zainstaluj aplikację” z menu przeglądarki.</li>
+                                    <li><strong>iPhone (Safari):</strong> Udostępnij → <strong>Dodaj do ekranu początkowego</strong>, potem otwórz ikonę KupujPL i włącz push w panelu.</li>
+                                    <li>Włącz <strong>Alert cenowy</strong> przy grze na liście poniżej — push idzie tylko dla gier z alertem.</li>
+                                    <li>Jeśli nie widzisz pytania o zgodę: ustawienia przeglądarki → Powiadomienia → zezwól dla <code>kupujpl.pl</code>.</li>
+                                </ol>
+                            </details>
+                        </div>
+                        <p id="alerts-msg" class="panel-cp-flash panel-cp-flash--ok" hidden></p>
+                    </article>
+                    <article class="panel-cp-card panel-cp-wishlist-import">
+                        <header class="panel-cp-card-head">
+                            <span class="panel-cp-card-icon" aria-hidden="true">⬇</span>
+                            <h3>Import z Steam Wishlist</h3>
+                        </header>
+                        <details class="panel-cp-wishlist-help">
+                            <summary>Jak udostępnić wishlistę Steam (instrukcja)</summary>
+                            <ol class="panel-cp-wishlist-steps">
+                                <li>Otwórz klienta Steam → kliknij swój <strong>profil</strong> (awatar u góry).</li>
+                                <li>Wybierz <strong>Edytuj profil</strong> → zakładka <strong>Prywatność</strong>.</li>
+                                <li>Ustaw <strong>Mój profil: Publiczny</strong>.</li>
+                                <li>Ustaw <strong>Szczegóły gry</strong> (Game details) na <strong>Publiczne</strong> — wtedy wishlista też jest widoczna.</li>
+                                <li>Opcjonalnie: w przeglądarce wejdź na <code>steamcommunity.com/profiles/TWOJE_ID</code> i sprawdź, czy widać zakładkę <strong>Lista życzeń</strong>.</li>
+                                <li>Skopiuj link do profilu (np. <code>https://steamcommunity.com/profiles/7656119…</code>) albo nick z <code>/id/nick</code>, albo 17-cyfrowy <strong>SteamID64</strong>.</li>
+                            </ol>
+                            <p class="panel-cp-muted">Nie podajemy hasła do Steam — czytamy tylko publiczną listę życzeń.</p>
+                        </details>
+                        <form id="wishlist-import-form" class="panel-cp-wishlist-form">
+                            <label class="panel-cp-field panel-cp-field--wide">
+                                <span>Link profilu Steam, nick lub SteamID64</span>
+                                <input type="text" id="wishlist-profile" name="profile" required
+                                    placeholder="https://steamcommunity.com/id/twojnick  lub  76561198012345678"
+                                    autocomplete="off" spellcheck="false">
+                            </label>
+                            <button type="submit" class="cp-btn" id="wishlist-import-btn">Importuj wishlistę</button>
+                        </form>
+                        <p id="wishlist-import-msg" class="panel-cp-flash panel-cp-flash--ok" hidden></p>
+                        <div id="wishlist-import-results" class="panel-cp-wishlist-results" hidden></div>
+                    </article>
+                    <p id="refresh-msg" class="panel-cp-flash panel-cp-flash--ok" hidden></p>
+                    <div id="favorites-grid" class="grid panel-cp-grid"><div class="loading-spinner"></div></div>
+                </section>
+
+                <section id="panel-spotlight" class="panel-cp-section" hidden>
+                    <header class="panel-cp-section-head">
+                        <div>
+                            <h2 data-i18n="panel.spotlight_title">Spotlight na stronie głównej</h2>
+                            <p class="panel-cp-section-sub" data-i18n="panel.spotlight_sub">Do 8 gier — duże okładki u góry katalogu. Kolejność = od lewej na stronie.</p>
+                        </div>
+                        <button type="button" id="btn-spotlight-save" class="cp-btn cp-btn-red" data-i18n="panel.spotlight_save">Zapisz na stronie głównej</button>
+                    </header>
+
+                    <article class="panel-cp-card panel-cp-spotlight-add">
+                        <div class="panel-cp-spotlight-add-row">
+                            <label class="panel-cp-field panel-cp-field--grow">
+                                <span data-i18n="panel.spotlight_steam">Link Steam lub appid</span>
+                                <input type="text" id="spotlight-steam-input" placeholder="https://store.steampowered.com/app/1091500/…" autocomplete="off">
+                            </label>
+                            <button type="button" id="btn-spotlight-import" class="cp-btn" data-i18n="panel.spotlight_add">Dodaj</button>
+                        </div>
+                        <label class="panel-cp-field">
+                            <span data-i18n="panel.spotlight_search">Szukaj w katalogu</span>
+                            <input type="search" id="spotlight-search-input" placeholder="Cyberpunk…" autocomplete="off">
+                        </label>
+                        <div id="spotlight-search-results" class="panel-cp-spotlight-search" hidden></div>
+                        <p id="spotlight-msg" class="panel-cp-flash panel-cp-flash--ok" hidden></p>
+                    </article>
+
+                    <div id="spotlight-list" class="panel-cp-spotlight-list"></div>
+                </section>
+
+                <section id="panel-account" class="panel-cp-section" hidden>
+                    <header class="panel-cp-section-head panel-cp-section-head--solo">
+                        <div>
+                            <h2>Ustawienia konta</h2>
+                            <p class="panel-cp-section-sub">Profil i bezpieczeństwo</p>
+                        </div>
+                    </header>
+
+                    <div class="panel-cp-cards">
+                        <article class="panel-cp-card">
+                            <header class="panel-cp-card-head">
+                                <span class="panel-cp-card-icon" aria-hidden="true">◈</span>
+                                <h3>Profil</h3>
+                            </header>
+                            <dl class="panel-cp-dl" id="account-info">
+                                <div><dt>E-mail</dt><dd id="acc-email">—</dd></div>
+                                <div><dt>Konto od</dt><dd id="acc-since">—</dd></div>
+                                <div><dt>Ostatnia aktywność</dt><dd id="acc-last">—</dd></div>
+                            </dl>
+                        </article>
+
+                        <article class="panel-cp-card">
+                            <header class="panel-cp-card-head">
+                                <span class="panel-cp-card-icon" aria-hidden="true">🔒</span>
+                                <h3>Zmień hasło</h3>
+                            </header>
+                            <form id="password-form" class="auth-form panel-cp-form">
+                                <label>Obecne hasło<input type="password" name="current" required autocomplete="current-password"></label>
+                                <label>Nowe hasło (min. 8 znaków)<input type="password" name="new" required minlength="8" autocomplete="new-password"></label>
+                                <label>Powtórz nowe hasło<input type="password" name="new2" required minlength="8" autocomplete="new-password"></label>
+                                <p id="pwd-error" class="panel-cp-flash panel-cp-flash--err" hidden></p>
+                                <p id="pwd-success" class="panel-cp-flash panel-cp-flash--ok" hidden></p>
+                                <button type="submit" class="cp-btn">Zapisz hasło</button>
+                            </form>
+                        </article>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer panel-cp-footer">
+        <div class="wrap footer-inner">
+            <nav class="footer-nav" aria-label="Informacje prawne">
+                <a href="regulamin" class="footer-btn">Regulamin</a>
+                <a href="polityka-prywatnosci" class="footer-btn">Prywatność</a>
+                <a href="kontakt" class="footer-btn">Kontakt</a>
+                <a href="wsparcie" class="footer-btn footer-btn--donate">☕ Wsparcie</a>
+            </nav>
+        </div>
+    </footer>
+
+    <div id="game-modal" class="modal" hidden>
+        <div class="modal-overlay"></div>
+        <div class="modal-panel">
+            <button type="button" class="modal-close">&times;</button>
+            <div class="modal-grid">
+                <div class="modal-aside">
+                    <figure class="modal-cover"><img id="modal-cover" src="" alt=""></figure>
+                    <p id="modal-desc" class="modal-desc"></p>
+                </div>
+                <div class="modal-main">
+                    <h2 id="modal-title">Tytuł</h2>
+                    <h3 class="offers-title">Ceny w sklepach</h3>
+                    <div id="offers-list" class="offers"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="static/i18n.js?v=12"></script>
+    <script src="static/theme.js?v=2"></script>
+    <script src="static/matrix-rain.js?v=1"></script>
+    <script src="static/cookie-consent.js?v=1"></script>
+    <script src="static/api-config.js?v=3"></script>
+    <script src="static/auth.js?v=6"></script>
+    <script src="static/covers.js?v=11"></script>
+    <script src="static/push-client.js?v=1"></script>
+    <script src="static/panel.js?v=15"></script>
+</body>
+</html>

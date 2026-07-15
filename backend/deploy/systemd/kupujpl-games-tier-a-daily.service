@@ -1,0 +1,16 @@
+[Unit]
+Description=KupujPL Games Tier A daily scan (top-5000 official shops)
+After=network.target kupujpl-games.service
+Wants=kupujpl-games.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/kupujpl-games/backend
+EnvironmentFile=-/opt/kupujpl-games/backend/.env
+ExecStart=/opt/kupujpl-games/backend/venv/bin/python -m app.parsers.daily_tier_a_pipeline
+User=www-data
+Group=www-data
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

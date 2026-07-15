@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 15 — Ikony kategorii | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .icon-cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; max-width: var(--wrap); margin: 0 auto; padding: 20px; }
+        .icon-cat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 8px; text-align: center; cursor: pointer; transition: .2s; }
+        .icon-cat:hover, .icon-cat.active { border-color: var(--blue); background: rgba(0,112,209,.12); }
+        .icon-cat span { font-size: 28px; display: block; margin-bottom: 8px; }
+        .icon-cat p { font-size: 12px; font-weight: 600; color: var(--muted); }
+        .icon-cat.active p { color: var(--blue-light); }
+        main { max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 15</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="icon-cats">
+        <div class="icon-cat active"><span>🎮</span><p>Wszystkie</p></div>
+        <div class="icon-cat"><span>💥</span><p>Akcja</p></div>
+        <div class="icon-cat"><span>⚔️</span><p>RPG</p></div>
+        <div class="icon-cat"><span>🎨</span><p>Indie</p></div>
+        <div class="icon-cat"><span>⚽</span><p>Sport</p></div>
+        <div class="icon-cat"><span>♟️</span><p>Strategie</p></div>
+        <div class="icon-cat"><span>🗺️</span><p>Przygodowe</p></div>
+    </div>
+    <main><div class="grid" id="grid"></div></main>
+    <script src="layout-shared.js"></script>
+    <script>document.getElementById('grid').innerHTML = MOCK_GAMES.map(cardHtml).join('');</script>
+</body>
+</html>

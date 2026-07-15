@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Układ 29 — Compact 3-col | KupujPL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="layout-base.css">
+    <style>
+        .toolbar { display: flex; gap: 12px; align-items: center; max-width: var(--wrap); margin: 0 auto; padding: 16px 20px; flex-wrap: wrap; }
+        .toolbar select { background: var(--surface-2); border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 8px; font: inherit; }
+        .compact { max-width: var(--wrap); margin: 0 auto; padding: 0 20px 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .compact-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border-radius: 8px; cursor: pointer; transition: .15s; border: 1px solid transparent; }
+        .compact-item:hover { border-color: var(--blue); }
+        .compact-item img { width: 48px; height: 23px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+        .compact-item h3 { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .compact-item .price { font-size: 13px; font-weight: 700; color: var(--blue-light); white-space: nowrap; }
+        @media (max-width: 900px) { .compact { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 520px) { .compact { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="badge">UKŁAD 29</div>
+    <header class="site wrap"><a class="logo" href="#">Kupuj<span>PL</span></a><input class="search" placeholder="Szukaj…"><a class="nav" href="#">Zaloguj</a></header>
+    <div class="toolbar">
+        <div id="cats"></div>
+        <select><option>Sortuj: Tytuł A–Z</option><option>Cena rosnąco</option><option>Cena malejąco</option></select>
+    </div>
+    <div class="compact" id="list"></div>
+    <script src="layout-shared.js"></script>
+    <script>
+        document.getElementById('cats').innerHTML = catsHtml('cat');
+        document.getElementById('list').innerHTML = [...MOCK_GAMES, ...MOCK_GAMES.slice(0,4)].map(g => `
+            <div class="compact-item">
+                <img src="${g.img}" alt="">
+                <h3>${g.title}</h3>
+                <span class="price">${g.price}</span>
+            </div>
+        `).join('');
+    </script>
+</body>
+</html>

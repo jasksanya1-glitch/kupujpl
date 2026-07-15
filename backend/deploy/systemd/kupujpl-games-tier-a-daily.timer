@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Tier A scan at 02:30 Europe/Warsaw
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Europe/Warsaw
+Persistent=false
+Unit=kupujpl-games-tier-a-daily.service
+
+[Install]
+WantedBy=timers.target
