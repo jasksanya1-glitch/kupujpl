@@ -18,6 +18,8 @@
     const elFeed = document.getElementById('live-feed');
     const elClock = document.getElementById('live-clock');
     const elFootLeft = document.getElementById('live-foot-left');
+    const elFilterBadge = document.getElementById('live-filter-badge');
+    const elFilterNote = document.getElementById('live-filter-note');
     const btnSound = document.getElementById('btn-sound');
 
     try {
@@ -220,6 +222,19 @@
             renderKpis(data.kpis);
             renderSessions(data.active_sessions || []);
             renderFeed(data.feed || []);
+            if (elFilterBadge) {
+                elFilterBadge.textContent = data.human_only ? 'Люди only' : 'Mixed traffic';
+            }
+            if (elFilterNote) {
+                if (data.human_only) {
+                    const excluded5 = Number(data.excluded_bots_5m || 0);
+                    const excluded24 = Number(data.excluded_bots_24h || 0);
+                    const mode = data.anti_bot_mode || 'strict';
+                    elFilterNote.textContent = `Антибот-фільтр увімкнено (${mode}): боти приховані у LIVE (відсічено ${excluded5} за 5 хв, ${excluded24} за 24 год).`;
+                } else {
+                    elFilterNote.textContent = 'Увага: LIVE може містити бот-трафік.';
+                }
+            }
             const k = data.kpis || {};
             const parts = [];
             if (data.active_now) parts.push('активність зараз');

@@ -243,6 +243,10 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
     return {
         "server_time": _iso(now),
         "active_now": active_now,
+        "human_only": True,
+        "anti_bot_mode": "strict",
+        "excluded_bots_5m": cv5,
+        "excluded_bots_24h": cv24,
         "kpis": {
             "visits_5m": v5,
             "unique_5m": u5,
