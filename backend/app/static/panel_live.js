@@ -95,7 +95,6 @@
             kpi(k.visits_5m, 'Візити 5 хв', `${k.unique_5m} унік.`),
             kpi(k.visits_24h, 'Візити 24 год', `${k.unique_24h} унік.`),
             kpi(k.visits_1h, 'Візити 1 год', `${k.unique_1h} унік.`),
-            kpi(k.crawler_visits_5m ?? 0, '🤖 Crawlers 5 хв', `24г: ${k.crawler_visits_24h ?? 0}`, (k.crawler_visits_5m ?? 0) > 0),
             kpi(k.clicks_15m, 'Kup 15 хв', `24г: ${k.clicks_24h}`, k.clicks_5m > 0),
             kpi(k.signups_24h, 'Реєстр 24г', `7д: ${k.signups_7d}`, k.signups_24h > 0),
             kpi(k.sessions_active ?? 0, 'На сайті', `${k.users_online_15m} акаунтів`, (k.sessions_active || 0) > 0),
@@ -226,7 +225,6 @@
             if (data.active_now) parts.push('активність зараз');
             if (k.clicks_5m) parts.push(`${k.clicks_5m} Kup за 5 хв`);
             if (k.visits_5m) parts.push(`${k.visits_5m} візитів за 5 хв`);
-            if (k.crawler_visits_5m) parts.push(`🤖 ${k.crawler_visits_5m} crawler за 5 хв`);
             setStatus(parts.length ? parts.join(' · ') : 'тихо', !!data.active_now);
             if (elFootLeft) {
                 const t = data.server_time ? fmtTime(data.server_time) : '—';
