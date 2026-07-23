@@ -559,9 +559,7 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
     since_1h = now - timedelta(hours=1)
     since_24h = now - timedelta(hours=24)
 
-    human_filter = (
-        SiteVisit.is_suspected_bot.is_(False) | SiteVisit.is_suspected_bot.is_(None)
-    )
+    human_filter = SiteVisit.is_suspected_bot.is_(False)
     bot_filter = SiteVisit.is_suspected_bot.is_(True)
 
     def _counts(since: datetime, *, bots: bool = False) -> tuple[int, int]:

@@ -136,9 +136,7 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
     since_1h = now - timedelta(hours=1)
     since_24h = now - timedelta(hours=24)
     since_7d = now - timedelta(days=7)
-    human_filter = (
-        SiteVisit.is_suspected_bot.is_(False) | SiteVisit.is_suspected_bot.is_(None)
-    )
+    human_filter = SiteVisit.is_suspected_bot.is_(False)
     bot_filter = SiteVisit.is_suspected_bot.is_(True)
 
     def visit_counts(since: datetime, *, bots: bool = False) -> tuple[int, int]:

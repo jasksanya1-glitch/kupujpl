@@ -26,7 +26,10 @@ def collect_admin_events(
     visit_rows = (
         db.query(SiteVisit)
         .options(joinedload(SiteVisit.user))
-        .filter(SiteVisit.id > last_visit_id)
+        .filter(
+            SiteVisit.id > last_visit_id,
+            SiteVisit.is_suspected_bot.is_(False),
+        )
         .order_by(SiteVisit.id.asc())
         .limit(25)
         .all()
