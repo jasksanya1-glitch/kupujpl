@@ -10,6 +10,7 @@ class OfferBase(BaseModel):
     affiliate_url: str
     is_official: bool
     in_stock: bool
+    activation_region: Optional[str] = "unknown"
 
 class OfferResponse(OfferBase):
     id: int
@@ -49,6 +50,16 @@ class GameResponse(GameBase):
     in_stock_shop_count: int = 0
     in_tier_a_daily_scan: bool = False
     next_tier_a_scan_at: Optional[str] = None
+    lowest_ever_pln: Optional[float] = None
+    avg_best_price_30d: Optional[float] = None
+    lowest_ever_label: Optional[str] = None
+    at_historical_low: bool = False
+    steam_price_pln: Optional[float] = None
+    savings_pln: Optional[float] = None
+    savings_pct: Optional[int] = None
+    is_free: bool = False
+    related_dlc: List["GameListResponse"] = []
+    parent_game: Optional["GameListResponse"] = None
 
     class Config:
         from_attributes = True
@@ -77,7 +88,10 @@ class GameListResponse(BaseModel):
     lowest_ever_pln: Optional[float] = None
     avg_best_price_30d: Optional[float] = None
     lowest_ever_label: Optional[str] = None
+    at_historical_low: bool = False
+    deal_age_label: Optional[str] = None
     offers_updated_at: Optional[datetime] = None
+    is_free: bool = False
 
     class Config:
         from_attributes = True
@@ -202,6 +216,7 @@ class FavoriteGameResponse(GameListResponse):
     alert_enabled: bool = False
     target_price_pln: Optional[float] = None
     baseline_price_pln: Optional[float] = None
+    alert_shop_filter: str = "any"
 
     class Config:
         from_attributes = True
@@ -210,6 +225,7 @@ class FavoriteGameResponse(GameListResponse):
 class FavoriteAlertUpdate(BaseModel):
     alert_enabled: bool
     target_price_pln: Optional[float] = None
+    alert_shop_filter: Optional[str] = None  # any | official | keyshop
 
 
 class PriceHistoryPoint(BaseModel):
@@ -222,6 +238,7 @@ class PriceHistoryResponse(BaseModel):
     title: str
     lowest_ever_pln: Optional[float] = None
     avg_best_price_30d: Optional[float] = None
+    at_historical_low: bool = False
     points: List[PriceHistoryPoint] = []
 
 
@@ -323,6 +340,9 @@ class HomeSectionResponse(BaseModel):
 class HomePageResponse(BaseModel):
     sections: List[HomeSectionResponse]
     spotlight: List[GameListResponse] = []
+    new_deals: List[GameListResponse] = []
+    historical_lows: List[GameListResponse] = []
+    freebies: List[GameListResponse] = []
     updated_at: Optional[str] = None
 
 
@@ -349,6 +369,12 @@ class TrackVisitRequest(BaseModel):
     utm_source: Optional[str] = None
     utm_medium: Optional[str] = None
     utm_campaign: Optional[str] = None
+    utm_term: Optional[str] = None
+    utm_content: Optional[str] = None
+    gclid: Optional[str] = None
+    wbraid: Optional[str] = None
+    gbraid: Optional[str] = None
+    referrer_url: Optional[str] = None
     client_agent: Optional[str] = None
 
 
@@ -368,3 +394,7 @@ class RemoteOfferGameUpdate(BaseModel):
 class RemoteOfferBulkRequest(BaseModel):
     updates: List[RemoteOfferGameUpdate]
     source: str = "local-pc"
+
+
+GameResponse.model_rebuild()
+

@@ -136,17 +136,23 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
     since_1h = now - timedelta(hours=1)
     since_24h = now - timedelta(hours=24)
     since_7d = now - timedelta(days=7)
+    human_filter = (
+        SiteVisit.is_suspected_bot.is_(False) | SiteVisit.is_suspected_bot.is_(None)
+    )
+    bot_filter = SiteVisit.is_suspected_bot.is_(True)
 
-    def visit_counts(since: datetime) -> tuple[int, int]:
+    def visit_counts(since: datetime, *, bots: bool = False) -> tuple[int, int]:
         views = (
             db.query(func.count(SiteVisit.id))
             .filter(SiteVisit.visited_at >= since)
+            .filter(bot_filter if bots else human_filter)
             .scalar()
             or 0
         )
         unique = (
             db.query(func.count(func.distinct(SiteVisit.visitor_key)))
             .filter(SiteVisit.visited_at >= since)
+            .filter(bot_filter if bots else human_filter)
             .scalar()
             or 0
         )
@@ -156,6 +162,10 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
     v15, u15 = visit_counts(since_15m)
     v1h, u1h = visit_counts(since_1h)
     v24, u24 = visit_counts(since_24h)
+    cv5, cu5 = visit_counts(since_5m, bots=True)
+    cv15, cu15 = visit_counts(since_15m, bots=True)
+    cv1h, cu1h = visit_counts(since_1h, bots=True)
+    cv24, cu24 = visit_counts(since_24h, bots=True)
 
     clicks_5m = (
         db.query(func.count(AffiliateClick.id))
@@ -199,6 +209,7 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
     visit_rows = (
         db.query(SiteVisit)
         .options(joinedload(SiteVisit.user))
+        .filter(human_filter)
         .order_by(SiteVisit.id.desc())
         .limit(20)
         .all()
@@ -243,6 +254,14 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
             "unique_1h": u1h,
             "visits_24h": v24,
             "unique_24h": u24,
+            "crawler_visits_5m": cv5,
+            "crawler_unique_5m": cu5,
+            "crawler_visits_15m": cv15,
+            "crawler_unique_15m": cu15,
+            "crawler_visits_1h": cv1h,
+            "crawler_unique_1h": cu1h,
+            "crawler_visits_24h": cv24,
+            "crawler_unique_24h": cu24,
             "clicks_5m": int(clicks_5m),
             "clicks_15m": int(clicks_15m),
             "clicks_24h": int(clicks_24h),

@@ -65,6 +65,8 @@ class Offer(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True)
     shop_name = Column(String(100), nullable=False)
+    # eu | na | global | unknown — keyshop activation region for shopping-region filter
+    activation_region = Column(String(16), nullable=False, default="unknown")
     price_pln = Column(Float, nullable=False)
     original_price_pln = Column(Float, nullable=True)
     affiliate_url = Column(String(1000), nullable=False)
@@ -76,7 +78,7 @@ class Offer(Base):
     game = relationship("Game", back_populates="offers")
 
     def __repr__(self):
-        return f"<Offer(shop='{self.shop_name}', price={self.price_pln} PLN)>"
+        return f"<Offer(shop='{self.shop_name}', region={self.activation_region}, price={self.price_pln} PLN)>"
 
 
 Index("idx_offers_price_official", Offer.game_id, Offer.is_official, Offer.price_pln)
@@ -116,6 +118,8 @@ class Favorite(Base):
     alert_enabled = Column(Boolean, default=False)
     target_price_pln = Column(Float, nullable=True)
     baseline_price_pln = Column(Float, nullable=True)
+    # any | official | keyshop
+    alert_shop_filter = Column(String(16), nullable=False, default="any")
     last_notified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -143,6 +147,12 @@ class PriceSnapshot(Base):
 
 
 Index("idx_price_snap_game_shop_time", PriceSnapshot.game_id, PriceSnapshot.shop_name, PriceSnapshot.recorded_at)
+Index(
+    "idx_offers_game_shop_region",
+    Offer.game_id,
+    Offer.shop_name,
+    Offer.activation_region,
+)
 
 
 class SiteVisit(Base):
@@ -156,10 +166,20 @@ class SiteVisit(Base):
     utm_source = Column(String(64), nullable=True, index=True)
     utm_medium = Column(String(64), nullable=True)
     utm_campaign = Column(String(128), nullable=True)
+    utm_term = Column(String(128), nullable=True)
+    utm_content = Column(String(128), nullable=True)
+    gclid = Column(String(128), nullable=True)
+    wbraid = Column(String(128), nullable=True)
+    gbraid = Column(String(128), nullable=True)
+    referrer_host = Column(String(120), nullable=True, index=True)
+    referrer_url = Column(String(700), nullable=True)
     geo_city = Column(String(120), nullable=True)
     geo_country = Column(String(120), nullable=True)
     geo_country_code = Column(String(8), nullable=True)
     client_agent = Column(String(32), nullable=True)
+    user_agent = Column(String(480), nullable=True)
+    is_suspected_bot = Column(Boolean, default=False, index=True)
+    bot_reason = Column(String(64), nullable=True, index=True)
 
     user = relationship("User")
 

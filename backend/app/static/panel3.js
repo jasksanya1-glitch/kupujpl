@@ -216,6 +216,8 @@
         const guest15 = t.guest_views_15m ?? 0;
         const reg24 = t.registered_views_24h ?? 0;
         const guest24 = t.guest_views_24h ?? 0;
+        const crawler15 = t.crawler_views_15m ?? 0;
+        const crawler24 = t.crawler_views_24h ?? 0;
         el.innerHTML = `
             <div class="panel3-traffic-legend-bar-inner">
                 <span class="panel3-traffic-legend-title">Користувачі у трафіку</span>
@@ -231,6 +233,12 @@
                     <strong>${guest15}</strong><span class="panel3-traffic-legend-muted">/15хв</span>
                     <strong>${guest24}</strong><span class="panel3-traffic-legend-muted">/24г</span>
                 </span>
+                <span class="panel3-traffic-who panel3-traffic-who--inline" title="Bot/crawler traffic">
+                    <span class="panel3-traffic-icon" aria-hidden="true">🤖</span>
+                    <span>Crawler</span>
+                    <strong>${crawler15}</strong><span class="panel3-traffic-legend-muted">/15хв</span>
+                    <strong>${crawler24}</strong><span class="panel3-traffic-legend-muted">/24г</span>
+                </span>
             </div>`;
     }
 
@@ -240,6 +248,8 @@
             kpi('👤 Konta (15 хв)', t.registered_views_15m ?? 0, `${t.guest_views_15m ?? 0} gości`),
             kpi('Унікальні (24 год)', t.unique_24h, `${t.views_24h} переглядів`),
             kpi('👤 Konta (24 год)', t.registered_views_24h ?? 0, `${t.guest_views_24h ?? 0} gości`),
+            kpi('🤖 Crawler (15 хв)', t.crawler_unique_15m ?? 0, `${t.crawler_views_15m ?? 0} переглядів`),
+            kpi('🤖 Crawler (24 год)', t.crawler_unique_24h ?? 0, `${t.crawler_views_24h ?? 0} переглядів`),
         ].join('');
         renderTrafficLegend(t);
 

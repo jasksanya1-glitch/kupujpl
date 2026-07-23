@@ -61,7 +61,7 @@ from app.core.admin_stats import collect_admin_stats
 from app.core.admin_events import collect_admin_events
 from app.core.live_dashboard import collect_live_dashboard
 from app.core.local_offer_worker import apply_bulk_offers, build_offer_queue
-from app.core.affiliate import make_affiliate_link
+from app.core.affiliate import make_affiliate_link, resolve_outbound_url
 from app.core.affiliate_config import affiliate_env_status
 from app.core.click_tracking import collect_click_stats, log_affiliate_click, prune_old_clicks
 from app.core.og_image import render_og_png, render_logo_png
@@ -75,7 +75,7 @@ from app.core.seo_pages import (
     sitemap_categories_xml,
     sitemap_deals_xml,
     sitemap_blog_xml,
-    game_landing_html,
+    game_landing_html,  # kept for legacy SEO helpers
     category_landing_html,
     deals_landing_html,
     blog_landing_html,
@@ -86,6 +86,15 @@ from app.core.seo_pages import (
 )
 from app.core.price_history import get_price_history, lowest_ever_label_pl
 from app.core.price_alerts import ensure_telegram_link_token, set_favorite_alert, process_price_alerts
+from app.core.game_page_html import game_interactive_html
+from app.core.home_feeds import (
+    deal_age_label,
+    games_at_historical_low,
+    games_freebies,
+    games_new_deals,
+    parent_game_for_dlc,
+    related_dlc_games,
+)
 from app.core.shops_trust import shop_trust_badge
 from app.core.telegram_bot import handle_telegram_update, bot_configured
 from app.core.wykop_callback import callback_html, save_refresh_token
@@ -364,6 +373,12 @@ def track_client_visit(request: Request, body: TrackVisitRequest):
         utm_source=body.utm_source,
         utm_medium=body.utm_medium,
         utm_campaign=body.utm_campaign,
+        utm_term=body.utm_term,
+        utm_content=body.utm_content,
+        gclid=body.gclid,
+        wbraid=body.wbraid,
+        gbraid=body.gbraid,
+        referrer_url=body.referrer_url,
         client_agent=body.client_agent,
     )
     return {"ok": True}
@@ -442,11 +457,65 @@ def _display_title(title: str | None) -> str:
     return html_lib.unescape(title.strip())
 
 
-def _best_offers_map(db: Session, game_ids: list[int]) -> dict[int, Offer]:
+def _normalize_shopping_region(region: str | None) -> str:
+    r = (region or "pl").strip().lower()
+    return "us" if r == "us" else "pl"
+
+
+def _steam_shop_for_region(region: str) -> str:
+    return "Steam US" if region == "us" else "Steam"
+
+
+def _display_shops_for_region(region: str) -> set[str]:
+    active = set(get_display_shops())
+    if region == "us":
+        active.discard("Steam")
+        active.add("Steam US")
+    else:
+        active.discard("Steam US")
+    return active
+
+
+def _offer_activation_region(offer: Offer) -> str:
+    raw = (getattr(offer, "activation_region", None) or "unknown").strip().lower()
+    if raw in {"eu", "na", "global", "unknown"}:
+        return raw
+    return "unknown"
+
+
+def _offer_visible_for_shopping_region(offer: Offer, region: str) -> bool:
+    """Filter keyshop rows by activation region for PL vs US shoppers."""
+    region = _normalize_shopping_region(region)
+    act = _offer_activation_region(offer)
+    shop = (offer.shop_name or "").strip()
+    if shop == "Steam US":
+        return region == "us"
+    if shop == "Steam":
+        return region != "us"
+    if act == "unknown":
+        return True
+    if region == "us":
+        return act in {"na", "global"}
+    return act in {"eu", "global"}
+
+
+def _best_offers_map(
+    db: Session,
+    game_ids: list[int],
+    *,
+    region: str = "pl",
+) -> dict[int, Offer]:
     if not game_ids:
         return {}
-    active = set(get_display_shops())
-    steam_map = _steam_offers_map(db, game_ids)
+    region = _normalize_shopping_region(region)
+    active = _display_shops_for_region(region)
+    steam_shop = _steam_shop_for_region(region)
+    steam_map = _steam_offers_map(
+        db,
+        game_ids,
+        shop_name=steam_shop,
+        fallback_shop="Steam" if region == "us" else None,
+    )
     offers = (
         db.query(Offer)
         .filter(
@@ -460,6 +529,8 @@ def _best_offers_map(db: Session, game_ids: list[int]) -> dict[int, Offer]:
     )
     best: dict[int, Offer] = {}
     for offer in offers:
+        if not _offer_visible_for_shopping_region(offer, region):
+            continue
         steam = steam_map.get(offer.game_id)
         steam_price = float(steam.price_pln) if steam and steam.price_pln else None
         if not offer_eligible_for_best_price(offer, steam_price_pln=steam_price):
@@ -470,26 +541,43 @@ def _best_offers_map(db: Session, game_ids: list[int]) -> dict[int, Offer]:
     return best
 
 
-def _steam_offers_map(db: Session, game_ids: list[int]) -> dict[int, Offer]:
+def _steam_offers_map(
+    db: Session,
+    game_ids: list[int],
+    shop_name: str = "Steam",
+    *,
+    fallback_shop: str | None = None,
+) -> dict[int, Offer]:
     if not game_ids:
         return {}
+    names = [shop_name]
+    if fallback_shop and fallback_shop != shop_name:
+        names.append(fallback_shop)
     offers = (
         db.query(Offer)
         .filter(
             Offer.game_id.in_(game_ids),
-            Offer.shop_name == "Steam",
+            Offer.shop_name.in_(names),
             Offer.in_stock == True,
             Offer.price_pln.isnot(None),
             Offer.price_pln > 0,
         )
         .all()
     )
-    steam: dict[int, Offer] = {}
+    primary: dict[int, Offer] = {}
+    fallback: dict[int, Offer] = {}
     for offer in offers:
-        prev = steam.get(offer.game_id)
+        target = primary if offer.shop_name == shop_name else fallback
+        prev = target.get(offer.game_id)
         if prev is None or offer.price_pln < prev.price_pln:
-            steam[offer.game_id] = offer
-    return steam
+            target[offer.game_id] = offer
+    if not fallback_shop:
+        return primary
+    out = dict(primary)
+    for gid, offer in fallback.items():
+        if gid not in out:
+            out[gid] = offer
+    return out
 
 
 def _savings_vs_steam(best: Offer | None, steam: Offer | None) -> dict[str, float | int | None]:
@@ -511,9 +599,12 @@ def _game_list_item(
     game: Game,
     best: Offer | None,
     steam: Offer | None = None,
+    *,
+    deal_age_label: str | None = None,
 ) -> GameListResponse:
     savings = _savings_vs_steam(best, steam)
     best_price = best.price_pln if best else None
+    label = lowest_ever_label_pl(game, best_price)
     return GameListResponse(
         id=game.id,
         title=_display_title(game.title),
@@ -530,18 +621,32 @@ def _game_list_item(
         savings_pct=savings["savings_pct"],
         lowest_ever_pln=game.lowest_ever_pln,
         avg_best_price_30d=game.avg_best_price_30d,
-        lowest_ever_label=lowest_ever_label_pl(game, best_price),
+        lowest_ever_label=label,
+        at_historical_low=bool(label),
+        deal_age_label=deal_age_label,
+        is_free=bool(game.is_free) or (best_price is not None and best_price <= 0.01),
     )
 
 
-def _sorted_offers(game: Game) -> list[Offer]:
-    active = set(get_display_shops())
+def _sorted_offers(game: Game, *, region: str = "pl") -> list[Offer]:
+    region = _normalize_shopping_region(region)
+    active = _display_shops_for_region(region)
     visible = [
         o for o in game.offers
-        if o.in_stock and o.shop_name in active and o.price_pln is not None and o.price_pln > 0
+        if o.in_stock
+        and o.shop_name in active
+        and o.price_pln is not None
+        and o.price_pln > 0
+        and _offer_visible_for_shopping_region(o, region)
     ]
+    # One row per shop: cheapest among matching activation regions
+    by_shop: dict[str, Offer] = {}
+    for offer in visible:
+        prev = by_shop.get(offer.shop_name)
+        if prev is None or offer.price_pln < prev.price_pln:
+            by_shop[offer.shop_name] = offer
     return sorted(
-        visible,
+        by_shop.values(),
         key=lambda o: o.price_pln if o.price_pln is not None else float("inf"),
     )
 
@@ -562,11 +667,16 @@ def _offers_stale(game: Game) -> bool:
     return game_needs_offer_refresh(game)
 
 
-def _in_stock_shop_count(game: Game) -> int:
-    active = set(get_display_shops())
+def _in_stock_shop_count(game: Game, *, region: str = "pl") -> int:
+    region = _normalize_shopping_region(region)
+    active = _display_shops_for_region(region)
     return len({
         o.shop_name for o in game.offers
-        if o.in_stock and o.shop_name in active and o.price_pln is not None and o.price_pln > 0
+        if o.in_stock
+        and o.shop_name in active
+        and o.price_pln is not None
+        and o.price_pln > 0
+        and _offer_visible_for_shopping_region(o, region)
     })
 
 
@@ -608,6 +718,7 @@ def _offer_to_response(offer: Offer) -> OfferResponse:
         affiliate_url=make_affiliate_link(offer.affiliate_url, offer.shop_name),
         is_official=offer.is_official,
         in_stock=offer.in_stock,
+        activation_region=_offer_activation_region(offer),
         updated_at=offer.updated_at,
         match_confidence=confidence,
         low_confidence=low,
@@ -620,10 +731,32 @@ def _offer_to_response(offer: Offer) -> OfferResponse:
     )
 
 
-def _game_to_response(game: Game) -> GameResponse:
-    offers = [_offer_to_response(o) for o in _sorted_offers(game)]
+def _game_to_response(
+    game: Game,
+    *,
+    related_dlc: list[GameListResponse] | None = None,
+    parent_game: GameListResponse | None = None,
+    region: str = "pl",
+) -> GameResponse:
+    region = _normalize_shopping_region(region)
+    sorted_offers = _sorted_offers(game, region=region)
+    offers = [_offer_to_response(o) for o in sorted_offers]
     updated_at = _offers_updated_at(game)
     tier_a = is_in_tier_a_daily_scan(game)
+    best_raw = sorted_offers[0] if sorted_offers else None
+    best_price = best_raw.price_pln if best_raw else None
+    steam_shop = _steam_shop_for_region(region)
+    steam_offer = next(
+        (o for o in game.offers if o.shop_name == steam_shop and o.in_stock),
+        None,
+    )
+    if steam_offer is None and region == "us":
+        steam_offer = next(
+            (o for o in game.offers if o.shop_name == "Steam" and o.in_stock),
+            None,
+        )
+    savings = _savings_vs_steam(best_raw, steam_offer)
+    label = lowest_ever_label_pl(game, best_price)
     return GameResponse(
         id=game.id,
         title=_display_title(game.title),
@@ -637,9 +770,19 @@ def _game_to_response(game: Game) -> GameResponse:
         offers=offers,
         offers_updated_at=updated_at,
         offers_stale=_offers_stale(game),
-        in_stock_shop_count=_in_stock_shop_count(game),
+        in_stock_shop_count=_in_stock_shop_count(game, region=region),
         in_tier_a_daily_scan=tier_a,
         next_tier_a_scan_at=next_tier_a_scan_at() if tier_a else None,
+        lowest_ever_pln=game.lowest_ever_pln,
+        avg_best_price_30d=game.avg_best_price_30d,
+        lowest_ever_label=label,
+        at_historical_low=bool(label),
+        steam_price_pln=savings["steam_price_pln"],
+        savings_pln=savings["savings_pln"],
+        savings_pct=savings["savings_pct"],
+        is_free=bool(game.is_free),
+        related_dlc=related_dlc or [],
+        parent_game=parent_game,
     )
 
 
@@ -829,9 +972,30 @@ def support_page():
     return _static_page("wsparcie.html")
 
 
+@app.get("/legal-en")
+def legal_en_page():
+    return _static_page("legal-en.html")
+
+
 @app.get("/api/site/info")
 def site_info():
     return public_site_info()
+
+
+@app.get("/api/geo")
+def api_geo(request: Request):
+    """Visitor country for region UX (Cloudflare / forwarded headers)."""
+    from app.core.site_tracking import visitor_geo_hint
+
+    return visitor_geo_hint(request)
+
+
+@app.get("/api/fx")
+def api_fx():
+    """NBP mid rates for approximate USD display next to PLN."""
+    from app.parsers.currency_pln import fx_snapshot
+
+    return fx_snapshot()
 
 
 @app.get("/api/health")
@@ -903,13 +1067,31 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
     if not game:
         raise HTTPException(status_code=404, detail="Gra nie znaleziona")
     ctx = _game_landing_context(db, game)
+    best_price = ctx["best"].price_pln if ctx["best"] else None
+    label = lowest_ever_label_pl(ctx["game"], best_price)
+    dlc_games = related_dlc_games(db, ctx["game"], limit=8)
+    dlc_ids = [g.id for g in dlc_games]
+    parent_row = parent_game_for_dlc(db, ctx["game"])
+    parent_ids = [parent_row.id] if parent_row else []
+    map_ids = dlc_ids + parent_ids
+    dlc_best = _best_offers_map(db, map_ids) if map_ids else {}
+    dlc_steam = _steam_offers_map(db, map_ids) if map_ids else {}
+    related = [
+        _game_list_item(g, dlc_best.get(g.id), dlc_steam.get(g.id)).model_dump()
+        for g in dlc_games
+    ]
+    parent_dump = None
+    if parent_row:
+        parent_dump = _game_list_item(
+            parent_row, dlc_best.get(parent_row.id), dlc_steam.get(parent_row.id)
+        ).model_dump()
     return HTMLResponse(
-        game_landing_html(
+        game_interactive_html(
             title=_display_title(ctx["game"].title),
             slug=ctx["game"].slug,
             description=ctx["game"].description,
             cover_image=ctx["cover"],
-            best_price_pln=ctx["best"].price_pln if ctx["best"] else None,
+            best_price_pln=best_price,
             best_shop_name=ctx["best"].shop_name if ctx["best"] else None,
             steam_price_pln=ctx["savings"].get("steam_price_pln"),
             savings_pln=ctx["savings"].get("savings_pln"),
@@ -918,6 +1100,10 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
             history=ctx["history"],
             lowest_ever_pln=ctx["game"].lowest_ever_pln,
             avg_best_price_30d=ctx["game"].avg_best_price_30d,
+            lowest_ever_label=label,
+            at_historical_low=bool(label),
+            related_dlc=related,
+            parent_game=parent_dump,
             indexable=ctx["best"] is not None,
         )
     )
@@ -927,7 +1113,7 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
 def brand_logo_image():
     png = render_logo_png()
     if not png:
-        return RedirectResponse(url=f"{SITE_ORIGIN}/static/favicon.svg", status_code=302)
+        return RedirectResponse(url=f"{SITE_ORIGIN}/static/favicon.png?v=1", status_code=302)
     return Response(
         content=png,
         media_type="image/png",
@@ -1190,7 +1376,9 @@ def affiliate_go_redirect(
     )
     if not offer or not offer.game:
         raise HTTPException(status_code=404, detail="Offer not found")
-    destination = make_affiliate_link(offer.affiliate_url, offer.shop_name)
+    # Unwrap Awin (awin1.com) server-side → shop URL + awc= so ad blockers
+    # do not kill the buy click in the browser.
+    destination = resolve_outbound_url(offer.affiliate_url, offer.shop_name)
     log_affiliate_click(
         db,
         offer=offer,
@@ -1574,6 +1762,7 @@ def list_favorites(user: User = Depends(get_current_user), db: Session = Depends
                 alert_enabled=bool(fav.alert_enabled),
                 target_price_pln=fav.target_price_pln,
                 baseline_price_pln=fav.baseline_price_pln,
+                alert_shop_filter=getattr(fav, "alert_shop_filter", None) or "any",
             )
         )
     return out
@@ -1599,6 +1788,7 @@ def add_favorite(
 
     db.add(Favorite(user_id=user.id, game_id=game_id))
     db.commit()
+    set_favorite_alert(db, user_id=user.id, game_id=game_id, enabled=True)
     return {"ok": True, "message": "Dodano do ulubionych"}
 
 
@@ -1632,12 +1822,13 @@ def check_favorite(
         .first()
     )
     if not fav:
-        return {"favorited": False, "alert_enabled": False}
+        return {"favorited": False, "alert_enabled": False, "alert_shop_filter": "any"}
     return {
         "favorited": True,
         "game_id": game_id,
         "alert_enabled": bool(fav.alert_enabled),
         "target_price_pln": fav.target_price_pln,
+        "alert_shop_filter": getattr(fav, "alert_shop_filter", None) or "any",
     }
 
 
@@ -1656,12 +1847,13 @@ def check_favorite_by_slug(
         .first()
     )
     if not fav:
-        return {"favorited": False, "game_id": game.id, "alert_enabled": False}
+        return {"favorited": False, "game_id": game.id, "alert_enabled": False, "alert_shop_filter": "any"}
     return {
         "favorited": True,
         "game_id": game.id,
         "alert_enabled": bool(fav.alert_enabled),
         "target_price_pln": fav.target_price_pln,
+        "alert_shop_filter": getattr(fav, "alert_shop_filter", None) or "any",
     }
 
 
@@ -1683,6 +1875,7 @@ def add_favorite_by_slug(
         return {"ok": True, "game_id": game.id, "message": "Już śledzisz tę grę"}
     db.add(Favorite(user_id=user.id, game_id=game.id))
     db.commit()
+    set_favorite_alert(db, user_id=user.id, game_id=game.id, enabled=True)
     return {"ok": True, "game_id": game.id}
 
 
@@ -1720,12 +1913,14 @@ def update_favorite_alert_by_slug(
         game_id=game.id,
         enabled=body.alert_enabled,
         target_price_pln=body.target_price_pln,
+        alert_shop_filter=body.alert_shop_filter,
     )
     return {
         "ok": True,
         "game_id": game.id,
         "alert_enabled": fav.alert_enabled,
         "target_price_pln": fav.target_price_pln,
+        "alert_shop_filter": getattr(fav, "alert_shop_filter", None) or "any",
     }
 
 
@@ -2099,6 +2294,8 @@ def _game_list_from_steam_item(
         cover_src = game.cover_image
     slug = game.slug if game else f"{slugify(title)}-{appid}"
     savings = _savings_vs_steam(best, steam)
+    best_price = best.price_pln if best else None
+    label = lowest_ever_label_pl(game, best_price) if game else None
     return GameListResponse(
         id=game.id if game else 0,
         title=title,
@@ -2107,22 +2304,79 @@ def _game_list_from_steam_item(
         steam_appid=appid,
         release_date=game.release_date if game else None,
         rating=game.rating if game else None,
-        best_price_pln=best.price_pln if best else None,
+        best_price_pln=best_price,
         best_price_is_official=best.is_official if best else None,
         best_shop_name=best.shop_name if best else None,
         steam_price_pln=savings["steam_price_pln"],
         savings_pln=savings["savings_pln"],
         savings_pct=savings["savings_pct"],
+        lowest_ever_pln=game.lowest_ever_pln if game else None,
+        avg_best_price_30d=game.avg_best_price_30d if game else None,
+        lowest_ever_label=label,
+        at_historical_low=bool(label),
+        is_free=bool(game.is_free) if game else False,
     )
 
 
 @app.get("/api/home", response_model=HomePageResponse)
-def get_home_page(db: Session = Depends(get_db)):
+def get_home_page(
+    db: Session = Depends(get_db),
+    region: str = Query("pl", description="Shopping region: pl|us"),
+):
+    region = _normalize_shopping_region(region)
+    steam_shop = _steam_shop_for_region(region)
+    steam_fallback = "Steam" if region == "us" else None
     curation = load_curation()
     spotlight = _spotlight_game_responses(db, curation.get("spotlight_slugs") or [])
     cache = _load_cache()
+
+    def _pack_games(games: list[Game], ages: dict[int, str] | None = None) -> list[GameListResponse]:
+        if not games:
+            return []
+        ids = [g.id for g in games]
+        best_map = _best_offers_map(db, ids, region=region)
+        steam_map = _steam_offers_map(
+            db, ids, shop_name=steam_shop, fallback_shop=steam_fallback
+        )
+        out: list[GameListResponse] = []
+        for g in games:
+            out.append(
+                _game_list_item(
+                    g,
+                    best_map.get(g.id),
+                    steam_map.get(g.id),
+                    deal_age_label=(ages or {}).get(g.id),
+                )
+            )
+        return out
+
+    try:
+        hist_games = games_at_historical_low(db, limit=14)
+        historical_lows = _pack_games(hist_games)
+    except Exception:
+        historical_lows = []
+
+    try:
+        new_rows = games_new_deals(db, limit=14, hours=48)
+        ages = {g.id: deal_age_label(ts) or "" for g, ts in new_rows}
+        new_deals = _pack_games([g for g, _ in new_rows], ages)
+    except Exception:
+        new_deals = []
+
+    try:
+        freebies = _pack_games(games_freebies(db, limit=12))
+    except Exception:
+        freebies = []
+
     if not cache:
-        return HomePageResponse(sections=[], spotlight=spotlight, updated_at=None)
+        return HomePageResponse(
+            sections=[],
+            spotlight=spotlight,
+            new_deals=new_deals,
+            historical_lows=historical_lows,
+            freebies=freebies,
+            updated_at=None,
+        )
 
     sections: list[HomeSectionResponse] = []
     for section in cache.get("sections") or []:
@@ -2134,8 +2388,13 @@ def get_home_page(db: Session = Depends(get_db)):
             g.steam_appid: g
             for g in db.query(Game).filter(Game.steam_appid.in_(appids)).all()
         } if appids else {}
-        best_map = _best_offers_map(db, [g.id for g in db_games.values()])
-        steam_map = _steam_offers_map(db, [g.id for g in db_games.values()])
+        best_map = _best_offers_map(db, [g.id for g in db_games.values()], region=region)
+        steam_map = _steam_offers_map(
+            db,
+            [g.id for g in db_games.values()],
+            shop_name=steam_shop,
+            fallback_shop=steam_fallback,
+        )
         min_reviews = min_reviews_for_list_slug(section.get("slug"))
         offer_counts = in_stock_offer_counts(db, [g.id for g in db_games.values() if g.id])
 
@@ -2175,6 +2434,9 @@ def get_home_page(db: Session = Depends(get_db)):
     response = HomePageResponse(
         sections=sections,
         spotlight=spotlight,
+        new_deals=new_deals,
+        historical_lows=historical_lows,
+        freebies=freebies,
         updated_at=cache.get("updated_at"),
     )
     _price_debug_log(
@@ -2234,8 +2496,11 @@ _GAMES_CACHE_TTL = float(os.environ.get("GAMES_CACHE_TTL", "90"))
 _GAMES_CACHE_MAX = 256
 
 
-def _games_cache_key(q, category, sort, page, limit) -> str:
-    raw = f"{(q or '').strip().lower()}|{(category or '').strip().lower()}|{sort}|{page}|{limit}"
+def _games_cache_key(q, category, sort, page, limit, region: str = "pl") -> str:
+    raw = (
+        f"{(q or '').strip().lower()}|{(category or '').strip().lower()}|"
+        f"{sort}|{page}|{limit}|{_normalize_shopping_region(region)}"
+    )
     return hashlib.md5(raw.encode("utf-8")).hexdigest()
 
 
@@ -2290,13 +2555,17 @@ def get_games(
     sort: Optional[str] = Query(None, description="Sort: price_asc|price_desc|rating|release|title"),
     page: int = Query(1, ge=1),
     limit: int = Query(48, ge=12, le=96),
+    region: str = Query("pl", description="Shopping region: pl|us"),
 ):
     sort = sort if sort in _GAMES_SORTS else None
+    region = _normalize_shopping_region(region)
+    steam_shop = _steam_shop_for_region(region)
+    steam_fallback = "Steam" if region == "us" else None
 
     # Serve from the short-TTL cache when possible (skips the expensive COUNT +
     # offer-map queries). The Steam-list branch below is intentionally not
     # cached because it also hydrates stub rows in the background.
-    cache_key = _games_cache_key(q, category, sort, page, limit)
+    cache_key = _games_cache_key(q, category, sort, page, limit, region)
     cached = _games_cache_get(cache_key)
     if cached is not None:
         return _games_response(request, response, cached[1], cached[0])
@@ -2321,8 +2590,15 @@ def get_games(
                 g.steam_appid: g
                 for g in db.query(Game).filter(Game.steam_appid.in_(appids)).all()
             } if appids else {}
-            best_map = _best_offers_map(db, [g.id for g in db_games.values()])
-            steam_map = _steam_offers_map(db, [g.id for g in db_games.values()])
+            best_map = _best_offers_map(
+                db, [g.id for g in db_games.values()], region=region
+            )
+            steam_map = _steam_offers_map(
+                db,
+                [g.id for g in db_games.values()],
+                shop_name=steam_shop,
+                fallback_shop=steam_fallback,
+            )
 
             items_out: list[GameListResponse] = []
             for item in page_items:
@@ -2365,7 +2641,7 @@ def get_games(
     # exact best price is still resolved per row below via _best_offers_map).
     price_col = None
     if sort in ("price_asc", "price_desc"):
-        display_shops = list(get_display_shops())
+        display_shops = list(_display_shops_for_region(region))
         price_sq = (
             db.query(
                 Offer.game_id.label("gid"),
@@ -2401,8 +2677,13 @@ def get_games(
     if needs_distinct:
         rows_q = rows_q.distinct()
     rows = rows_q.offset((page - 1) * limit).limit(limit).all()
-    best_map = _best_offers_map(db, [g.id for g in rows])
-    steam_map = _steam_offers_map(db, [g.id for g in rows])
+    best_map = _best_offers_map(db, [g.id for g in rows], region=region)
+    steam_map = _steam_offers_map(
+        db,
+        [g.id for g in rows],
+        shop_name=steam_shop,
+        fallback_shop=steam_fallback,
+    )
     payload = GamesPageResponse(
         items=[_game_list_item(g, best_map.get(g.id), steam_map.get(g.id)) for g in rows],
         total=total,
@@ -2437,7 +2718,9 @@ def get_games(
 def get_game_by_slug(
     slug: str,
     db: Session = Depends(get_db),
+    region: str = Query("pl", description="Shopping region: pl|us"),
 ):
+    region = _normalize_shopping_region(region)
     game = _find_game_by_slug(db, slug, create_stub=True)
     if game:
         game = _load_game_with_offers(db, game.id)
@@ -2478,9 +2761,47 @@ def get_game_by_slug(
             except Exception:
                 db.rollback()
 
-    game.offers = _sorted_offers(game)
+    if region == "us" and game.steam_appid:
+        try:
+            from app.parsers.steam_catalog import refresh_steam_offer_for_game
+
+            if refresh_steam_offer_for_game(db, game, cc="us", shop_name="Steam US"):
+                db.commit()
+                game = _load_game_with_offers(db, game.id)
+        except Exception as exc:
+            logging.getLogger("games").warning(
+                "Steam US refresh failed for %s: %s", slug, exc
+            )
+            db.rollback()
+            game = _load_game_with_offers(db, game.id)
+
+    game.offers = _sorted_offers(game, region=region)
     game.cover_image = effective_cover(game.cover_image, game.steam_appid)
-    response = _game_to_response(game)
+    dlc_games = related_dlc_games(db, game, limit=8)
+    dlc_ids = [g.id for g in dlc_games]
+    parent_row = parent_game_for_dlc(db, game)
+    parent_ids = [parent_row.id] if parent_row else []
+    map_ids = dlc_ids + parent_ids
+    dlc_best = _best_offers_map(db, map_ids, region=region) if map_ids else {}
+    dlc_steam = (
+        _steam_offers_map(
+            db,
+            map_ids,
+            shop_name=_steam_shop_for_region(region),
+            fallback_shop="Steam" if region == "us" else None,
+        )
+        if map_ids
+        else {}
+    )
+    related = [_game_list_item(g, dlc_best.get(g.id), dlc_steam.get(g.id)) for g in dlc_games]
+    parent_resp = None
+    if parent_row:
+        parent_resp = _game_list_item(
+            parent_row, dlc_best.get(parent_row.id), dlc_steam.get(parent_row.id)
+        )
+    response = _game_to_response(
+        game, related_dlc=related, parent_game=parent_resp, region=region
+    )
     _price_debug_log(
         "Game detail price response",
         {
@@ -2510,22 +2831,31 @@ def get_price_history_api(slug: str, db: Session = Depends(get_db)):
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     points = get_price_history(db, game.id, days=90)
+    best = _best_offers_map(db, [game.id]).get(game.id)
+    best_price = best.price_pln if best else None
+    label = lowest_ever_label_pl(game, best_price)
     return PriceHistoryResponse(
         slug=game.slug,
         title=game.title,
         lowest_ever_pln=game.lowest_ever_pln,
         avg_best_price_30d=game.avg_best_price_30d,
+        at_historical_low=bool(label),
         points=[PriceHistoryPoint(**p) for p in points],
     )
 
 
 @app.get("/api/games/{slug}/offers", response_model=List[OfferResponse])
-def get_game_offers(slug: str, db: Session = Depends(get_db)):
+def get_game_offers(
+    slug: str,
+    db: Session = Depends(get_db),
+    region: str = Query("pl", description="Shopping region: pl|us"),
+):
+    region = _normalize_shopping_region(region)
     game = _find_game_by_slug(db, slug)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     game = _load_game_with_offers(db, game.id)
-    response = [_offer_to_response(o) for o in _sorted_offers(game)]
+    response = [_offer_to_response(o) for o in _sorted_offers(game, region=region)]
     _price_debug_log(
         "Game offers price response",
         {

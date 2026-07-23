@@ -19,6 +19,21 @@ window.addEventListener('unhandledrejection', (event) => {
 document.addEventListener('DOMContentLoaded', () => {
     const tt = (k, v) => (typeof t === 'function' ? t(k, v) : k);
     const numLocale = () => (window.I18n && I18n.locale()) || 'pl-PL';
+
+    function localizeDealAge(label) {
+        if (!label) return '';
+        const lang = window.I18n?.getLang?.() || 'pl';
+        if (lang === 'pl') return label;
+        if (label === 'przed chwilą') return tt('deal.just_now');
+        let m = label.match(/^(\d+)\s*min temu$/i);
+        if (m) return tt('deal.mins_ago', { n: m[1] });
+        m = label.match(/^(\d+)\s*godz\.?\s*temu$/i);
+        if (m) return tt('deal.hours_ago', { n: m[1] });
+        m = label.match(/^(\d+)\s*dni temu$/i);
+        if (m) return tt('deal.days_ago', { n: m[1] });
+        return label;
+    }
+
     const gamesGrid = document.getElementById('games-grid');
     const searchInput = document.getElementById('search-input');
     const modal = document.getElementById('game-modal');
@@ -65,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentGameInTierA = false;
     const SHOP_SHORT = {
         Steam: 'Steam',
+        'Steam US': 'Steam US',
         GOG: 'GOG',
         'Epic Games': 'Epic',
         'Instant Gaming': 'IG',
@@ -73,7 +89,43 @@ document.addEventListener('DOMContentLoaded', () => {
         Gamivo: 'Gamivo',
         Fanatical: 'Fanatical',
         G2A: 'G2A',
+        CDKeys: 'CDKeys',
     };
+
+    function shoppingRegion() {
+        return window.KupujPLRegion?.getShoppingRegion?.() || 'pl';
+    }
+
+    function withRegion(path) {
+        const sep = path.includes('?') ? '&' : '?';
+        return `${path}${sep}region=${encodeURIComponent(shoppingRegion())}`;
+    }
+
+    function preferredSteamShop() {
+        return shoppingRegion() === 'us' ? 'Steam US' : 'Steam';
+    }
+
+    function filterOffersForRegion(offers) {
+        const region = shoppingRegion();
+        return (offers || []).filter((o) => {
+            if (!o?.shop_name) return false;
+            if (region === 'us' && o.shop_name === 'Steam') return false;
+            if (region === 'pl' && o.shop_name === 'Steam US') return false;
+            const act = String(o.activation_region || 'unknown').toLowerCase();
+            if (act === 'unknown') return true;
+            if (region === 'us') return act === 'na' || act === 'global';
+            return act === 'eu' || act === 'global';
+        });
+    }
+
+    function shopsForRegionList(shops) {
+        const region = shoppingRegion();
+        const list = (shops || []).slice();
+        if (region === 'us') {
+            return list.map((s) => (s === 'Steam' ? 'Steam US' : s));
+        }
+        return list.filter((s) => s !== 'Steam US');
+    }
 
     let searchDebounceTimeout = null;
     let gamesFetchController = null;
@@ -166,6 +218,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const utmSource = params.get('utm_source');
         const utmMedium = params.get('utm_medium');
         const utmCampaign = params.get('utm_campaign');
+        const utmTerm = params.get('utm_term');
+        const utmContent = params.get('utm_content');
+        const gclid = params.get('gclid');
+        const wbraid = params.get('wbraid');
+        const gbraid = params.get('gbraid');
+        const referrerUrl = document.referrer || null;
         if (utmSource) {
             const sep = normalized.includes('?') ? '&' : '?';
             normalized = `${normalized}${sep}utm_source=${encodeURIComponent(utmSource)}`;
@@ -183,6 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     utm_source: utmSource,
                     utm_medium: utmMedium,
                     utm_campaign: utmCampaign,
+                    utm_term: utmTerm,
+                    utm_content: utmContent,
+                    gclid,
+                    wbraid,
+                    gbraid,
+                    referrer_url: referrerUrl,
                 }),
                 credentials: 'same-origin',
             }).catch(() => {});
@@ -387,15 +451,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadHomeSections() {
         try {
-            const res = await fetch(api('home'));
+            const res = await fetch(api(withRegion('home')));
             if (!res.ok) throw new Error('home failed');
             const data = await res.json();
-            renderHomeSpotlight(data.spotlight || []);
-            renderHomeSections(data.sections || []);
+            try { renderHomeSpotlight(data.spotlight || []); } catch (e) { console.warn(e); }
+            try { renderDealFeeds(data); } catch (e) { console.warn(e); }
+            try { renderHomeSections(data.sections || []); } catch (e) { console.warn(e); }
+            try { loadWishlistDeals(); } catch (e) { console.warn(e); }
             trackPageView('/view/home');
         } catch (e) {
             console.warn('home sections', e);
             homeSections.innerHTML = `<p class="no-results">${tt('home.load_fail')}</p>`;
+            trackPageView('/view/home');
+        }
+    }
+
+    function renderFeedBlock(targetId, title, subtitle, games, opts = {}) {
+        const host = document.getElementById(targetId);
+        if (!host) return;
+        if (!games?.length) {
+            host.hidden = true;
+            host.innerHTML = '';
+            return;
+        }
+        host.hidden = false;
+        host.className = 'home-feed-block home-section-block';
+        host.innerHTML = `
+            <div class="home-section-head">
+                <div>
+                    <h2 class="home-section-title">${escapeHtml(title)}</h2>
+                    <p class="home-section-sub">${escapeHtml(subtitle || '')}</p>
+                </div>
+            </div>
+            <div class="home-section-row"></div>
+        `;
+        const row = host.querySelector('.home-section-row');
+        games.forEach((game) => row.appendChild(buildGameCard(game, 0)));
+    }
+
+    function renderDealFeeds(data) {
+        renderFeedBlock(
+            'feed-new-deals',
+            tt('feed.new_deals') || 'Nowe okazje',
+            tt('feed.new_deals_sub') || 'Świeże spadki cen',
+            data.new_deals || []
+        );
+        renderFeedBlock(
+            'feed-hist-lows',
+            tt('feed.hist_lows') || 'Najniższe w historii',
+            tt('feed.hist_lows_sub') || 'Aktualna cena = rekord all-time',
+            data.historical_lows || []
+        );
+        renderFeedBlock(
+            'feed-freebies',
+            tt('feed.freebies') || 'Za darmo',
+            tt('feed.freebies_sub') || 'Freebies ze Steam / GOG / Epic',
+            data.freebies || []
+        );
+    }
+
+    async function loadWishlistDeals() {
+        if (!isLoggedIn()) {
+            const el = document.getElementById('feed-wishlist');
+            if (el) { el.hidden = true; el.innerHTML = ''; }
+            return;
+        }
+        try {
+            const res = await authFetch('favorites');
+            if (!res.ok) return;
+            const favs = await res.json();
+            const deals = (favs || []).filter(
+                (g) => (g.savings_pct && g.savings_pct >= 10) || g.at_historical_low || g.lowest_ever_label
+            ).slice(0, 14);
+            renderFeedBlock(
+                'feed-wishlist',
+                tt('feed.wishlist') || 'Twoje ulubione w promocji',
+                tt('feed.wishlist_sub') || 'Zniżki na gry ze śledzonych',
+                deals
+            );
+        } catch (e) {
+            console.warn('wishlist deals', e);
         }
     }
 
@@ -410,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
         homeSpotlightRow.innerHTML = games.map(game => {
             const hasPrice = game.best_price_pln != null;
             const priceHtml = hasPrice
-                ? `<span class="cp-spotlight-price">${Number(game.best_price_pln).toFixed(2)} zł</span>`
+                ? `<span class="cp-spotlight-price">${formatPln(game.best_price_pln, { html: true })}</span>`
                 : `<span class="cp-spotlight-price cp-spotlight-price--empty">${tt('card.check_price')}</span>`;
             const coverSrc = gameCoverSrc(game);
             const gameUrl = `gra/${encodeURIComponent(game.slug)}`;
@@ -427,11 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
         homeSpotlightRow.querySelectorAll('.cp-spotlight-tile').forEach(tile => {
             const slug = tile.dataset.slug;
             const game = games.find(g => g.slug === slug);
-            tile.addEventListener('click', (ev) => {
-                if (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button === 1) return;
-                ev.preventDefault();
-                showGameDetails(slug, game);
-            });
+            // Full page navigation — no modal intercept
             const img = tile.querySelector('img');
             if (img && game) bindCoverFallback(img, game);
         });
@@ -496,14 +627,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const hasPrice = game.best_price_pln != null;
         const priceHtml = hasPrice
-            ? `<span class="card-price">${Number(game.best_price_pln).toFixed(2)} zł</span>`
+            ? `<span class="card-price">${formatPln(game.best_price_pln, { html: true })}</span>`
             : `<span class="card-price empty">${tt('card.check_price')}</span>`;
         const tagHtml = hasPrice && game.best_price_is_official
             ? `<span class="card-tag">${tt('card.official')}</span>`
             : '';
         const savingsHtml = cardSavingsHtml(game);
-        const historyLabel = game.lowest_ever_label
-            ? `<span class="card-history-label">${escapeHtml(game.lowest_ever_label)}</span>`
+        const historyLabel = (game.lowest_ever_label || game.at_historical_low)
+            ? `<span class="card-history-label hist-low-badge">${escapeHtml(
+                ((window.I18n?.getLang?.() || 'pl') === 'pl' && game.lowest_ever_label)
+                    ? game.lowest_ever_label
+                    : (tt('badge.hist_low') || 'historical low')
+            )}</span>`
+            : '';
+        const dealAge = game.deal_age_label
+            ? `<span class="card-deal-age">${escapeHtml(localizeDealAge(game.deal_age_label))}</span>`
+            : '';
+        const freeBadge = game.is_free || (game.best_price_pln != null && game.best_price_pln <= 0.01)
+            ? `<span class="card-free-badge">${tt('badge.free') || 'ZA DARMO'}</span>`
             : '';
         const watched = watchedSlugs.has(game.slug);
 
@@ -524,6 +665,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${priceHtml}
                     ${savingsHtml}
                     ${historyLabel}
+                    ${dealAge}
+                    ${freeBadge}
                     ${tagHtml}
                 </div>
             </div>
@@ -534,26 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ev.stopPropagation();
             toggleWatch(game.slug, ev.currentTarget);
         });
-        card.querySelectorAll('.card-title-link, .card-cover-link').forEach((link) => {
-            link.addEventListener('click', (ev) => {
-                if (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button === 1) return;
-                ev.preventDefault();
-                ev.stopPropagation();
-                showGameDetails(game.slug, game);
-            });
-        });
-        card.addEventListener('click', () => {
-            // #region agent log
-            agentDebugLog('prices-pre-fix', 'P1,P2', 'app/static/app.js:buildGameCard.click', 'Game card opened', {
-                slug: game.slug,
-                title: game.title,
-                bestShopName: game.best_shop_name,
-                bestPricePln: game.best_price_pln,
-                offersUpdatedAt: game.offers_updated_at,
-            });
-            // #endregion
-            showGameDetails(game.slug, game);
-        });
+        // Navigate to full game page (no modal)
         return card;
     }
 
@@ -650,6 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (querySnapshot) params.set('q', querySnapshot);
             if (categorySnapshot) params.set('category', categorySnapshot);
             if (currentSort) params.set('sort', currentSort);
+            params.set('region', shoppingRegion());
 
             const response = await fetch(`${api('games')}?${params}`, {
                 signal: append ? undefined : gamesFetchController?.signal,
@@ -698,10 +823,12 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
-    const NO_COMMISSION_SHOPS = new Set(['Steam', 'Epic Games']);
+    const NO_COMMISSION_SHOPS = new Set(['Steam', 'Steam US', 'Epic Games']);
 
     function steamPriceForModal() {
-        const steam = modalOffersByShop.Steam;
+        const preferred = preferredSteamShop();
+        let steam = modalOffersByShop[preferred];
+        if (!steam && preferred === 'Steam US') steam = modalOffersByShop.Steam;
         return steam && isValidOfferPrice(steam.price_pln) ? Number(steam.price_pln) : null;
     }
 
@@ -713,7 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (conf != null && conf < 0.55) return false;
         }
         const price = Number(offer.price_pln);
-        if (steamPrice != null && steamPrice >= 5 && offer.shop_name !== 'Steam') {
+        if (steamPrice != null && steamPrice >= 5 && !NO_COMMISSION_SHOPS.has(offer.shop_name)) {
             if (price / steamPrice < 0.12) return false;
         }
         if (steamPrice != null && steamPrice >= 25 && price <= 3 && !offer.is_official) return false;
@@ -730,7 +857,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return api(`go/${offer.id}`);
     }
 
-    function formatPln(price) {
+    function formatPln(price, { html = false } = {}) {
+        if (window.KupujPLRegion) {
+            return html
+                ? KupujPLRegion.formatPrice(price)
+                : KupujPLRegion.formatPricePlain(price);
+        }
         return `${Number(price).toFixed(2)} zł`;
     }
 
@@ -763,7 +895,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function computeSteamSavings() {
-        const steam = modalOffersByShop.Steam;
+        const preferred = preferredSteamShop();
+        let steam = modalOffersByShop[preferred];
+        if (!steam && preferred === 'Steam US') steam = modalOffersByShop.Steam;
         const cheapest = getCtaOffer();
         if (!steam || !cheapest || !isValidOfferPrice(steam.price_pln)) return null;
 
@@ -841,9 +975,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function shopsForOfferList() {
+        const regionShops = shopsForRegionList(ACTIVE_SHOPS);
         const priced = new Set(pricedModalOffers().map(o => o.shop_name));
-        const ordered = ACTIVE_SHOPS.filter(name => priced.has(name));
-        const extra = [...priced].filter(name => !ACTIVE_SHOPS.includes(name));
+        const ordered = regionShops.filter(name => priced.has(name));
+        const extra = [...priced].filter(
+            name => !regionShops.includes(name) && name !== (shoppingRegion() === 'us' ? 'Steam' : 'Steam US')
+        );
         return [...ordered, ...extra];
     }
 
@@ -898,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mergeModalOffers(offers) {
-        for (const o of offers || []) {
+        for (const o of filterOffersForRegion(offers || [])) {
             if (!o?.shop_name || !isValidOfferPrice(o.price_pln)) continue;
             const prev = modalOffersByShop[o.shop_name];
             if (!prev) {
@@ -911,6 +1048,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalOffersByShop[o.shop_name] = o;
             }
         }
+        // Drop opposite-region Steam row if present from a prior merge
+        if (shoppingRegion() === 'us') delete modalOffersByShop.Steam;
+        else delete modalOffersByShop['Steam US'];
     }
 
     async function requestOffersRefresh(slug, force = false) {
@@ -991,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        fetch(api(`games/${encodeURIComponent(slug)}`))
+        fetch(api(withRegion(`games/${encodeURIComponent(slug)}`)))
             .then(response => {
                 if (!response.ok) throw new Error('Failed to fetch game details');
                 return response.json();
@@ -1068,14 +1208,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (token !== offersPollToken || modal.hidden) return;
             try {
                 const pollSlug = currentGameSlug || slug;
-                const res = await fetch(api(`games/${pollSlug}/offers`));
+                const res = await fetch(api(withRegion(`games/${pollSlug}/offers`)));
                 if (!res.ok) continue;
                 const offers = await res.json();
                 const before = Object.keys(modalOffersByShop).length;
                 mergeModalOffers(offers);
                 const after = Object.keys(modalOffersByShop).length;
-                const stillMissing = ACTIVE_SHOPS.some(
-                    name => !hasShopOffer(name) && !DISABLED_SHOPS.has(name)
+                const stillMissing = shopsForRegionList(ACTIVE_SHOPS).some(
+                    name => !hasShopOffer(name) && !DISABLED_SHOPS.has(name === 'Steam US' ? 'Steam' : name)
                 );
                 const elapsed = Date.now() - pollStartedAt;
                 const scanLikelyDone = elapsed >= minPollMs;
@@ -1103,7 +1243,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const pollSlug = currentGameSlug || slug;
-            const res = await fetch(api(`games/${pollSlug}/offers`));
+            const res = await fetch(api(withRegion(`games/${pollSlug}/offers`)));
             if (res.ok) mergeModalOffers(await res.json());
         } catch (e) {
             console.warn('poll offers final', e);
@@ -1114,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setOffersScanning(false);
             try {
                 const pollSlug = currentGameSlug || slug;
-                const gameRes = await fetch(api(`games/${pollSlug}`));
+                const gameRes = await fetch(api(withRegion(`games/${pollSlug}`)));
                 if (gameRes.ok) {
                     const game = await gameRes.json();
                     mergeModalOffers(game.offers);
@@ -1164,15 +1304,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (!data.points?.length) return;
             const recent = data.points.slice(-7);
-            const rows = recent.map(p => `<tr><td>${escapeHtml(p.date)}</td><td>${Number(p.best_price_pln).toFixed(2)} zł</td></tr>`).join('');
+            const rows = recent.map(p => `<tr><td>${escapeHtml(p.date)}</td><td>${formatPln(p.best_price_pln)}</td></tr>`).join('');
             let meta = '';
-            if (data.lowest_ever_pln) meta += `Najniższa: ${Number(data.lowest_ever_pln).toFixed(2)} zł`;
-            if (data.avg_best_price_30d) meta += `${meta ? ' · ' : ''}Średnia 30 dni: ${Number(data.avg_best_price_30d).toFixed(2)} zł`;
+            if (data.lowest_ever_pln) meta += tt('history.lowest_meta', { price: formatPln(data.lowest_ever_pln) });
+            if (data.avg_best_price_30d) {
+                meta += `${meta ? ' · ' : ''}${tt('history.avg_meta', { price: formatPln(data.avg_best_price_30d) })}`;
+            }
             modalPriceHistory.hidden = false;
             modalPriceHistory.innerHTML = `
-                <h4 class="modal-history-title">Historia cen</h4>
+                <h4 class="modal-history-title">${escapeHtml(tt('history.title'))}</h4>
                 ${meta ? `<p class="modal-history-meta">${escapeHtml(meta)}</p>` : ''}
-                <table class="modal-history-table"><tr><th>Dzień</th><th>Najniższa</th></tr>${rows}</table>
+                <table class="modal-history-table"><tr><th>${escapeHtml(tt('history.day'))}</th><th>${escapeHtml(tt('history.lowest_col'))}</th></tr>${rows}</table>
             `;
         } catch (e) {
             console.warn('price history', e);
@@ -1244,8 +1386,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderOffers(offers, pending = false) {
         mergeModalOffers(offers);
-        const scanning = pending && ACTIVE_SHOPS.some(
-            name => !hasShopOffer(name) && !DISABLED_SHOPS.has(name)
+        const scanning = pending && shopsForRegionList(ACTIVE_SHOPS).some(
+            name => !hasShopOffer(name) && !DISABLED_SHOPS.has(name === 'Steam US' ? 'Steam' : name)
         );
         setOffersScanning(scanning);
         updateOffersScanShops();
@@ -1285,16 +1427,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const warnBadge = offer.low_confidence
                 ? ` <span class="offer-warn-badge" title="${escapeHtml(tt('offer.low_conf_note'))}">${tt('offer.check')}</span>`
                 : '';
+            const act = String(offer.activation_region || '').toLowerCase();
+            const regionLabel = act === 'na'
+                ? tt('offer.region_na')
+                : act === 'eu'
+                    ? tt('offer.region_eu')
+                    : act === 'global'
+                        ? tt('offer.region_global')
+                        : '';
+            const regionBadge = regionLabel
+                ? ` <span class="badge badge-region">${escapeHtml(regionLabel)}</span>`
+                : '';
             const buyLabel = isCheapest ? tt('offer.buy_cheapest', { price: formatPln(offer.price_pln) }) : tt('offer.buy');
             const orig = Number(offer.original_price_pln);
             const hasDiscount = Number.isFinite(orig) && orig > Number(offer.price_pln) + 0.01;
             const priceHtml = hasDiscount
-                ? `<span class="offer-price"><span class="offer-price-old">${formatPln(orig)}</span> ${formatPln(offer.price_pln)}</span>`
-                : `<span class="offer-price">${formatPln(offer.price_pln)}</span>`;
+                ? `<span class="offer-price"><span class="offer-price-old">${formatPln(orig)}</span> ${formatPln(offer.price_pln, { html: true })}</span>`
+                : `<span class="offer-price">${formatPln(offer.price_pln, { html: true })}</span>`;
             row.innerHTML = `
                 <div class="offer-row-main">
                     <span class="offer-shop shop-${shopClass}">${offer.shop_name}${blik}</span>
-                    <span class="offer-type"><span class="offer-badge ${badgeClass}">${typeLabel}</span>${infoBadge}${warnBadge}${refundHtml}</span>
+                    <span class="offer-type"><span class="offer-badge ${badgeClass}">${typeLabel}</span>${infoBadge}${warnBadge}${regionBadge}${refundHtml}</span>
                 </div>
                 ${priceHtml}
                 <a href="${offerGoUrl(offer)}" target="_blank" rel="noopener noreferrer nofollow sponsored" class="btn-buy${isCheapest ? ' btn-buy--best' : ''}">${buyLabel}</a>
@@ -1338,6 +1491,14 @@ document.addEventListener('DOMContentLoaded', () => {
     initOffersScanShops();
     if (isLoggedIn()) loadWatchedSlugs();
 
+    document.addEventListener('shoppingregionchange', () => {
+        loadHomeSections();
+        if (currentCategory || currentQuery) fetchGames(1, false);
+        if (!modal.hidden && currentGameSlug) {
+            showGameDetails(currentGameSlug);
+        }
+    });
+
     document.addEventListener('langchange', () => {
         if (window.I18n) I18n.applyPage();
         const allCat = categoriesBar?.querySelector('.cat[data-slug=""]');
@@ -1349,6 +1510,14 @@ document.addEventListener('DOMContentLoaded', () => {
             updateWatchButton(btn, watchedSlugs.has(slug));
         });
         if (btnAlert && isLoggedIn() && isFavorited) updateAlertButton(alertEnabled);
+        // Refresh home cards when language/region USD display may change
+        if (!currentCategory && !currentQuery) loadHomeSections();
+    });
+
+    document.addEventListener('regionready', () => {
+        if (window.KupujPLRegion?.shouldShowUsd?.() && !currentCategory && !currentQuery) {
+            loadHomeSections();
+        }
     });
 
     const pathGra = location.pathname.match(/\/gra\/([^/]+)/);
@@ -1358,6 +1527,6 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.value = urlQuery.trim();
         runSearch(urlQuery.trim());
     } else if (deepLinkGra) {
-        setTimeout(() => showGameDetails(deepLinkGra), 300);
+        location.replace(`gra/${encodeURIComponent(deepLinkGra)}`);
     }
 });

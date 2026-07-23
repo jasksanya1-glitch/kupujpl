@@ -10,7 +10,68 @@ from app.core.database import engine
 logger = logging.getLogger("schema_migrate")
 
 
+def _ensure_offers_activation_region() -> None:
+    """Add offers.activation_region for US/PL shopping filters (sqlite + postgres)."""
+    insp = inspect(engine)
+    if not insp.has_table("offers"):
+        return
+    offer_cols = {c["name"] for c in insp.get_columns("offers")}
+    if "activation_region" in offer_cols:
+        return
+    dialect = engine.dialect.name
+    with engine.begin() as conn:
+        if dialect == "sqlite":
+            conn.execute(
+                text(
+                    "ALTER TABLE offers ADD COLUMN activation_region VARCHAR(16) "
+                    "NOT NULL DEFAULT 'unknown'"
+                )
+            )
+        else:
+            conn.execute(
+                text(
+                    "ALTER TABLE offers ADD COLUMN activation_region VARCHAR(16) "
+                    "DEFAULT 'unknown'"
+                )
+            )
+            conn.execute(
+                text("UPDATE offers SET activation_region = 'unknown' WHERE activation_region IS NULL")
+            )
+            try:
+                conn.execute(
+                    text("ALTER TABLE offers ALTER COLUMN activation_region SET NOT NULL")
+                )
+            except Exception:
+                pass
+        try:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_offers_game_shop_region "
+                    "ON offers (game_id, shop_name, activation_region)"
+                )
+            )
+        except Exception:
+            pass
+        # Official / global-leaning shops: prefer global over unknown for display clarity
+        conn.execute(
+            text(
+                "UPDATE offers SET activation_region = 'global' "
+                "WHERE shop_name IN ('Steam', 'GOG', 'Epic Games', 'Fanatical', 'Humble Store') "
+                "AND (activation_region IS NULL OR activation_region = 'unknown')"
+            )
+        )
+        conn.execute(
+            text(
+                "UPDATE offers SET activation_region = 'na' "
+                "WHERE shop_name = 'Steam US' "
+                "AND (activation_region IS NULL OR activation_region = 'unknown')"
+            )
+        )
+    logger.info("Added offers.activation_region column")
+
+
 def ensure_sqlite_schema() -> None:
+    _ensure_offers_activation_region()
     if engine.dialect.name != "sqlite":
         return
     insp = inspect(engine)
@@ -67,6 +128,7 @@ def ensure_sqlite_schema() -> None:
             ("target_price_pln", "FLOAT"),
             ("baseline_price_pln", "FLOAT"),
             ("last_notified_at", "DATETIME"),
+            ("alert_shop_filter", "VARCHAR(16) DEFAULT 'any'"),
         ]
         for name, col_type in fav_patches:
             if name not in fav_cols:
@@ -126,6 +188,16 @@ def ensure_sqlite_schema() -> None:
             ("utm_source", "VARCHAR(64)"),
             ("utm_medium", "VARCHAR(64)"),
             ("utm_campaign", "VARCHAR(128)"),
+            ("utm_term", "VARCHAR(128)"),
+            ("utm_content", "VARCHAR(128)"),
+            ("gclid", "VARCHAR(128)"),
+            ("wbraid", "VARCHAR(128)"),
+            ("gbraid", "VARCHAR(128)"),
+            ("referrer_host", "VARCHAR(120)"),
+            ("referrer_url", "VARCHAR(700)"),
+            ("user_agent", "VARCHAR(480)"),
+            ("is_suspected_bot", "BOOLEAN DEFAULT 0"),
+            ("bot_reason", "VARCHAR(64)"),
         ]
         for name, col_type in utm_patches:
             if name not in visit_cols:
@@ -136,6 +208,28 @@ def ensure_sqlite_schema() -> None:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE site_visits ADD COLUMN client_agent VARCHAR(32)"))
             logger.info("Added site_visits.client_agent column")
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_site_visits_is_suspected_bot "
+                        "ON site_visits (is_suspected_bot)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_site_visits_bot_reason "
+                        "ON site_visits (bot_reason)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_site_visits_referrer_host "
+                        "ON site_visits (referrer_host)"
+                    )
+                )
+        except Exception:
+            pass
 
     if insp.has_table("site_sessions"):
         session_cols = {c["name"] for c in insp.get_columns("site_sessions")}
