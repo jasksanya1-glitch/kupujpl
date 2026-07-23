@@ -574,6 +574,7 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
     since_15m = now - timedelta(minutes=15)
     since_1h = now - timedelta(hours=1)
     since_24h = now - timedelta(hours=24)
+    since_48h = now - timedelta(hours=48)
 
     human_filter = SiteVisit.is_suspected_bot.is_(False)
     bot_filter = SiteVisit.is_suspected_bot.is_(True)
@@ -597,9 +598,11 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
     v15, u15 = _counts(since_15m)
     v1h, u1h = _counts(since_1h)
     v24, u24 = _counts(since_24h)
+    v48, u48 = _counts(since_48h)
     cv15, cu15 = _counts(since_15m, bots=True)
     cv1h, cu1h = _counts(since_1h, bots=True)
     cv24, cu24 = _counts(since_24h, bots=True)
+    cv48, cu48 = _counts(since_48h, bots=True)
     views_all = db.query(SiteVisit).filter(human_filter).count()
     unique_all = (
         db.query(func.count(func.distinct(SiteVisit.visitor_key)))
@@ -623,6 +626,7 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
 
     reg_15m, guest_15m = _auth_views(since_15m)
     reg_24h, guest_24h = _auth_views(since_24h)
+    reg_48h, guest_48h = _auth_views(since_48h)
 
     recent_rows = (
         db.query(SiteVisit)
@@ -684,6 +688,8 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
         "unique_1h": u1h,
         "views_24h": v24,
         "unique_24h": u24,
+        "views_48h": v48,
+        "unique_48h": u48,
         "views_all": int(views_all),
         "unique_all": int(unique_all),
         "crawler_views_15m": cv15,
@@ -692,12 +698,16 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
         "crawler_unique_1h": cu1h,
         "crawler_views_24h": cv24,
         "crawler_unique_24h": cu24,
+        "crawler_views_48h": cv48,
+        "crawler_unique_48h": cu48,
         "crawler_views_all": int(crawler_views_all),
         "crawler_unique_all": int(crawler_unique_all),
         "registered_views_15m": reg_15m,
         "guest_views_15m": guest_15m,
         "registered_views_24h": reg_24h,
         "guest_views_24h": guest_24h,
+        "registered_views_48h": reg_48h,
+        "guest_views_48h": guest_48h,
         "recent": recent,
         "top_paths": [{"path": p, "count": int(c)} for p, c in top_paths],
         "utm_sources_24h": [{"source": s or "direct", "count": int(c)} for s, c in utm_rows],

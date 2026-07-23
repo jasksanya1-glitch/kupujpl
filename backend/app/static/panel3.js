@@ -214,10 +214,10 @@
         if (!el) return;
         const reg15 = t.registered_views_15m ?? 0;
         const guest15 = t.guest_views_15m ?? 0;
-        const reg24 = t.registered_views_24h ?? 0;
-        const guest24 = t.guest_views_24h ?? 0;
+        const reg48 = t.registered_views_48h ?? 0;
+        const guest48 = t.guest_views_48h ?? 0;
         const crawler15 = t.crawler_views_15m ?? 0;
-        const crawler24 = t.crawler_views_24h ?? 0;
+        const crawler48 = t.crawler_views_48h ?? 0;
         el.innerHTML = `
             <div class="panel3-traffic-legend-bar-inner">
                 <span class="panel3-traffic-legend-title">Користувачі у трафіку</span>
@@ -225,19 +225,19 @@
                     <span class="panel3-traffic-icon" aria-hidden="true">👤</span>
                     <span>Зареєстрований</span>
                     <strong>${reg15}</strong><span class="panel3-traffic-legend-muted">/15хв</span>
-                    <strong>${reg24}</strong><span class="panel3-traffic-legend-muted">/24г</span>
+                    <strong>${reg48}</strong><span class="panel3-traffic-legend-muted">/48г</span>
                 </span>
                 <span class="panel3-traffic-who panel3-traffic-who--guest panel3-traffic-who--inline" title="Gość bez konta">
                     <span class="panel3-traffic-icon" aria-hidden="true">◎</span>
                     <span>Гість</span>
                     <strong>${guest15}</strong><span class="panel3-traffic-legend-muted">/15хв</span>
-                    <strong>${guest24}</strong><span class="panel3-traffic-legend-muted">/24г</span>
+                    <strong>${guest48}</strong><span class="panel3-traffic-legend-muted">/48г</span>
                 </span>
                 <span class="panel3-traffic-who panel3-traffic-who--inline" title="Bot/crawler traffic">
                     <span class="panel3-traffic-icon" aria-hidden="true">🤖</span>
                     <span>Crawler</span>
                     <strong>${crawler15}</strong><span class="panel3-traffic-legend-muted">/15хв</span>
-                    <strong>${crawler24}</strong><span class="panel3-traffic-legend-muted">/24г</span>
+                    <strong>${crawler48}</strong><span class="panel3-traffic-legend-muted">/48г</span>
                 </span>
             </div>`;
     }
@@ -246,10 +246,10 @@
         document.getElementById('traffic-kpis').innerHTML = [
             kpi('Унікальні (15 хв)', t.unique_15m, `${t.views_15m} переглядів`, true),
             kpi('👤 Konta (15 хв)', t.registered_views_15m ?? 0, `${t.guest_views_15m ?? 0} gości`),
-            kpi('Унікальні (24 год)', t.unique_24h, `${t.views_24h} переглядів`),
-            kpi('👤 Konta (24 год)', t.registered_views_24h ?? 0, `${t.guest_views_24h ?? 0} gości`),
+            kpi('Унікальні (48 год)', t.unique_48h ?? 0, `${t.views_48h ?? 0} переглядів`),
+            kpi('👤 Konta (48 год)', t.registered_views_48h ?? 0, `${t.guest_views_48h ?? 0} gości`),
             kpi('🤖 Crawler (15 хв)', t.crawler_unique_15m ?? 0, `${t.crawler_views_15m ?? 0} переглядів`),
-            kpi('🤖 Crawler (24 год)', t.crawler_unique_24h ?? 0, `${t.crawler_views_24h ?? 0} переглядів`),
+            kpi('🤖 Crawler (48 год)', t.crawler_unique_48h ?? 0, `${t.crawler_views_48h ?? 0} переглядів`),
         ].join('');
         renderTrafficLegend(t);
 
