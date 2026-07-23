@@ -216,11 +216,9 @@
         const guest15 = t.guest_views_15m ?? 0;
         const reg48 = t.registered_views_48h ?? 0;
         const guest48 = t.guest_views_48h ?? 0;
-        const crawler15 = t.crawler_views_15m ?? 0;
-        const crawler48 = t.crawler_views_48h ?? 0;
         el.innerHTML = `
             <div class="panel3-traffic-legend-bar-inner">
-                <span class="panel3-traffic-legend-title">Користувачі у трафіку</span>
+                <span class="panel3-traffic-legend-title">Користувачі у трафіку (без ботів)</span>
                 <span class="panel3-traffic-who panel3-traffic-who--user panel3-traffic-who--inline" title="Zalogowany użytkownik — widać e-mail">
                     <span class="panel3-traffic-icon" aria-hidden="true">👤</span>
                     <span>Зареєстрований</span>
@@ -233,23 +231,31 @@
                     <strong>${guest15}</strong><span class="panel3-traffic-legend-muted">/15хв</span>
                     <strong>${guest48}</strong><span class="panel3-traffic-legend-muted">/48г</span>
                 </span>
-                <span class="panel3-traffic-who panel3-traffic-who--inline" title="Bot/crawler traffic">
-                    <span class="panel3-traffic-icon" aria-hidden="true">🤖</span>
-                    <span>Crawler</span>
-                    <strong>${crawler15}</strong><span class="panel3-traffic-legend-muted">/15хв</span>
-                    <strong>${crawler48}</strong><span class="panel3-traffic-legend-muted">/48г</span>
-                </span>
             </div>`;
     }
 
     function renderTraffic(t) {
+        const filterBadge = document.getElementById('traffic-filter-badge');
+        const filterNote = document.getElementById('traffic-filter-note');
+        if (filterBadge) {
+            filterBadge.textContent = t.human_only ? 'Люди only' : 'Mixed traffic';
+        }
+        if (filterNote) {
+            if (t.human_only) {
+                const excluded15 = t.excluded_bots_15m ?? 0;
+                const excluded48 = t.excluded_bots_48h ?? 0;
+                filterNote.textContent =
+                    `Антибот-фільтр увімкнено (${t.anti_bot_mode || 'strict'}): ` +
+                    `боти приховані зі статистики (відсічено ${excluded15} за 15 хв, ${excluded48} за 48 год).`;
+            } else {
+                filterNote.textContent = 'Увага: статистика може включати ботів.';
+            }
+        }
         document.getElementById('traffic-kpis').innerHTML = [
             kpi('Унікальні (15 хв)', t.unique_15m, `${t.views_15m} переглядів`, true),
             kpi('👤 Konta (15 хв)', t.registered_views_15m ?? 0, `${t.guest_views_15m ?? 0} gości`),
             kpi('Унікальні (48 год)', t.unique_48h ?? 0, `${t.views_48h ?? 0} переглядів`),
             kpi('👤 Konta (48 год)', t.registered_views_48h ?? 0, `${t.guest_views_48h ?? 0} gości`),
-            kpi('🤖 Crawler (15 хв)', t.crawler_unique_15m ?? 0, `${t.crawler_views_15m ?? 0} переглядів`),
-            kpi('🤖 Crawler (48 год)', t.crawler_unique_48h ?? 0, `${t.crawler_views_48h ?? 0} переглядів`),
         ].join('');
         renderTrafficLegend(t);
 

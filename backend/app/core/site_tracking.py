@@ -728,6 +728,8 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
     )
 
     return {
+        "human_only": True,
+        "anti_bot_mode": "strict",
         "views_15m": v15,
         "unique_15m": u15,
         "views_1h": v1h,
@@ -754,6 +756,8 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
         "guest_views_24h": guest_24h,
         "registered_views_48h": reg_48h,
         "guest_views_48h": guest_48h,
+        "excluded_bots_15m": cv15,
+        "excluded_bots_48h": cv48,
         "recent": recent,
         "top_paths": [{"path": p, "count": int(c)} for p, c in top_paths],
         "utm_sources_24h": [{"source": s or "direct", "count": int(c)} for s, c in utm_rows],
