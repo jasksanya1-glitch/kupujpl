@@ -66,7 +66,12 @@ from app.core.affiliate_config import affiliate_env_status
 from app.core.click_tracking import collect_click_stats, log_affiliate_click, prune_old_clicks
 from app.core.og_image import render_og_png, render_logo_png
 from app.core.offer_quality import offer_eligible_for_best_price
-from app.core.site_tracking import record_session_heartbeat, record_site_visit, touch_user_last_seen
+from app.core.site_tracking import (
+    record_session_heartbeat,
+    record_site_visit,
+    should_block_crawler_request,
+    touch_user_last_seen,
+)
 from app.core.site_config import public_site_info, SITE_ORIGIN
 from app.core.seo_pages import (
     robots_txt,
@@ -304,6 +309,8 @@ def _user_id_from_bearer(request: Request) -> int | None:
 
 @app.middleware("http")
 async def games_tracking_middleware(request: Request, call_next):
+    if should_block_crawler_request(request):
+        return Response(status_code=403, content="blocked")
     started_at = time.perf_counter()
     try:
         response = await call_next(request)

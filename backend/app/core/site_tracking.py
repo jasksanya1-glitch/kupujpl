@@ -50,6 +50,10 @@ _TRACK_EXACT = frozenset({
 _BOT_RE = re.compile(r"bot|crawler|spider|slurp|curl/|wget|python-requests", re.I)
 _KNOWN_CLIENT_AGENTS = frozenset({"cursor"})
 _HEADLESS_UA_RE = re.compile(r"headless|puppeteer|playwright|selenium", re.I)
+_BLOCKED_CRAWLER_RE = re.compile(
+    r"semrush|bytespider|ahrefsbot|mj12bot|dotbot|petalbot",
+    re.I,
+)
 _BOT_SIGNATURES: tuple[tuple[str, str], ...] = (
     ("meta-externalagent", "meta_externalagent"),
     ("facebookexternalhit", "facebookexternalhit"),
@@ -386,6 +390,18 @@ def should_track_visit(request: Request) -> bool:
     if path.startswith("/promocje") or path.startswith("/kategoria/"):
         return True
     return False
+
+
+def should_block_crawler_request(request: Request) -> bool:
+    if request.method != "GET":
+        return False
+    path = _normalize_track_path(request.url.path or "")
+    if not path or path.startswith("/api/") or path.startswith("/static/"):
+        return False
+    if path.startswith("/panel3") or path.startswith("/health"):
+        return False
+    ua = request.headers.get("user-agent") or ""
+    return bool(_BLOCKED_CRAWLER_RE.search(ua))
 
 
 def record_site_visit(
