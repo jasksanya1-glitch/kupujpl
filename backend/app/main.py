@@ -352,7 +352,12 @@ async def games_tracking_middleware(request: Request, call_next):
     if request.method == "GET" and 200 <= response.status_code < 400:
         uid = _user_id_from_bearer(request)
         try:
-            record_site_visit(request, uid)
+            record_site_visit(
+                request,
+                uid,
+                verified_human=False,
+                human_verification="passive_get",
+            )
         except Exception:
             pass
     if request.url.path.startswith("/api/") and 200 <= response.status_code < 400:
@@ -387,6 +392,8 @@ def track_client_visit(request: Request, body: TrackVisitRequest):
         gbraid=body.gbraid,
         referrer_url=body.referrer_url,
         client_agent=body.client_agent,
+        verified_human=True,
+        human_verification="track_visit_js",
     )
     return {"ok": True}
 

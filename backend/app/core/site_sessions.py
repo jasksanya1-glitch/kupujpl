@@ -127,6 +127,19 @@ def session_duration_at(db: Session, visitor_key: str, at: datetime) -> int | No
 def collect_active_sessions(db: Session, now: datetime | None = None) -> list[dict[str, Any]]:
     now = now or datetime.utcnow()
     active_cutoff = now - timedelta(seconds=SESSION_ACTIVE_SEC)
+    verified_keys = {
+        key
+        for (key,) in (
+            db.query(distinct(SiteVisit.visitor_key))
+            .filter(
+                SiteVisit.visited_at >= active_cutoff,
+                SiteVisit.is_suspected_bot.is_(False),
+                SiteVisit.is_verified_human.is_(True),
+            )
+            .all()
+        )
+        if key
+    }
     bot_keys = {
         key
         for (key,) in (
@@ -150,6 +163,12 @@ def collect_active_sessions(db: Session, now: datetime | None = None) -> list[di
     out: list[dict[str, Any]] = []
     for s in rows:
         if s.visitor_key in bot_keys and (s.client_agent or "").lower() != "cursor":
+            continue
+        if (
+            s.visitor_key not in verified_keys
+            and not s.user_id
+            and (s.client_agent or "").lower() != "cursor"
+        ):
             continue
         duration = max(0, int((now - s.started_at).total_seconds()))
         geo = ", ".join(x for x in [s.geo_city, s.geo_country] if x)

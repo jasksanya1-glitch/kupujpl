@@ -229,8 +229,10 @@
                 if (data.human_only) {
                     const excluded5 = Number(data.excluded_bots_5m || 0);
                     const excluded24 = Number(data.excluded_bots_24h || 0);
-                    const mode = data.anti_bot_mode || 'strict';
-                    elFilterNote.textContent = `Антибот-фільтр увімкнено (${mode}): боти приховані у LIVE (відсічено ${excluded5} за 5 хв, ${excluded24} за 24 год).`;
+                    const unverified5 = Number(data.excluded_unverified_5m || 0);
+                    const unverified24 = Number(data.excluded_unverified_24h || 0);
+                    const mode = data.anti_bot_mode || 'strict_js_verified';
+                    elFilterNote.textContent = `Антибот-фільтр увімкнено (${mode}): у LIVE лише JS-підтверджені люди; відсічено ботів ${excluded5}/5хв, ${excluded24}/24г і непідтверджених ${unverified5}/5хв, ${unverified24}/24г.`;
                 } else {
                     elFilterNote.textContent = 'Увага: LIVE може містити бот-трафік.';
                 }

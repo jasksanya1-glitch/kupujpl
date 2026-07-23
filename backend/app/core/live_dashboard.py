@@ -136,8 +136,14 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
     since_1h = now - timedelta(hours=1)
     since_24h = now - timedelta(hours=24)
     since_7d = now - timedelta(days=7)
-    human_filter = SiteVisit.is_suspected_bot.is_(False)
+    human_filter = (
+        SiteVisit.is_suspected_bot.is_(False) & SiteVisit.is_verified_human.is_(True)
+    )
     bot_filter = SiteVisit.is_suspected_bot.is_(True)
+    unverified_filter = (
+        SiteVisit.is_suspected_bot.is_(False)
+        & (SiteVisit.is_verified_human.is_(False) | SiteVisit.is_verified_human.is_(None))
+    )
 
     def visit_counts(since: datetime, *, bots: bool = False) -> tuple[int, int]:
         views = (
@@ -164,6 +170,8 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
     cv15, cu15 = visit_counts(since_15m, bots=True)
     cv1h, cu1h = visit_counts(since_1h, bots=True)
     cv24, cu24 = visit_counts(since_24h, bots=True)
+    uv5 = db.query(func.count(SiteVisit.id)).filter(SiteVisit.visited_at >= since_5m, unverified_filter).scalar() or 0
+    uv24 = db.query(func.count(SiteVisit.id)).filter(SiteVisit.visited_at >= since_24h, unverified_filter).scalar() or 0
 
     clicks_5m = (
         db.query(func.count(AffiliateClick.id))
@@ -244,9 +252,12 @@ def collect_live_dashboard(db: Session) -> dict[str, Any]:
         "server_time": _iso(now),
         "active_now": active_now,
         "human_only": True,
-        "anti_bot_mode": "strict",
+        "anti_bot_mode": "strict_js_verified",
+        "human_verification_mode": "track_visit_js",
         "excluded_bots_5m": cv5,
         "excluded_bots_24h": cv24,
+        "excluded_unverified_5m": int(uv5),
+        "excluded_unverified_24h": int(uv24),
         "kpis": {
             "visits_5m": v5,
             "unique_5m": u5,

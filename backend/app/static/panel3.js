@@ -244,9 +244,12 @@
             if (t.human_only) {
                 const excluded15 = t.excluded_bots_15m ?? 0;
                 const excluded48 = t.excluded_bots_48h ?? 0;
+                const unverified15 = t.excluded_unverified_15m ?? 0;
+                const unverified48 = t.excluded_unverified_48h ?? 0;
                 filterNote.textContent =
-                    `Антибот-фільтр увімкнено (${t.anti_bot_mode || 'strict'}): ` +
-                    `боти приховані зі статистики (відсічено ${excluded15} за 15 хв, ${excluded48} за 48 год).`;
+                    `Антибот-фільтр увімкнено (${t.anti_bot_mode || 'strict_js_verified'}): ` +
+                    `у KPI лише JS-підтверджені люди; відсічено ботів ${excluded15}/15хв та ${excluded48}/48г, ` +
+                    `непідтверджених ${unverified15}/15хв та ${unverified48}/48г.`;
             } else {
                 filterNote.textContent = 'Увага: статистика може включати ботів.';
             }

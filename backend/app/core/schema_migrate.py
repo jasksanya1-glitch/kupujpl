@@ -198,6 +198,8 @@ def ensure_sqlite_schema() -> None:
             ("user_agent", "VARCHAR(480)"),
             ("is_suspected_bot", "BOOLEAN DEFAULT 0"),
             ("bot_reason", "VARCHAR(64)"),
+            ("is_verified_human", "BOOLEAN DEFAULT 0"),
+            ("human_verification", "VARCHAR(32)"),
         ]
         for name, col_type in utm_patches:
             if name not in visit_cols:
@@ -226,6 +228,12 @@ def ensure_sqlite_schema() -> None:
                     text(
                         "CREATE INDEX IF NOT EXISTS ix_site_visits_referrer_host "
                         "ON site_visits (referrer_host)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_site_visits_is_verified_human "
+                        "ON site_visits (is_verified_human)"
                     )
                 )
         except Exception:

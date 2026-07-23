@@ -29,6 +29,7 @@ def collect_admin_events(
         .filter(
             SiteVisit.id > last_visit_id,
             SiteVisit.is_suspected_bot.is_(False),
+            SiteVisit.is_verified_human.is_(True),
         )
         .order_by(SiteVisit.id.asc())
         .limit(25)

@@ -180,6 +180,8 @@ class SiteVisit(Base):
     user_agent = Column(String(480), nullable=True)
     is_suspected_bot = Column(Boolean, default=False, index=True)
     bot_reason = Column(String(64), nullable=True, index=True)
+    is_verified_human = Column(Boolean, default=False, index=True)
+    human_verification = Column(String(32), nullable=True)
 
     user = relationship("User")
 

@@ -466,6 +466,8 @@ def record_site_visit(
     gbraid: str | None = None,
     referrer_url: str | None = None,
     client_agent: str | None = None,
+    verified_human: bool = False,
+    human_verification: str | None = None,
 ) -> None:
     if not force and path is None and not should_track_visit(request):
         return
@@ -512,6 +514,9 @@ def record_site_visit(
                 guest_hit.user_id = user_id
                 if force and visit_path and guest_hit.path != visit_path:
                     guest_hit.path = visit_path
+                if verified_human and not guest_hit.is_suspected_bot:
+                    guest_hit.is_verified_human = True
+                    guest_hit.human_verification = (human_verification or "js")[:32]
                 touch_site_session(
                     db, request, user_id, path=visit_path, count_page_view=False, client_agent=agent
                 )
@@ -519,15 +524,30 @@ def record_site_visit(
                 return
 
         recent = (
-            db.query(SiteVisit.id)
+            db.query(SiteVisit)
             .filter(
                 SiteVisit.visitor_key == vkey,
                 SiteVisit.path == visit_path,
                 SiteVisit.visited_at >= now - timedelta(seconds=VISIT_DEDUP_SECONDS),
             )
+            .order_by(SiteVisit.visited_at.desc())
             .first()
         )
         if recent:
+            if verified_human and not recent.is_suspected_bot:
+                recent.is_verified_human = True
+                recent.human_verification = (human_verification or "js")[:32]
+                # Keep freshest attribution data from JS tracking ping.
+                recent.utm_source = marketing["utm_source"] or recent.utm_source
+                recent.utm_medium = marketing["utm_medium"] or recent.utm_medium
+                recent.utm_campaign = marketing["utm_campaign"] or recent.utm_campaign
+                recent.utm_term = marketing["utm_term"] or recent.utm_term
+                recent.utm_content = marketing["utm_content"] or recent.utm_content
+                recent.gclid = marketing["gclid"] or recent.gclid
+                recent.wbraid = marketing["wbraid"] or recent.wbraid
+                recent.gbraid = marketing["gbraid"] or recent.gbraid
+                recent.referrer_host = marketing["referrer_host"] or recent.referrer_host
+                recent.referrer_url = marketing["referrer_url"] or recent.referrer_url
             touch_site_session(
                 db, request, user_id, path=visit_path, count_page_view=False, client_agent=agent
             )
@@ -557,6 +577,8 @@ def record_site_visit(
                 user_agent=user_agent,
                 is_suspected_bot=is_bot,
                 bot_reason=bot_reason,
+                is_verified_human=bool(verified_human and not is_bot),
+                human_verification=((human_verification or "js")[:32] if (verified_human and not is_bot) else None),
             )
         )
         touch_site_session(
@@ -622,8 +644,14 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
     since_24h = now - timedelta(hours=24)
     since_48h = now - timedelta(hours=48)
 
-    human_filter = SiteVisit.is_suspected_bot.is_(False)
+    human_filter = (
+        SiteVisit.is_suspected_bot.is_(False) & SiteVisit.is_verified_human.is_(True)
+    )
     bot_filter = SiteVisit.is_suspected_bot.is_(True)
+    unverified_filter = (
+        SiteVisit.is_suspected_bot.is_(False)
+        & (SiteVisit.is_verified_human.is_(False) | SiteVisit.is_verified_human.is_(None))
+    )
 
     def _counts(since: datetime, *, bots: bool = False) -> tuple[int, int]:
         base = db.query(SiteVisit).filter(SiteVisit.visited_at >= since)
@@ -649,6 +677,8 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
     cv1h, cu1h = _counts(since_1h, bots=True)
     cv24, cu24 = _counts(since_24h, bots=True)
     cv48, cu48 = _counts(since_48h, bots=True)
+    uv15 = db.query(SiteVisit).filter(SiteVisit.visited_at >= since_15m, unverified_filter).count()
+    uv48 = db.query(SiteVisit).filter(SiteVisit.visited_at >= since_48h, unverified_filter).count()
     views_all = db.query(SiteVisit).filter(human_filter).count()
     unique_all = (
         db.query(func.count(func.distinct(SiteVisit.visitor_key)))
@@ -729,7 +759,8 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
 
     return {
         "human_only": True,
-        "anti_bot_mode": "strict",
+        "anti_bot_mode": "strict_js_verified",
+        "human_verification_mode": "track_visit_js",
         "views_15m": v15,
         "unique_15m": u15,
         "views_1h": v1h,
@@ -758,6 +789,8 @@ def collect_traffic_stats(db: Session) -> dict[str, Any]:
         "guest_views_48h": guest_48h,
         "excluded_bots_15m": cv15,
         "excluded_bots_48h": cv48,
+        "excluded_unverified_15m": int(uv15),
+        "excluded_unverified_48h": int(uv48),
         "recent": recent,
         "top_paths": [{"path": p, "count": int(c)} for p, c in top_paths],
         "utm_sources_24h": [{"source": s or "direct", "count": int(c)} for s, c in utm_rows],
