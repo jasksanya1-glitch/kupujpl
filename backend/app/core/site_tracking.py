@@ -51,8 +51,39 @@ _BOT_RE = re.compile(r"bot|crawler|spider|slurp|curl/|wget|python-requests", re.
 _KNOWN_CLIENT_AGENTS = frozenset({"cursor"})
 _HEADLESS_UA_RE = re.compile(r"headless|puppeteer|playwright|selenium", re.I)
 _BLOCKED_CRAWLER_RE = re.compile(
-    r"semrush|bytespider|ahrefsbot|mj12bot|dotbot|petalbot",
+    r"semrush|bytespider|ahrefsbot|mj12bot|dotbot|petalbot|"
+    r"meta-externalagent|facebookexternalhit|googlebot|bingbot|"
+    r"seranking|censysinspect|l9explore|python-requests|curl/|wget|go-http-client",
     re.I,
+)
+_BLOCKED_PROBE_PATHS = (
+    "/.env",
+    "/phpinfo.php",
+    "/info.php",
+    "/wp-admin",
+    "/wp-login.php",
+    "/xmlrpc.php",
+    "/.git",
+    "/vendor/phpunit",
+)
+_BLOCKED_BOT_REASONS = frozenset(
+    {
+        "meta_externalagent",
+        "facebookexternalhit",
+        "semrush",
+        "bytespider",
+        "ahrefsbot",
+        "mj12bot",
+        "dotbot",
+        "petalbot",
+        "bingbot",
+        "googlebot",
+        "headless_ua",
+        "generic_bot_ua",
+        "missing_user_agent",
+        "missing_accept",
+        "non_html_accept",
+    }
 )
 _BOT_SIGNATURES: tuple[tuple[str, str], ...] = (
     ("meta-externalagent", "meta_externalagent"),
@@ -393,7 +424,7 @@ def should_track_visit(request: Request) -> bool:
 
 
 def should_block_crawler_request(request: Request) -> bool:
-    if request.method != "GET":
+    if request.method not in ("GET", "HEAD"):
         return False
     path = _normalize_track_path(request.url.path or "")
     if not path or path.startswith("/api/") or path.startswith("/static/"):
@@ -401,7 +432,22 @@ def should_block_crawler_request(request: Request) -> bool:
     if path.startswith("/panel3") or path.startswith("/health"):
         return False
     ua = request.headers.get("user-agent") or ""
-    return bool(_BLOCKED_CRAWLER_RE.search(ua))
+    if any(path.startswith(prefix) for prefix in _BLOCKED_PROBE_PATHS):
+        return True
+    if _BLOCKED_CRAWLER_RE.search(ua):
+        return True
+    agent = detect_client_agent(request, None)
+    is_bot, reason = _detect_bot_visit(
+        request,
+        path=path,
+        user_agent=ua,
+        client_agent=agent,
+    )
+    if not is_bot:
+        return False
+    if reason in _BLOCKED_BOT_REASONS:
+        return True
+    return bool(reason == "missing_accept_language" and not path.startswith("/gra/"))
 
 
 def record_site_visit(
