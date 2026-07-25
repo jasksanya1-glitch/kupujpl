@@ -6,6 +6,7 @@ import smtplib
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr, parseaddr
 
 BASE_URL = os.getenv("GAMES_BASE_URL", "https://kupujpl.pl/games").rstrip("/")
 
@@ -13,7 +14,11 @@ SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587") or "587")
 SMTP_USER = os.getenv("SMTP_USER", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
-SMTP_FROM = (os.getenv("SMTP_FROM") or SMTP_USER or "noreply@kupujpl.pl").strip()
+SMTP_FROM_RAW = (os.getenv("SMTP_FROM") or SMTP_USER or "noreply@kupujpl.pl").strip()
+_SMTP_FROM_NAME_ENV = (os.getenv("SMTP_FROM_NAME") or "").strip()
+_smtp_from_name_raw, _smtp_from_addr_raw = parseaddr(SMTP_FROM_RAW)
+SMTP_FROM_ADDR = (_smtp_from_addr_raw or SMTP_FROM_RAW or SMTP_USER or "noreply@kupujpl.pl").strip()
+SMTP_FROM_NAME = (_SMTP_FROM_NAME_ENV or _smtp_from_name_raw or "KupujPl").strip()
 SMTP_TLS = os.getenv("SMTP_TLS", "auto").strip().lower()
 SMTP_SSL = os.getenv("SMTP_SSL", "").strip().lower() in ("1", "true", "yes", "on")
 
@@ -44,7 +49,7 @@ def send_email(
         msg = MIMEText(body, "plain", "utf-8")
 
     msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = SMTP_FROM
+    msg["From"] = formataddr((str(Header(SMTP_FROM_NAME, "utf-8")), SMTP_FROM_ADDR))
     msg["To"] = to_email
 
     use_auth = bool(SMTP_USER and SMTP_PASSWORD)
