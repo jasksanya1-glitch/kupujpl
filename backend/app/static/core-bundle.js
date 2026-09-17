@@ -15,7 +15,10 @@ const TOKEN_KEY = 'kupujpl_games_token';
 const USER_KEY = 'kupujpl_games_user';
 
 function getToken() {
-    return localStorage.getItem(TOKEN_KEY);
+    // Remove credentials written by pre-cookie versions of the app. Sessions
+    // are now carried by a Secure, HttpOnly cookie instead.
+    localStorage.removeItem(TOKEN_KEY);
+    return null;
 }
 
 function getStoredUser() {
@@ -27,25 +30,24 @@ function getStoredUser() {
     }
 }
 
-function setAuth(token, user) {
-    localStorage.setItem(TOKEN_KEY, token);
+function setAuth(_token, user) {
+    localStorage.removeItem(TOKEN_KEY);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 function clearAuth() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    fetch(resolveApi('auth/logout'), { method: 'POST', credentials: 'same-origin', keepalive: true }).catch(() => {});
 }
 
 function isLoggedIn() {
-    return !!getToken();
+    return !!getStoredUser();
 }
 
 function authHeaders(json = true) {
     const h = {};
     if (json) h['Content-Type'] = 'application/json';
-    const t = getToken();
-    if (t) h['Authorization'] = `Bearer ${t}`;
     return h;
 }
 
@@ -59,6 +61,7 @@ function resolveApi(path) {
 async function authFetch(url, options = {}) {
     const opts = { ...options };
     opts.headers = { ...authHeaders(!opts.body || typeof opts.body === 'string'), ...(options.headers || {}) };
+    opts.credentials = 'same-origin';
     const res = await fetch(resolveApi(url), opts);
     if (res.status === 401) {
         clearAuth();
@@ -78,7 +81,7 @@ function requireAuth(redirectTo = 'login') {
 async function redirectIfValidSession(target = 'panel') {
     if (!isLoggedIn()) return false;
     try {
-        const res = await fetch(resolveApi('auth/me'), { headers: authHeaders(false) });
+        const res = await fetch(resolveApi('auth/me'), { headers: authHeaders(false), credentials: 'same-origin' });
         if (res.ok) {
             window.location.href = target;
             return true;
@@ -111,7 +114,10 @@ function updateAuthNav() {
     } else {
         el.innerHTML = `
             <a href="login" class="btn-nav btn-login">${escapeHtml(tt('nav.login'))}</a>
-            <a href="register" class="btn-nav btn-register">${escapeHtml(tt('nav.register'))}</a>
+            <a href="register?intent=alert" class="btn-nav btn-register btn-register-alert" title="${escapeHtml(tt('nav.register'))}">
+                <span class="btn-register-full">${escapeHtml(tt('nav.register'))}</span>
+                <span class="btn-register-short">${escapeHtml(tt('nav.register_short'))}</span>
+            </a>
         `;
     }
 }

@@ -109,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAlertsSettings();
     loadFavorites();
     initWishlistImport();
+    initConsoleGameAdd();
     initSpotlightPanel();
 
     function showSpotlightMsg(text, isErr) {
@@ -366,6 +367,59 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 if (msg) {
                     msg.textContent = err.message || 'Błąd importu wishlisty.';
+                    msg.className = 'panel-cp-flash panel-cp-flash--err';
+                    msg.hidden = false;
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        });
+    }
+
+    function initConsoleGameAdd() {
+        const form = document.getElementById('console-game-form');
+        const titleInput = document.getElementById('console-game-title');
+        const platformSelect = document.getElementById('console-game-platform');
+        const btn = document.getElementById('console-game-btn');
+        const msg = document.getElementById('console-game-msg');
+        if (!form || !titleInput || !platformSelect) return;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = titleInput.value.trim();
+            const platform = platformSelect.value;
+            if (!title) return;
+            if (btn) btn.disabled = true;
+            if (msg) {
+                msg.hidden = true;
+                msg.className = 'panel-cp-flash panel-cp-flash--ok';
+            }
+            try {
+                const res = await authFetch('favorites/add-console-game', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders(true) },
+                    body: JSON.stringify({ title, platform }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    const detail = data.detail;
+                    const text = typeof detail === 'string'
+                        ? detail
+                        : Array.isArray(detail)
+                            ? detail.map((d) => d.msg || d).join(' ')
+                            : detail?.message || 'Nie udało się dodać gry.';
+                    throw new Error(text);
+                }
+                if (msg) {
+                    msg.textContent = data.message || 'Dodano do śledzenia.';
+                    msg.hidden = false;
+                }
+                titleInput.value = '';
+                loadFavorites();
+                setTimeout(() => loadFavorites(), 12000);
+            } catch (err) {
+                if (msg) {
+                    msg.textContent = err.message || 'Błąd dodawania gry konsolowej.';
                     msg.className = 'panel-cp-flash panel-cp-flash--err';
                     msg.hidden = false;
                 }
@@ -650,6 +704,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const savings = (game.savings_pln != null && game.savings_pct != null && game.savings_pln > 0)
                 ? `<span class="card-savings" title="Oszczędzasz vs Steam">−${game.savings_pct}% vs Steam</span>`
                 : '';
+            const platform = (game.platform || 'pc').toLowerCase();
+            const platformBadge = platform === 'ps'
+                ? '<span class="card-platform-badge card-platform-badge--ps">PS</span>'
+                : platform === 'xbox'
+                    ? '<span class="card-platform-badge card-platform-badge--xbox">Xbox</span>'
+                    : '';
             const coverSrc = gameCoverSrc(game);
             const alertBadge = game.alert_enabled
                 ? '<span class="card-alert-badge">Alert ON</span>'
@@ -659,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <img src="${coverSrc}" alt="${escapeHtml(game.title)}" loading="lazy">
                 </div>
                 <div class="card-body">
-                    <h3 class="card-title">${escapeHtml(game.title)}</h3>
+                    <h3 class="card-title">${escapeHtml(game.title)}${platformBadge}</h3>
                     <div class="card-foot"><span class="card-from">Od</span>${price}${shop}${savings}${alertBadge}</div>
                     <p class="card-meta">Dodano ${formatDate(game.favorited_at)}</p>
                     <div class="panel-cp-fav-actions">

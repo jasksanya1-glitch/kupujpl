@@ -4593,6 +4593,46 @@ body::before {
     border-color: var(--cp-cyan);
 }
 
+.panel-cp-console-add .panel-cp-field select {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    min-width: 140px;
+    padding: 11px 12px;
+    border: 2px solid rgba(252, 238, 9, 0.35);
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--cp-white);
+    font: inherit;
+    font-size: 14px;
+    clip-path: var(--cp-cut-sm);
+}
+
+.panel-cp-console-add .panel-cp-field select:focus {
+    outline: none;
+    border-color: var(--cp-cyan);
+}
+
+.card-platform-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
+    clip-path: var(--cp-cut-sm);
+}
+
+.card-platform-badge--ps {
+    background: #003087;
+    color: #fff;
+}
+
+.card-platform-badge--xbox {
+    background: #107c10;
+    color: #fff;
+}
+
 .panel-cp-wishlist-results {
     margin-top: 14px;
     padding-top: 12px;
@@ -5120,3 +5160,429 @@ body::before {
         width: min(220px, 78vw);
     }
 }
+
+/* Game pages reuse layout-split chrome without a scrolling split-shell. */
+body.game-page-body.layout-split {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    display: block;
+}
+
+.game-page {
+    padding: 16px 16px 56px;
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.game-breadcrumb {
+    font-size: 13px;
+    margin: 0 0 14px;
+    opacity: 0.8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.game-page-grid {
+    display: grid;
+    grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.game-page-cover {
+    margin: 0;
+}
+
+.game-page-cover img {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-width: 100%;
+}
+
+.game-page-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.game-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.game-page-desc {
+    overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .brand::after,
+    #search-input::after,
+    .game-card::after,
+    .modal-panel::after {
+        animation: none !important;
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+        html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    a, button, input, select, textarea {
+        touch-action: manipulation;
+    }
+
+    body {
+        overflow-x: hidden;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    body.layout-split:not(.game-page-body) {
+        height: auto;
+        min-height: 100dvh;
+        overflow: auto;
+    }
+
+    .header {
+        position: sticky;
+        top: 0;
+        z-index: 200;
+        padding-top: max(8px, env(safe-area-inset-top));
+        background: rgba(8, 8, 8, 0.94);
+        backdrop-filter: blur(10px);
+    }
+
+    .header-inner {
+        display: grid !important;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        height: auto;
+        padding: 8px 12px;
+    }
+
+    .header-info {
+        display: none !important;
+    }
+
+    .search-wrap {
+        order: unset;
+        flex: unset;
+        max-width: none;
+        min-width: 0;
+        grid-column: 2;
+    }
+
+    #search-input {
+        height: 44px;
+        font-size: 16px;
+        padding: 0 12px;
+    }
+
+    .header-actions,
+    .auth-nav,
+    .lang-switch,
+    .theme-switch,
+    .region-switch {
+        order: unset;
+        width: auto;
+        padding-top: 0;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .auth-nav {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+        padding-top: 4px;
+    }
+
+    .header-info-btn,
+    .auth-link,
+    .auth-btn,
+    .auth-nav .btn-nav,
+    .lang-switch button,
+    .theme-switch button,
+    .region-btn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .brand {
+        min-height: 44px;
+        padding: 8px 10px;
+    }
+
+    .brand-name { font-size: 18px; }
+    .brand-sub { display: none; }
+
+    .layout-split .split-shell {
+        display: flex;
+        flex-direction: column;
+        padding: 8px 10px 24px;
+        gap: 10px;
+    }
+
+    .layout-split .split-left {
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 10px 12px;
+        clip-path: none;
+        border-width: 2px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        position: sticky;
+        top: 72px;
+        z-index: 90;
+        background: rgba(8, 8, 8, 0.96);
+    }
+
+    .layout-split .split-left::-webkit-scrollbar { display: none; }
+
+    .layout-split .split-left-title,
+    .layout-split .split-stats {
+        display: none;
+    }
+
+    .layout-split .split-cats {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        width: max-content;
+        gap: 6px;
+    }
+
+    .layout-split .split-cats .cat {
+        flex-shrink: 0;
+        white-space: nowrap;
+        width: auto;
+        min-height: 40px;
+        padding: 8px 12px;
+        border: 1px solid rgba(252, 238, 9, 0.28);
+        font-size: 13px;
+    }
+
+    .layout-split .split-right {
+        padding: 4px 2px 80px;
+        overflow: visible;
+        min-width: 0;
+    }
+
+    .cp-home-hero {
+        padding: 14px;
+        min-height: 0;
+        clip-path: none;
+    }
+
+    .cp-home-hero h1 {
+        font-size: clamp(28px, 9vw, 40px);
+        line-height: 1.05;
+        overflow-wrap: anywhere;
+    }
+
+    .cp-hero-positioning-not { font-size: clamp(16px, 4.2vw, 22px); }
+    .cp-hero-positioning-yes { font-size: clamp(22px, 7vw, 34px); }
+
+    .cp-home-hero-main,
+    .cp-feature-card,
+    .cp-panel-promo-inner,
+    .cp-home-spotlight {
+        clip-path: none;
+    }
+
+    .cp-hero-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .cp-hero-actions .cp-btn,
+    .btn-buy,
+    .btn-watch,
+    .btn-alert,
+    #load-more,
+    .catalog-sort-select {
+        min-height: 44px;
+        width: 100%;
+        font-size: 15px;
+    }
+
+    .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .game-card {
+        min-width: 0;
+        content-visibility: auto;
+        contain-intrinsic-size: 220px;
+    }
+
+    .home-section-row .game-card-row {
+        min-width: 168px;
+        flex: 0 0 min(72vw, 220px);
+        scroll-snap-align: start;
+    }
+
+    .game-card::after {
+        animation: none;
+        display: none;
+    }
+
+    .home-section-row,
+    .cp-home-spotlight-row {
+        gap: 10px;
+        scroll-snap-type: x mandatory;
+        padding-bottom: 8px;
+        margin-inline: -2px;
+    }
+
+    .footer-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .footer-btn {
+        min-height: 40px;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .cookie-consent {
+        left: 8px;
+        right: 8px;
+        bottom: max(8px, env(safe-area-inset-bottom));
+        padding: 12px;
+    }
+
+    .cookie-consent__btn {
+        min-height: 44px;
+    }
+
+    .game-page {
+        padding: 12px 12px 88px;
+    }
+
+    .game-page-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .game-page-head,
+    .game-page-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .offer-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .btn-buy {
+        width: 100%;
+    }
+
+    .region-banner {
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+
+    .modal-overlay,
+    .modal-panel {
+        max-width: 100%;
+    }
+
+    .modal-panel {
+        margin: 0;
+        max-height: 100dvh;
+        border-radius: 0;
+        clip-path: none;
+    }
+}
+
+@media (hover: none) {
+    .game-card:hover,
+    .cp-spotlight-tile:hover,
+    .card:hover {
+        transform: none;
+    }
+}
+
+
+/* Homepage hero — product-first SEO hierarchy */
+.cp-home-hero {
+    min-height: 0;
+}
+.cp-hero-flavor {
+    margin: 0 0 10px;
+    color: var(--cp-white);
+    font-size: clamp(18px, 2.4vw, 28px);
+    font-weight: 1000;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+    opacity: 0.88;
+}
+.cp-hero-flavor span:last-child {
+    color: var(--cp-yellow);
+}
+.cp-home-hero h1 {
+    font-size: clamp(28px, 4.2vw, 52px) !important;
+    line-height: 0.95 !important;
+    letter-spacing: -0.05em !important;
+    text-transform: none;
+    max-width: 16ch;
+}
+.cp-hero-lead {
+    margin: 12px 0 0 !important;
+    color: #fff8ad !important;
+    font-size: clamp(17px, 2vw, 20px) !important;
+    font-weight: 700;
+    line-height: 1.35 !important;
+    max-width: 36ch;
+}
+.cp-hero-shops {
+    margin: 8px 0 0 !important;
+    color: var(--cp-white) !important;
+    opacity: 0.88;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    max-width: 42ch;
+}
+.cp-hero-actions {
+    margin-top: 18px !important;
+}
+.cp-hero-actions .cp-btn {
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+}
+.cp-hero-alert {
+    margin: 14px 0 0 !important;
+    color: var(--cp-white) !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    opacity: 0.9;
+    max-width: 40ch;
+}
+.cp-hero-positioning { display: none !important; }
+.cp-btn-ghost{background:transparent;color:var(--cp-yellow);border:3px solid var(--cp-yellow);}
+.cp-btn-ghost:hover{background:var(--cp-yellow);color:var(--cp-black);}
+

@@ -78,12 +78,20 @@ _SKIP_TITLE = (
     " credits",
 )
 
+_GENERIC_TITLE_TOKENS = frozenset({
+    "the", "and", "of", "for", "game", "edition", "remaster", "remastered",
+    "complete", "definitive", "deluxe", "ultimate", "goty", "collection",
+    "way", "sword", "war", "world", "legend", "legacy", "chronicles",
+    "part", "volume", "vol", "pc", "steam",
+})
+
 
 def pick_best_gog_product(title: str, products: list[dict]) -> dict | None:
     best: dict | None = None
     best_score = 0.0
     title_slug = slugify(title)
     title_tokens = {t for t in title_slug.split("-") if len(t) > 2}
+    distinctive = {t for t in title_tokens if t not in _GENERIC_TITLE_TOKENS}
     title_lower = title.lower()
 
     for product in products:
@@ -104,6 +112,11 @@ def pick_best_gog_product(title: str, products: list[dict]) -> dict | None:
         slug_tokens = {t for t in product_slug.split("-") if len(t) > 2}
         overlap = len(title_tokens & slug_tokens) / max(len(title_tokens), 1)
         score += overlap * 0.35
+
+        # Require at least one distinctive token (onimusha, hades, …) — avoid
+        # "Way of the Sword" matching "Sword of the Samurai".
+        if distinctive and distinctive.isdisjoint(slug_tokens | {t for t in slugify(candidate).split("-") if t}):
+            continue
 
         if "complete edition" in title_lower and "complete edition" in lower:
             score += 0.2

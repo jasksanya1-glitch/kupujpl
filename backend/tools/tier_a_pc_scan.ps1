@@ -60,5 +60,14 @@ if (-not (Test-Path $python)) {
     Write-Error "Missing venv python: $python"
 }
 
+# Desktop HUD: prefer long-lived watcher (auto show/hide). Fallback: one-shot HUD.
+$hudPs1 = Join-Path $ScriptDir "scan_desktop_hud.ps1"
+if (Test-Path $hudPs1) {
+    Start-Process -FilePath "powershell.exe" -ArgumentList @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+        "-File", $hudPs1, "-WatchForever"
+    ) -WindowStyle Hidden | Out-Null
+}
+
 & $python "$ScriptDir\tier_a_scan_worker.py" --worker pc --parallel 6 @extraArgs
 exit $LASTEXITCODE

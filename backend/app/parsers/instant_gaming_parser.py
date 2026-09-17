@@ -44,6 +44,9 @@ _CONSOLE_MARKERS = (
     "switch",
 )
 
+_PS_MARKERS = ("playstation", "ps4", "ps5", "psn")
+_XBOX_MARKERS = ("xbox",)
+
 _PREFER_TYPES = (
     "steam",
     "gog.com",
@@ -187,7 +190,7 @@ def _price_pln(hit: dict) -> float | None:
     return round(value, 2) if value >= 0.5 else None
 
 
-def _score_hit(hit: dict, query: str, game_slug: str) -> float:
+def _score_hit(hit: dict, query: str, game_slug: str, *, platform: str = "pc") -> float:
     if hit.get("is_dlc") or hit.get("is_subscription") or hit.get("is_draft"):
         return -1.0
     if not hit.get("has_stock", 1):
@@ -195,17 +198,30 @@ def _score_hit(hit: dict, query: str, game_slug: str) -> float:
 
     blob = " ".join(
         str(hit.get(key) or "")
-        for key in ("type", "platform", "seo_name", "fullname", "name")
+        for key in ("type", "platform", "seo_name", "prod_name", "name")
     ).lower()
-    if any(marker in blob for marker in _CONSOLE_MARKERS):
-        return -1.0
+    platform = (platform or "pc").lower()
+    if platform == "ps":
+        if not any(m in blob for m in _PS_MARKERS):
+            return -1.0
+        if any(m in blob for m in _XBOX_MARKERS) or "nintendo" in blob or "switch" in blob:
+            return -1.0
+        platform_bonus = 1.0
+    elif platform == "xbox":
+        if not any(m in blob for m in _XBOX_MARKERS):
+            return -1.0
+        if any(m in blob for m in _PS_MARKERS) or "nintendo" in blob or "switch" in blob:
+            return -1.0
+        platform_bonus = 1.0
+    else:
+        if any(marker in blob for marker in _CONSOLE_MARKERS):
+            return -1.0
+        platform_type = str(hit.get("type") or hit.get("platform") or "")
+        platform_bonus = _platform_score(platform_type)
+        if platform_bonus < 0:
+            return -1.0
 
-    platform = str(hit.get("type") or hit.get("platform") or "")
-    platform_bonus = _platform_score(platform)
-    if platform_bonus < 0:
-        return -1.0
-
-    name = str(hit.get("name") or hit.get("en_name") or hit.get("fullname") or "")
+    name = str(hit.get("name") or hit.get("en_name") or hit.get("prod_name") or "")
     seo = str(hit.get("seo_name") or "")
     if title_mismatch(query, name) or title_mismatch(query, seo.replace("-", " ")):
         return -1.0
@@ -216,6 +232,17 @@ def _score_hit(hit: dict, query: str, game_slug: str) -> float:
         # Short/common titles ("The Forest", "Dungeons 2", "Reigns") are prone to
         # false positives in IG search. Require a tight title, not just one token.
         allowed_extra = {"remastered", "remaster", "remake", "complete", "goty"}
+        if platform in ("ps", "xbox"):
+            allowed_extra |= {
+                "ps4",
+                "ps5",
+                "playstation",
+                "xbox",
+                "one",
+                "series",
+                "x",
+                "s",
+            }
         extra = c_tokens - q_tokens - allowed_extra
         if extra:
             return -1.0
@@ -229,14 +256,32 @@ def _score_hit(hit: dict, query: str, game_slug: str) -> float:
     edition = str(hit.get("edition") or "").lower()
     if edition and edition not in (query or "").lower():
         if any(x in edition for x in ("ultimate", "deluxe", "goty", "complete", "gold")):
-            if not any(x in (query or "").lower() for x in ("ultimate", "deluxe", "goty", "complete", "gold", "edition")):
+            if not any(
+                x in (query or "").lower()
+                for x in ("ultimate", "deluxe", "goty", "complete", "gold", "edition")
+            ):
                 score -= 0.12
 
     return score + platform_bonus * 0.15
 
 
-def search_instant_gaming_price(query: str, game_slug: str) -> tuple[str | None, float | None, float | None]:
-    search_url = SEARCH_URL.format(query=quote_plus(query))
+def _search_query_for_platform(query: str, platform: str) -> str:
+    platform = (platform or "pc").lower()
+    if platform == "ps":
+        return f"{query} PS5"
+    if platform == "xbox":
+        return f"{query} Xbox"
+    return query
+
+
+def search_instant_gaming_price(
+    query: str,
+    game_slug: str,
+    *,
+    platform: str = "pc",
+) -> tuple[str | None, float | None, float | None]:
+    search_q = _search_query_for_platform(query, platform)
+    search_url = SEARCH_URL.format(query=quote_plus(search_q))
     response = fetch_url(search_url, prefer_cffi=True)
     if response is None:
         logger.warning("Instant Gaming search failed for %s", query)
@@ -251,7 +296,7 @@ def search_instant_gaming_price(query: str, game_slug: str) -> tuple[str | None,
         seo_name = hit.get("seo_name")
         if not prod_id or not seo_name:
             continue
-        score = _score_hit(hit, query, game_slug)
+        score = _score_hit(hit, query, game_slug, platform=platform)
         if score < MIN_MATCH_SCORE:
             continue
         product_base_url = _product_base_url(int(prod_id), str(seo_name))

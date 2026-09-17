@@ -40,7 +40,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="KupujPL — Porównywarka cen gier PC">
     <meta name="twitter:description" content="Porównaj ceny gier PC w 10 sklepach. Znajdź najtańszą ofertę.">
-    <link rel="stylesheet" href="static/style.css?v=91">
+    <link rel="stylesheet" href="static/style.css?v=86">
 </head>
 <body class="layout-split" data-i18n-title="title.home">
     <header class="header">
@@ -95,21 +95,19 @@
                 <div id="home-spotlight-row" class="cp-home-spotlight-row"></div>
             </section>
 
-                        <section class="cp-home-hero" aria-label="KupujPL — porównywarka cen gier PC">
+            <section class="cp-home-hero" aria-label="KupujPL cyberpunk hero">
                 <div class="cp-home-hero-main">
-                    <p class="cp-kicker" data-i18n="hero.kicker">night city // najniższa cena</p>
-                    <p class="cp-hero-flavor" aria-hidden="true">
-                        <span data-i18n="hero.flavor">Wstań</span>
-                        <span data-i18n="hero.flavor_span">łowco okazji</span>
-                    </p>
-                    <h1 data-i18n="hero.title">Porównywarka cen gier PC</h1>
-                    <p class="cp-hero-lead" data-i18n="hero.lead">Znajdź najtańszą wersję gry w 10 sklepach.</p>
-                    <p class="cp-hero-shops" data-i18n="hero.shops">Steam · GOG · Epic · Kinguin · G2A · Fanatical · CDKeys i więcej.</p>
-                    <div class="cp-hero-actions">
-                        <button type="button" id="hero-search-btn" class="cp-btn" data-i18n="hero.search">🔎 Szukaj gry</button>
-                        <a href="register" class="cp-btn cp-btn-ghost" data-i18n="hero.alert_cta">Ustaw alert</a>
+                    <div class="cp-hero-positioning" aria-label="KupujPL">
+                        <p class="cp-hero-positioning-not" data-i18n="hero.not_shop">To nie sklep internetowy</p>
+                        <p class="cp-hero-positioning-yes" data-i18n="hero.compare">Porównywarka cen gier PC</p>
                     </div>
-                    <p class="cp-hero-alert" data-i18n="hero.alert">🔔 Ustaw alert i dowiedz się, gdy cena spadnie.</p>
+                    <p class="cp-kicker" data-i18n="hero.kicker">night city // najniższa cena</p>
+                    <h1><span data-i18n="hero.title">Wstań</span><br><span data-i18n="hero.title_span">łowco okazji</span></h1>
+                    <p data-i18n="hero.lead">Nie sprzedajemy gier — porównujemy ceny w 10 sklepach i pokazujemy, gdzie kupić taniej. Skan na żywo: Steam, GOG, Epic, Kinguin, G2A, Fanatical, CDKeys i reszta.</p>
+                    <div class="cp-hero-actions">
+                        <a href="./" class="cp-btn" data-i18n="hero.scan">Skanuj ceny</a>
+                        <a href="kontakt" class="cp-btn cp-btn-red" data-i18n="hero.report">Zgłoś błąd</a>
+                    </div>
                 </div>
                 <div class="cp-feature-card">
                     <p class="cp-kicker" data-i18n="hero.deal_kicker">polecana okazja</p>
@@ -277,15 +275,15 @@
         </div>
     </footer>
 
-    <script src="static/i18n.js?v=26"></script>
+    <script src="static/i18n.js?v=23"></script>
     <script src="static/theme.js?v=2"></script>
     <script src="static/matrix-rain.js?v=3" defer></script>
     <script src="static/region.js?v=5"></script>
     <script src="static/cookie-consent.js?v=1"></script>
     <script src="static/site-chat.js?v=3" defer></script>
-    <script src="static/core-bundle.js?v=8"></script>
+    <script src="static/core-bundle.js?v=7"></script>
     <script src="static/push-client.js?v=1"></script>
-    <script src="static/app.js?v=81"></script>
+    <script src="static/app.js?v=86"></script>
     <script>
         if (window.KupujPLPush && typeof isLoggedIn === 'function' && isLoggedIn()) {
             KupujPLPush.registerServiceWorker().catch(function () {});

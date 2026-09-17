@@ -5,6 +5,7 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
+from functools import partial
 
 from app.core.database import SessionLocal
 from app.core.db_retry import commit_with_retry
@@ -19,18 +20,24 @@ from app.parsers.g2a_parser import search_g2a_price
 from app.parsers.gamivo_parser import search_gamivo_price
 from app.parsers.fanatical_parser import search_fanatical_price
 from app.parsers.instant_gaming_parser import search_instant_gaming_price
+from app.parsers.playstation_store_parser import search_playstation_store_price
 from app.parsers.keyshop_common import upsert_keyshop_offer, slugify
 
 logger = logging.getLogger("game_offers")
 
 REFRESH_COOLDOWN = timedelta(hours=int(os.environ.get("OFFER_REFRESH_COOLDOWN_HOURS", "24")))
 MIN_SHOPS_TARGET = int(os.environ.get("MIN_OFFERS_SHOPS_TARGET", "4"))
+MIN_SHOPS_TARGET_CONSOLE = int(os.environ.get("MIN_OFFERS_SHOPS_TARGET_CONSOLE", "1"))
 
 from app.parsers.shop_scan_config import EXPECTED_SHOPS, get_active_scan_shops, is_shop_active
 
 _OFFICIAL_FETCHERS: tuple[tuple[str, object], ...] = (
     ("GOG", search_gog_price),
     ("Epic Games", search_epic_price),
+)
+
+_PS_OFFICIAL_FETCHERS: tuple[tuple[str, object], ...] = (
+    ("PlayStation Store", search_playstation_store_price),
 )
 
 _KEYSHOPS: tuple[tuple[str, object], ...] = (
@@ -44,6 +51,20 @@ _KEYSHOPS: tuple[tuple[str, object], ...] = (
 )
 _KEYSHOPS_FAST: tuple[tuple[str, object], ...] = (("Kinguin", search_kinguin_price),)
 
+# Console titles: keyshops that can return PS/Xbox SKUs + official console store.
+_CONSOLE_KEYSHOP_NAMES = frozenset({"Instant Gaming", "Kinguin", "G2A", "Gamivo", "CDKeys"})
+_CONSOLE_EXPECTED_PS = frozenset({"PlayStation Store", "Instant Gaming", "Kinguin"})
+_CONSOLE_EXPECTED_XBOX = frozenset({"Instant Gaming", "Kinguin"})
+_CONSOLE_ONLY_SHOPS = frozenset({"PlayStation Store", "Xbox Store"})
+
+
+def _game_platform(game: Game) -> str:
+    return (getattr(game, "platform", None) or "pc").strip().lower() or "pc"
+
+
+def _is_console_game(game: Game) -> bool:
+    return _game_platform(game) in ("ps", "xbox")
+
 
 def _present_shops(game: Game) -> set[str]:
     return {o.shop_name for o in game.offers if o.in_stock}
@@ -53,19 +74,31 @@ def _shop_count(game: Game) -> int:
     return len(_present_shops(game))
 
 
+def _expected_shops_for_game(game: Game) -> set[str]:
+    active = set(get_active_scan_shops())
+    platform = _game_platform(game)
+    if platform == "ps":
+        # PlayStation Store is not in global EXPECTED_SHOPS — always allow for PS titles.
+        return (active & _CONSOLE_EXPECTED_PS) | {"PlayStation Store"}
+    if platform == "xbox":
+        return active & _CONSOLE_EXPECTED_XBOX
+    return active - _CONSOLE_ONLY_SHOPS
+
+
 def _missing_shops(game: Game) -> set[str]:
-    return set(get_active_scan_shops()) - _present_shops(game)
+    return _expected_shops_for_game(game) - _present_shops(game)
 
 
 def _filter_fetchers(
     fetchers: tuple[tuple[str, object], ...],
     *,
     allowed: frozenset[str] | None,
+    require_active: bool = True,
 ) -> tuple[tuple[str, object], ...]:
     active = set(get_active_scan_shops())
     out: list[tuple[str, object]] = []
     for name, fn in fetchers:
-        if name not in active:
+        if require_active and name not in active and name not in _CONSOLE_ONLY_SHOPS:
             continue
         if allowed is not None and name not in allowed:
             continue
@@ -92,6 +125,13 @@ def _unpack_price_result(
     if len(result) >= 3:
         return result[0], result[1], result[2]
     return result[0], result[1], None
+
+
+def _bind_platform_search(search_fn, platform: str):
+    """Bind platform= for parsers that support console mode."""
+    if search_fn in (search_instant_gaming_price, search_kinguin_price):
+        return partial(search_fn, platform=platform)
+    return search_fn
 
 
 def _fetch_keyshops_parallel(
@@ -127,6 +167,21 @@ def _shops_to_query(
     force: bool,
     shop_names: frozenset[str] | None = None,
 ) -> tuple[tuple[str, object], ...]:
+    platform = _game_platform(game)
+    if platform in ("ps", "xbox"):
+        pool: list[tuple[str, object]] = []
+        for name, fn in _KEYSHOPS:
+            if name not in _CONSOLE_KEYSHOP_NAMES:
+                continue
+            pool.append((name, _bind_platform_search(fn, platform)))
+        pool_t = _filter_fetchers(tuple(pool), allowed=shop_names)
+        if force:
+            return pool_t
+        missing = _missing_shops(game)
+        if fill_missing and missing:
+            return tuple((n, f) for n, f in pool_t if n in missing)
+        return pool_t
+
     pool = _KEYSHOPS_FAST if fast else _KEYSHOPS
     pool = _filter_fetchers(pool, allowed=shop_names)
     if force:
@@ -149,9 +204,15 @@ def _fetch_official_prices(title: str, shops: tuple[tuple[str, object], ...]) ->
     if not shops:
         return []
     found: list[tuple[str, str, float, float | None]] = []
+    slug = slugify(title)
 
     def _one(shop_name: str, search_fn) -> tuple[str, str | None, float | None, float | None]:
-        url, price, confidence = _unpack_price_result(search_fn(title))
+        # PlayStation Store accepts optional slug; GOG/Epic take title only.
+        try:
+            result = search_fn(title, slug)
+        except TypeError:
+            result = search_fn(title)
+        url, price, confidence = _unpack_price_result(result)
         return shop_name, url, price, confidence
 
     with ThreadPoolExecutor(max_workers=len(shops)) as pool:
@@ -174,6 +235,22 @@ def _official_shops_to_query(
     force: bool,
     shop_names: frozenset[str] | None = None,
 ) -> tuple[tuple[str, object], ...]:
+    platform = _game_platform(game)
+    if platform == "ps":
+        pool = _filter_fetchers(
+            _PS_OFFICIAL_FETCHERS,
+            allowed=shop_names,
+            require_active=False,
+        )
+        if force:
+            return pool
+        missing = _missing_shops(game)
+        if fill_missing and missing:
+            return tuple((n, f) for n, f in pool if n in missing)
+        return pool
+    if platform == "xbox":
+        return ()
+
     pool = _filter_fetchers(_OFFICIAL_FETCHERS, allowed=shop_names)
     if force:
         return pool
@@ -194,7 +271,8 @@ def _official_shops_to_query(
 
 def game_needs_offer_refresh(game: Game) -> bool:
     """True when offers are missing shops, sparse, or past cooldown."""
-    if _shop_count(game) < MIN_SHOPS_TARGET:
+    min_shops = MIN_SHOPS_TARGET_CONSOLE if _is_console_game(game) else MIN_SHOPS_TARGET
+    if _shop_count(game) < min_shops:
         return True
     return _needs_refresh(game)
 
@@ -207,7 +285,8 @@ def _effective_refresh_flags(
     fill_missing: bool,
 ) -> tuple[bool, bool]:
     """Use full multi-shop scan when the game still has few shops."""
-    if force or fill_missing or _shop_count(game) < MIN_SHOPS_TARGET:
+    min_shops = MIN_SHOPS_TARGET_CONSOLE if _is_console_game(game) else MIN_SHOPS_TARGET
+    if force or fill_missing or _shop_count(game) < min_shops:
         return True, False
     return fill_missing, fast
 
@@ -250,7 +329,7 @@ def refresh_offers_for_game(
             logger.debug("Skip refresh for game %s (recent offers)", game_id)
             return
 
-        if not fast and game.steam_appid and not game.steam_enriched:
+        if not _is_console_game(game) and not fast and game.steam_appid and not game.steam_enriched:
             try:
                 if enrich_game(db, game):
                     db.commit()
@@ -259,8 +338,10 @@ def refresh_offers_for_game(
                 logger.warning("Steam enrich failed for %s: %s", game_id, exc)
                 db.rollback()
 
-        need_steam = game.steam_appid and (
-            force or fill_missing or not fast or "Steam" in missing_before
+        need_steam = (
+            not _is_console_game(game)
+            and game.steam_appid
+            and (force or fill_missing or not fast or "Steam" in missing_before)
         )
         steam_allowed = shop_names is None or "Steam" in shop_names
         if (

@@ -70,8 +70,44 @@ def _ensure_offers_activation_region() -> None:
     logger.info("Added offers.activation_region column")
 
 
+def _ensure_games_platform() -> None:
+    """Add games.platform (pc | ps | xbox) for console favorites / scans."""
+    insp = inspect(engine)
+    if not insp.has_table("games"):
+        return
+    game_cols = {c["name"] for c in insp.get_columns("games")}
+    if "platform" in game_cols:
+        return
+    dialect = engine.dialect.name
+    with engine.begin() as conn:
+        if dialect == "sqlite":
+            conn.execute(
+                text(
+                    "ALTER TABLE games ADD COLUMN platform VARCHAR(16) "
+                    "NOT NULL DEFAULT 'pc'"
+                )
+            )
+        else:
+            conn.execute(
+                text("ALTER TABLE games ADD COLUMN platform VARCHAR(16) DEFAULT 'pc'")
+            )
+            conn.execute(text("UPDATE games SET platform = 'pc' WHERE platform IS NULL"))
+            try:
+                conn.execute(text("ALTER TABLE games ALTER COLUMN platform SET NOT NULL"))
+            except Exception:
+                pass
+        try:
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_games_platform ON games (platform)")
+            )
+        except Exception:
+            pass
+    logger.info("Added games.platform column")
+
+
 def ensure_sqlite_schema() -> None:
     _ensure_offers_activation_region()
+    _ensure_games_platform()
     if engine.dialect.name != "sqlite":
         return
     insp = inspect(engine)

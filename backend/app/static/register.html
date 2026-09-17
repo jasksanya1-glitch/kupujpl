@@ -15,9 +15,9 @@
     </script>
 
     <base href="/games/">
-    <title>Rejestracja — KupujPL Gry</title>
+    <title>Powiadomienie o spadku ceny — KupujPL Gry</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="static/style.css?v=66">
+    <link rel="stylesheet" href="static/style.css?v=91">
 </head>
 <body data-i18n-title="auth.register_title">
     <header class="header">
@@ -28,8 +28,8 @@
     </header>
     <main class="wrap auth-page">
         <div class="auth-card">
-            <h1 data-i18n="auth.register_title">Rejestracja</h1>
-            <p class="auth-sub" data-i18n="auth.register_sub">Załóż konto, aby zapisywać ulubione gry.</p>
+            <h1 data-i18n="auth.register_title">Powiadom mnie o spadku ceny</h1>
+            <p class="auth-sub" data-i18n="auth.register_sub">Utwórz darmowe konto — wyślemy alert, gdy cena gry spadnie.</p>
             <div id="google-signin" class="auth-oauth-wrap"></div>
             <p class="auth-oauth-note" id="auth-oauth-note-register" data-i18n-oauth hidden>Rejestrując się przez Google…</p>
             <p class="auth-oauth-divider" id="auth-oauth-divider-register" hidden><span data-i18n="auth.oauth_divider">lub e-mail i hasło</span></p>
@@ -38,7 +38,7 @@
                 <label><span data-i18n="auth.password_min">Hasło (min. 8 znaków)</span><input type="password" name="password" required minlength="8"></label>
                 <label><span data-i18n="auth.password2">Powtórz hasło</span><input type="password" name="password2" required minlength="8"></label>
                 <p id="register-error" class="form-error" hidden></p>
-                <button type="submit" class="btn-primary" data-i18n="auth.submit_register">Zarejestruj się</button>
+                <button type="submit" class="btn-primary" data-i18n="auth.submit_register">Utwórz darmowe konto</button>
             </form>
             <p class="auth-switch"><span data-i18n="auth.have_account">Masz konto?</span> <a href="login" data-i18n="auth.go_login">Zaloguj się</a></p>
             <p class="auth-legal" data-i18n-legal>Rejestrując się, akceptujesz Regulamin i Politykę prywatności.</p>
@@ -54,12 +54,12 @@
             </nav>
         </div>
     </footer>
-    <script src="static/i18n.js?v=12"></script>
+    <script src="static/i18n.js?v=26"></script>
     <script src="static/theme.js?v=2"></script>
     <script src="static/matrix-rain.js?v=1"></script>
     <script src="static/cookie-consent.js?v=1"></script>
     <script src="static/api-config.js?v=4"></script>
-    <script src="static/auth.js?v=6"></script>
+    <script src="static/auth.js?v=8"></script>
     <script src="static/google-auth.js?v=3"></script>
     <script>
         redirectIfValidSession('panel').then((gone) => {

@@ -36,19 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const gamesGrid = document.getElementById('games-grid');
     const searchInput = document.getElementById('search-input');
-
-    const heroSearchBtn = document.getElementById('hero-search-btn');
-    if (heroSearchBtn && searchInput) {
-        heroSearchBtn.addEventListener('click', () => {
-            try {
-                searchInput.focus({ preventScroll: false });
-            } catch (_) {
-                searchInput.focus();
-            }
-            searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            if (typeof searchInput.select === 'function') searchInput.select();
-        });
-    }
     const modal = document.getElementById('game-modal');
     const closeModal = document.querySelector('.modal-close');
     const modalOverlay = document.querySelector('.modal-overlay');
@@ -65,14 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const gamesSubtitle = document.getElementById('games-subtitle');
     const sortSelect = document.getElementById('sort-select');
     const homeSections = document.getElementById('home-sections');
-    const homeFeeds = document.getElementById('home-feeds');
     const homeSpotlight = document.getElementById('home-spotlight');
     const homeSpotlightRow = document.getElementById('home-spotlight-row');
     const catalogSection = document.getElementById('catalog-section');
     const heroSection = document.getElementById('hero-section');
     const homeHero = document.querySelector('.cp-home-hero');
     const homePromo = document.querySelector('.cp-panel-promo');
+    const homeFeeds = document.getElementById('home-feeds');
+    const homeFaq = document.querySelector('.cp-faq');
     const splitRight = document.getElementById('split-right');
+    let browseMode = 'home';
     const heroGamesCount = document.getElementById('hero-games-count');
     const heroCatsCount = document.getElementById('hero-cats-count');
     const offersScan = document.getElementById('offers-scan');
@@ -289,6 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setBrowseMode(mode) {
+        browseMode = mode;
         const isHome = mode === 'home';
         if (homeSpotlight) {
             homeSpotlight.hidden = isHome ? homeSpotlightRow?.childElementCount === 0 : true;
@@ -297,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (homePromo) homePromo.hidden = !isHome;
         if (homeFeeds) homeFeeds.hidden = !isHome;
         if (homeSections) homeSections.hidden = !isHome;
+        if (homeFaq) homeFaq.hidden = !isHome;
         if (heroSection) heroSection.hidden = true;
         if (catalogSection) catalogSection.hidden = isHome;
         if (splitRight) {
@@ -405,7 +396,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function runSearch(query) {
         currentQuery = query;
         if (currentQuery) {
-            // Search shows matching games only — clear genre/category filter.
             currentCategory = '';
             currentCategoryName = '';
             categoriesBar?.querySelectorAll('.cat').forEach((el) => {
@@ -478,11 +468,13 @@ document.addEventListener('DOMContentLoaded', () => {
             try { renderDealFeeds(data); } catch (e) { console.warn(e); }
             try { renderHomeSections(data.sections || []); } catch (e) { console.warn(e); }
             try { loadWishlistDeals(); } catch (e) { console.warn(e); }
-            trackPageView('/view/home');
+            setBrowseMode(browseMode);
+            if (browseMode === 'home') trackPageView('/view/home');
         } catch (e) {
             console.warn('home sections', e);
             homeSections.innerHTML = `<p class="no-results">${tt('home.load_fail')}</p>`;
-            trackPageView('/view/home');
+            setBrowseMode(browseMode);
+            if (browseMode === 'home') trackPageView('/view/home');
         }
     }
 
@@ -611,6 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tt('feed.wishlist_sub') || 'Zniżki na gry ze śledzonych',
                 deals
             );
+            setBrowseMode(browseMode);
         } catch (e) {
             console.warn('wishlist deals', e);
         }
@@ -821,11 +814,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         currentCategory = slug;
         currentCategoryName = name;
-        // Category browse is exclusive — clear search query.
-        currentQuery = '';
-        if (searchInput) searchInput.value = '';
+        // Keep any active search query so genre + search combine.
         showCatalogView();
-        gamesHeading.textContent = name;
+        gamesHeading.textContent = currentQuery ? tt('catalog.results', { q: currentQuery }) : name;
         updateCatalogSubtitle();
         scrollToCatalog();
         categoriesBar.querySelectorAll('.cat').forEach(el => {
@@ -920,27 +911,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function offerEligibleForCta(offer, steamPrice) {
         if (!offer?.shop_name || !isValidOfferPrice(offer.price_pln)) return false;
         if (offer.low_confidence) return false;
-        const price = Number(offer.price_pln);
-        const isSteam = offer.shop_name === 'Steam' || offer.shop_name === 'Steam US';
         if (!offer.is_official) {
             const conf = offer.match_confidence;
-            if (conf == null || conf < 0.55) return false;
+            if (conf != null && conf < 0.55) return false;
         }
-        if (steamPrice != null && steamPrice >= 5 && !isSteam) {
+        const price = Number(offer.price_pln);
+        if (steamPrice != null && steamPrice >= 5 && !NO_COMMISSION_SHOPS.has(offer.shop_name)) {
             if (price / steamPrice < 0.12) return false;
         }
-        if (steamPrice != null && steamPrice >= 25 && price <= 3 && !isSteam) return false;
-        // Peer outlier (also catches wrong GOG/Epic matches like 15 zł vs ~200 zł)
-        if (!isSteam) {
-            const peers = pricedModalOffers()
-                .filter(o => o.id !== offer.id && isValidOfferPrice(o.price_pln))
-                .map(o => Number(o.price_pln));
-            if (peers.length >= 1) {
-                const sorted = peers.slice().sort((a, b) => a - b);
-                const med = sorted[Math.floor(sorted.length / 2)];
-                if (med >= 25 && price <= med * 0.4 && (med - price) >= 20) return false;
-            }
-        }
+        if (steamPrice != null && steamPrice >= 25 && price <= 3 && !offer.is_official) return false;
         return true;
     }
 
@@ -1501,20 +1480,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let rowIndex = 0;
         shopsForOfferList().forEach(shopName => {
             const offer = modalOffersByShop[shopName];
-            if (!offer) return;
-            // Hide absurd wrong-SKU rows (incl. wrong GOG/Epic @15 zł vs ~200 zł peers).
-            if (offer.low_confidence && offer.shop_name !== 'Steam' && offer.shop_name !== 'Steam US') return;
-            if (!offerEligibleForCta(offer, steamPriceForModal()) && offer.shop_name !== 'Steam' && offer.shop_name !== 'Steam US') {
-                const price = Number(offer.price_pln);
-                const peers = pricedModalOffers().filter(o => o.id !== offer.id);
-                if (peers.length >= 1) {
-                    const sorted = peers.map(o => Number(o.price_pln)).sort((a, b) => a - b);
-                    const med = sorted[Math.floor(sorted.length / 2)];
-                    if (med >= 25 && price <= med * 0.4 && (med - price) >= 20) return;
-                }
-                const steamPrice = steamPriceForModal();
-                if (steamPrice != null && steamPrice >= 5 && price / steamPrice < 0.12) return;
-            }
             const shopClass = shopName.toLowerCase().replace(/\s+/g, '');
             const row = document.createElement('div');
             const blik = ['eneba', 'gog'].includes(shopClass)
@@ -1598,12 +1563,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCategories();
     loadCatalogStats();
     setInterval(loadCatalogStats, 5 * 60 * 1000);
-    loadHomeSections();
     initOffersScanShops();
     if (isLoggedIn()) loadWatchedSlugs();
 
     document.addEventListener('shoppingregionchange', () => {
-        loadHomeSections();
+        if (!currentCategory && !currentQuery) loadHomeSections();
         if (currentCategory || currentQuery) fetchGames(1, false);
         if (!modal.hidden && currentGameSlug) {
             showGameDetails(currentGameSlug);
@@ -1612,32 +1576,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('langchange', () => {
         if (window.I18n) I18n.applyPage();
-        const allCat = categoriesBar?.querySelector('.cat[data-slug=""]');
-        if (allCat) allCat.textContent = tt('cat.all');
-        if (!currentCategory && !currentQuery) gamesHeading.textContent = tt('catalog.all_games');
-        document.querySelectorAll('.btn-watch-card, #btn-favorite').forEach((btn) => {
-            const slug = btn.dataset.slug;
-            if (!slug) return;
-            updateWatchButton(btn, watchedSlugs.has(slug));
-        });
-        if (btnAlert && isLoggedIn() && isFavorited) updateAlertButton(alertEnabled);
-        // Refresh home cards when language/region USD display may change
-        if (!currentCategory && !currentQuery) loadHomeSections();
-    });
-
-    document.addEventListener('regionready', () => {
-        if (window.KupujPLRegion?.shouldShowUsd?.() && !currentCategory && !currentQuery) {
-            loadHomeSections();
-        }
-    });
-
-    const pathGra = location.pathname.match(/\/gra\/([^/]+)/);
-    const deepLinkGra = pathGra ? decodeURIComponent(pathGra[1]) : new URLSearchParams(location.search).get('gra');
-    const urlQuery = new URLSearchParams(location.search).get('q');
-    if (urlQuery && urlQuery.trim()) {
-        searchInput.value = urlQuery.trim();
-        runSearch(urlQuery.trim());
-    } else if (deepLinkGra) {
-        location.replace(`gra/${encodeURIComponent(deepLinkGra)}`);
-    }
-});
+        const allC
+... [truncated at 65536 bytes]

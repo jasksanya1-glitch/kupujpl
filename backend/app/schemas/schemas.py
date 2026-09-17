@@ -35,6 +35,7 @@ class GameBase(BaseModel):
     cover_image: Optional[str] = None
     description: Optional[str] = None
     steam_appid: Optional[int] = None
+    platform: str = "pc"  # pc | ps | xbox
     release_date: Optional[str] = None
     rating: Optional[float] = None
 
@@ -50,6 +51,8 @@ class GameResponse(GameBase):
     in_stock_shop_count: int = 0
     in_tier_a_daily_scan: bool = False
     next_tier_a_scan_at: Optional[str] = None
+    best_price_pln: Optional[float] = None
+    best_shop_name: Optional[str] = None
     lowest_ever_pln: Optional[float] = None
     avg_best_price_30d: Optional[float] = None
     lowest_ever_label: Optional[str] = None
@@ -77,6 +80,7 @@ class GameListResponse(BaseModel):
     slug: str
     cover_image: Optional[str] = None
     steam_appid: Optional[int] = None
+    platform: str = "pc"
     release_date: Optional[str] = None
     rating: Optional[float] = None
     best_price_pln: Optional[float] = None
@@ -310,6 +314,43 @@ class SteamWishlistImportResponse(BaseModel):
     skipped: List[SteamWishlistImportGameItem] = []
 
 
+class ConsoleGameAddRequest(BaseModel):
+    title: str
+    platform: str  # ps | xbox
+
+    @field_validator("title")
+    @classmethod
+    def title_ok(cls, v: str) -> str:
+        v = (v or "").strip()
+        if len(v) < 2:
+            raise ValueError("Podaj nazwę gry (min. 2 znaki).")
+        if len(v) > 180:
+            raise ValueError("Nazwa gry jest zbyt długa.")
+        return v
+
+    @field_validator("platform")
+    @classmethod
+    def platform_ok(cls, v: str) -> str:
+        v = (v or "").strip().lower()
+        if v in ("ps", "playstation", "ps4", "ps5"):
+            return "ps"
+        if v in ("xbox", "xb", "xbox-one", "xbox-series"):
+            return "xbox"
+        raise ValueError("Platforma musi być ps lub xbox.")
+
+
+class ConsoleGameAddResponse(BaseModel):
+    ok: bool
+    game_id: int
+    slug: str
+    title: str
+    platform: str
+    already_tracked: bool = False
+    created_catalog: bool = False
+    scan_queued: bool = True
+    message: str
+
+
 class CategoryResponse(BaseModel):
     id: int
     name: str
@@ -337,12 +378,34 @@ class HomeSectionResponse(BaseModel):
     games: List[GameListResponse]
 
 
+class FreeGiveawayItem(BaseModel):
+    title: str
+    shop: str
+    status: str
+    store_url: str
+    affiliate_url: Optional[str] = None
+    cover_image: Optional[str] = None
+    original_price_pln: Optional[float] = None
+    starts_at: Optional[str] = None
+    ends_at: Optional[str] = None
+    slug: Optional[str] = None
+    steam_appid: Optional[int] = None
+    is_permanent_free: bool = False
+
+
+class FreeGiveawaysResponse(BaseModel):
+    current: List[FreeGiveawayItem] = []
+    upcoming: List[FreeGiveawayItem] = []
+    updated_at: Optional[str] = None
+
+
 class HomePageResponse(BaseModel):
     sections: List[HomeSectionResponse]
     spotlight: List[GameListResponse] = []
     new_deals: List[GameListResponse] = []
     historical_lows: List[GameListResponse] = []
     freebies: List[GameListResponse] = []
+    giveaways: List[FreeGiveawayItem] = []
     updated_at: Optional[str] = None
 
 

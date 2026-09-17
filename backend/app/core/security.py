@@ -5,9 +5,14 @@ import jwt
 import bcrypt
 
 # Configuration
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "7b0a720d2d3a372138a4dcf9c45688b9195e7b26c62c2e0bb1b41f237bf4f4a3")
+# Authentication must never silently fall back to a repository value. A missing
+# secret is a deployment error, not a reason to issue forgeable sessions.
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY must be configured before the application starts")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week token lifespan
+SESSION_COOKIE_NAME = "kupujpl_games_session"
 
 def get_password_hash(password: str) -> str:
     # bcrypt requires bytes

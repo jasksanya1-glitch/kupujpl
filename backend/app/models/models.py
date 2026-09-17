@@ -36,6 +36,8 @@ class Game(Base):
     cover_image = Column(String(500), nullable=True)
     description = Column(String(2000), nullable=True)
     steam_appid = Column(Integer, nullable=True, unique=True, index=True)
+    # pc | ps | xbox — console stubs have no steam_appid
+    platform = Column(String(16), nullable=False, default="pc", index=True)
     release_date = Column(String(50), nullable=True)
     rating = Column(Float, nullable=True)
     steam_review_score = Column(Integer, nullable=True)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import secrets
+import hashlib
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
@@ -15,6 +16,11 @@ RESET_TTL = timedelta(hours=1)
 
 def generate_reset_code() -> str:
     return secrets.token_urlsafe(32)
+
+
+def _reset_code_hash(code: str) -> str:
+    """Keep only a one-way representation of a reset credential in the DB."""
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
 
 
 def reset_code_expired(user: User, *, now: datetime | None = None) -> bool:
@@ -31,7 +37,7 @@ def request_password_reset(db: Session, email: str) -> None:
         return
 
     code = generate_reset_code()
-    user.reset_password_code = code
+    user.reset_password_code = _reset_code_hash(code)
     user.reset_password_created_at = datetime.utcnow()
     db.commit()
 
@@ -45,7 +51,7 @@ def request_password_reset(db: Session, email: str) -> None:
 
 
 def reset_password_with_code(db: Session, code: str, new_password: str) -> User:
-    user = db.query(User).filter(User.reset_password_code == code.strip()).first()
+    user = db.query(User).filter(User.reset_password_code == _reset_code_hash(code.strip())).first()
     if not user:
         raise ValueError("Nieprawidłowy lub wygasły link resetujący")
     if reset_code_expired(user):

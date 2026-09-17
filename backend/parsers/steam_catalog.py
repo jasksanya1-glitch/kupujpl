@@ -381,7 +381,7 @@ def _upsert_steam_offer(
     affiliate_url = f"https://store.steampowered.com/app/{appid}"
     offer = (
         db.query(Offer)
-        .filter(Offer.game_id == game.id, Offer.shop_name == "Steam")
+        .filter(Offer.game_id == game.id, Offer.shop_name == shop_name)
         .first()
     )
     if offer:
@@ -395,7 +395,7 @@ def _upsert_steam_offer(
         record_offer_price_change(
             db,
             game_id=game.id,
-            shop_name="Steam",
+            shop_name=shop_name,
             price_pln=price_pln,
             previous_price=prev_price,
         )
@@ -403,7 +403,7 @@ def _upsert_steam_offer(
         db.add(
             Offer(
                 game_id=game.id,
-                shop_name="Steam",
+                shop_name=shop_name,
                 price_pln=price_pln,
                 original_price_pln=original_price_pln,
                 affiliate_url=affiliate_url,
@@ -416,20 +416,27 @@ def _upsert_steam_offer(
         record_offer_price_change(
             db,
             game_id=game.id,
-            shop_name="Steam",
+            shop_name=shop_name,
             price_pln=price_pln,
             previous_price=None,
         )
 
 
-def refresh_steam_offer_for_game(db: Session, game: Game) -> bool:
-    """Update Steam store price from appdetails (PL region)."""
+def refresh_steam_offer_for_game(
+    db: Session,
+    game: Game,
+    *,
+    cc: str = "pl",
+    shop_name: str = "Steam",
+    lang: str | None = None,
+) -> bool:
+    """Update Steam store price from appdetails (PL or US region)."""
     if not game.steam_appid:
         return False
-    data = fetch_appdetails(game.steam_appid)
+    data = fetch_appdetails(game.steam_appid, cc=cc, lang=lang)
     if not data:
         return False
-    _upsert_steam_offer(db, game, game.steam_appid, data)
+    _upsert_steam_offer(db, game, game.steam_appid, data, shop_name=shop_name)
     return True
 
 
@@ -690,6 +697,55 @@ def enrich_pending_batch(db: Session, limit: int = 200) -> dict:
     )
     progress["remaining"] = remaining
     progress["phase"] = "done" if remaining == 0 else "enrich"
+    _save_progress(progress)
+    return progress
+
+
+def backfill_polish_languages(db: Session, limit: int = 400) -> dict:
+    """Fetch Steam languages for games missing has_polish_* flags (SEO landing seed)."""
+    from app.core.game_catalog_filter import apply_appdetails_metadata
+
+    pending = (
+        db.query(Game)
+        .filter(
+            Game.steam_appid.isnot(None),
+            Game.has_polish_audio.is_(None),
+        )
+        .order_by(Game.steam_recommendations.is_(None), Game.steam_recommendations.desc())
+        .limit(limit)
+        .all()
+    )
+    updated = audio = skipped = 0
+    for game in pending:
+        try:
+            data = fetch_appdetails(game.steam_appid)
+            time.sleep(REQUEST_DELAY)
+            if not data:
+                # Mark as known-false so we do not retry forever on dead apps.
+                game.has_polish_interface = False
+                game.has_polish_audio = False
+                skipped += 1
+                continue
+            apply_appdetails_metadata(game, data)
+            updated += 1
+            if game.has_polish_audio:
+                audio += 1
+        except Exception:
+            db.rollback()
+            skipped += 1
+            continue
+    db.commit()
+    remaining = (
+        db.query(Game)
+        .filter(Game.steam_appid.isnot(None), Game.has_polish_audio.is_(None))
+        .count()
+    )
+    return {
+        "updated": updated,
+        "with_polish_audio": audio,
+        "skipped": skipped,
+        "remaining": remaining,
+    }
     _save_progress(progress)
     return {"enriched": enriched, "skipped": skipped, "remaining": remaining}
 

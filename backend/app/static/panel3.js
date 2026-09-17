@@ -17,8 +17,8 @@
     });
     // #endregion
 
-    const STATS_POLL_MS = 60000;
-    const TIER_A_POLL_MS = 5000;
+    const STATS_POLL_MS = 120000;
+    const TIER_A_POLL_MS = 30000;
     const NOTIF_TTL_MS = 12000;
     const SS_USER = 'panel3_last_user_id';
     const SS_VISIT = 'panel3_last_visit_id';

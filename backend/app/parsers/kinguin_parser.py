@@ -14,7 +14,6 @@ from app.parsers.keyshop_common import (
     fetch_url,
     import_keyshop_offers,
     is_restricted_region_listing,
-    slugify,
     title_match_score,
 )
 
@@ -23,6 +22,10 @@ logger = logging.getLogger("kinguin_parser")
 BASE = "https://www.kinguin.net"
 SEARCH_URL = "https://www.kinguin.net/pl/catalogsearch/result/?q={query}"
 _KINGUIN_TLS = threading.local()
+
+_PS_MARKERS = ("ps4", "ps5", "playstation", "psn")
+_XBOX_MARKERS = ("xbox",)
+_CONSOLE_SKIP = ("altergift", "account", "nintendo", "subscription")
 
 
 def peek_kinguin_fetch_error() -> str | None:
@@ -33,51 +36,49 @@ def _kinguin_set_error(msg: str | None) -> None:
     _KINGUIN_TLS.error = msg
 
 
-def _category_links(html: str, game_slug: str) -> list[str]:
-    keywords = [k for k in game_slug.split("-") if len(k) > 2][:4]
-    if not keywords:
-        return []
-
-    links: list[tuple[float, str]] = []
-    for href in re.findall(r'href="(https://www\.kinguin\.net/[^"]+|/[^"]+)"', html):
-        lower = href.lower()
-        if "/category/" not in lower:
-            continue
-        if "catalogsearch" in lower:
-            continue
-        if any(x in lower for x in ("altergift", "account", "ps4", "ps5", "xbox", "nintendo", "subscription")):
-            continue
-        if not all(k in lower for k in keywords):
-            continue
-        path = href.split("kinguin.net", 1)[-1]
-        title_part = path.rsplit("/", 1)[-1].replace("-", " ")
-        score = title_match_score(game_slug.replace("-", " "), title_part)
-        if score < MIN_MATCH_SCORE:
-            continue
-        full = href if href.startswith("http") else urljoin(BASE, href)
-        pl_url = re.sub(r"kinguin\.net/[a-z]{2}/", "kinguin.net/pl/", full)
-        links.append((score, pl_url))
-
-    links.sort(key=lambda item: item[0], reverse=True)
-    deduped: list[str] = []
-    seen: set[str] = set()
-    for _score, url in links:
-        if url in seen:
-            continue
-        seen.add(url)
-        deduped.append(url)
-    return deduped[:5]
+def _platform_ok(lower: str, platform: str) -> bool:
+    platform = (platform or "pc").lower()
+    if any(x in lower for x in _CONSOLE_SKIP):
+        return False
+    if platform == "ps":
+        return any(m in lower for m in _PS_MARKERS) and not any(m in lower for m in _XBOX_MARKERS)
+    if platform == "xbox":
+        return any(m in lower for m in _XBOX_MARKERS) and not any(m in lower for m in _PS_MARKERS)
+    # PC: skip console listings
+    if any(x in lower for x in ("ps4", "ps5", "xbox", "nintendo", "playstation")):
+        return False
+    return True
 
 
-def search_kinguin_price(query: str, game_slug: str) -> tuple[str | None, float | None, float | None]:
+def _search_query(query: str, platform: str) -> str:
+    platform = (platform or "pc").lower()
+    if platform == "ps":
+        return f"{query} PS5"
+    if platform == "xbox":
+        return f"{query} Xbox"
+    return query
+
+
+def _slug_keywords(game_slug: str, platform: str) -> list[str]:
+    skip = {"ps", "xbox", "ps4", "ps5", "playstation"}
+    return [k for k in game_slug.split("-") if len(k) > 2 and k not in skip][:4]
+
+
+def search_kinguin_price(
+    query: str,
+    game_slug: str,
+    *,
+    platform: str = "pc",
+) -> tuple[str | None, float | None, float | None]:
     from app.parsers.affiliate_feeds import affiliate_feed_lookup
 
-    feed = affiliate_feed_lookup("Kinguin", query, game_slug)
-    if feed:
-        return feed.url, feed.price_pln, feed.confidence
+    if (platform or "pc").lower() == "pc":
+        feed = affiliate_feed_lookup("Kinguin", query, game_slug)
+        if feed:
+            return feed.url, feed.price_pln, feed.confidence
 
     _kinguin_set_error(None)
-    search_url = SEARCH_URL.format(query=quote_plus(query))
+    search_url = SEARCH_URL.format(query=quote_plus(_search_query(query, platform)))
     response = fetch_url(search_url)
     if response is None:
         _kinguin_set_error("fetch failed")
@@ -89,15 +90,15 @@ def search_kinguin_price(query: str, game_slug: str) -> tuple[str | None, float 
         return None, None, None
 
     scored_links: list[tuple[float, str]] = []
+    keywords = _slug_keywords(game_slug, platform)
     for href in re.findall(r'href="(https://www\.kinguin\.net/[^"]+|/[^"]+)"', response.text):
         lower = href.lower()
         if "/category/" not in lower or "catalogsearch" in lower:
             continue
-        if any(x in lower for x in ("altergift", "account", "ps4", "ps5", "xbox", "nintendo", "subscription")):
+        if not _platform_ok(lower, platform):
             continue
         if is_restricted_region_listing(lower):
             continue
-        keywords = [k for k in game_slug.split("-") if len(k) > 2][:4]
         if keywords and not all(k in lower for k in keywords):
             continue
         path = href.split("kinguin.net", 1)[-1]

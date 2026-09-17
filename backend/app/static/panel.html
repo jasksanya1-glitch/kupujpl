@@ -155,6 +155,30 @@
                         <p id="wishlist-import-msg" class="panel-cp-flash panel-cp-flash--ok" hidden></p>
                         <div id="wishlist-import-results" class="panel-cp-wishlist-results" hidden></div>
                     </article>
+                    <article class="panel-cp-card panel-cp-wishlist-import panel-cp-console-add">
+                        <header class="panel-cp-card-head">
+                            <span class="panel-cp-card-icon" aria-hidden="true">🎮</span>
+                            <h3>Dodaj grę PlayStation / Xbox</h3>
+                        </header>
+                        <p class="panel-cp-muted">Wpisz nazwę tytułu konsolowego — dodamy go do śledzenia i uruchomimy skan cen w keyshopach (PS / Xbox).</p>
+                        <form id="console-game-form" class="panel-cp-wishlist-form">
+                            <label class="panel-cp-field panel-cp-field--wide">
+                                <span>Nazwa gry</span>
+                                <input type="text" id="console-game-title" name="title" required
+                                    placeholder="np. God of War Ragnarök"
+                                    autocomplete="off" spellcheck="false" maxlength="180">
+                            </label>
+                            <label class="panel-cp-field">
+                                <span>Platforma</span>
+                                <select id="console-game-platform" name="platform" required>
+                                    <option value="ps">PlayStation</option>
+                                    <option value="xbox">Xbox</option>
+                                </select>
+                            </label>
+                            <button type="submit" class="cp-btn" id="console-game-btn">Dodaj do skanu</button>
+                        </form>
+                        <p id="console-game-msg" class="panel-cp-flash panel-cp-flash--ok" hidden></p>
+                    </article>
                     <p id="refresh-msg" class="panel-cp-flash panel-cp-flash--ok" hidden></p>
                     <div id="favorites-grid" class="grid panel-cp-grid"><div class="loading-spinner"></div></div>
                 </section>
@@ -261,7 +285,7 @@
     <script src="static/matrix-rain.js?v=1"></script>
     <script src="static/cookie-consent.js?v=1"></script>
     <script src="static/api-config.js?v=3"></script>
-    <script src="static/auth.js?v=6"></script>
+    <script src="static/auth.js?v=7"></script>
     <script src="static/covers.js?v=11"></script>
     <script src="static/push-client.js?v=1"></script>
     <script src="static/panel.js?v=15"></script>
