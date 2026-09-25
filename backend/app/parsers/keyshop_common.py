@@ -777,7 +777,16 @@ def upsert_keyshop_offer(
     is_official: bool = False,
     match_confidence: float | None = None,
 ) -> None:
-    if shop_name != "Steam":
+    if not is_official and shop_name not in {
+        "Steam",
+        "Steam US",
+        "GOG",
+        "Epic Games",
+        "Fanatical",
+        "Humble Store",
+        "PlayStation Store",
+        "Xbox Store",
+    }:
         candidate = product_title_from_url(product_url)
         verdict = classify_keyshop_product(
             game.title,

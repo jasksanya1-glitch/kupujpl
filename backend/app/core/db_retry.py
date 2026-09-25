@@ -7,6 +7,8 @@ import time
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from app.core.catalog_cache import bump_catalog_generation
+
 logger = logging.getLogger("db_retry")
 
 
@@ -15,6 +17,7 @@ def commit_with_retry(db: Session, *, attempts: int = 6, base_delay: float = 1.0
     for attempt in range(attempts):
         try:
             db.commit()
+            bump_catalog_generation()
             return
         except OperationalError as exc:
             last_exc = exc

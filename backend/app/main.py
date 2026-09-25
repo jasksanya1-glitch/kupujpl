@@ -66,6 +66,17 @@ from app.core.affiliate_config import affiliate_env_status
 from app.core.click_tracking import collect_click_stats, log_affiliate_click, prune_old_clicks
 from app.core.og_image import render_og_png, render_logo_png
 from app.core.offer_quality import offer_eligible_for_best_price, offer_is_suspicious_outlier
+from app.core.catalog_cache import on_catalog_change
+from app.core.game_offer_selection import (
+    best_offers_map as _best_offers_map,
+    display_shops_for_game as _display_shops_for_game,
+    display_shops_for_region as _display_shops_for_region,
+    normalize_shopping_region as _normalize_shopping_region,
+    offer_activation_region as _offer_activation_region,
+    offer_visible_for_shopping_region as _offer_visible_for_shopping_region,
+    steam_offers_map as _steam_offers_map,
+    steam_shop_for_region as _steam_shop_for_region,
+)
 from app.core.site_tracking import (
     record_session_heartbeat,
     record_site_visit,
@@ -77,6 +88,7 @@ from app.core.seo_pages import (
     robots_txt,
     sitemap_index_xml,
     sitemap_games_xml,
+    sitemap_games_shard_xml,
     sitemap_categories_xml,
     sitemap_deals_xml,
     sitemap_blog_xml,
@@ -520,171 +532,6 @@ def _display_title(title: str | None) -> str:
     if not title:
         return ""
     return html_lib.unescape(title.strip())
-
-
-def _normalize_shopping_region(region: str | None) -> str:
-    r = (region or "pl").strip().lower()
-    return "us" if r == "us" else "pl"
-
-
-def _steam_shop_for_region(region: str) -> str:
-    return "Steam US" if region == "us" else "Steam"
-
-
-def _display_shops_for_region(region: str) -> set[str]:
-    active = set(get_display_shops())
-    if region == "us":
-        active.discard("Steam")
-        active.add("Steam US")
-    else:
-        active.discard("Steam US")
-    return active
-
-
-def _offer_activation_region(offer: Offer) -> str:
-    raw = (getattr(offer, "activation_region", None) or "unknown").strip().lower()
-    if raw in {"eu", "na", "global", "unknown"}:
-        return raw
-    return "unknown"
-
-
-def _offer_visible_for_shopping_region(offer: Offer, region: str) -> bool:
-    """Filter keyshop rows by activation region for PL vs US shoppers."""
-    region = _normalize_shopping_region(region)
-    act = _offer_activation_region(offer)
-    shop = (offer.shop_name or "").strip()
-    if shop == "Steam US":
-        return region == "us"
-    if shop == "Steam":
-        return region != "us"
-    if act == "unknown":
-        return True
-    if region == "us":
-        return act in {"na", "global"}
-    return act in {"eu", "global"}
-
-
-def _display_shops_for_game(game: Game, *, region: str = "pl") -> set[str]:
-    """Shops shown for a game; console titles include PlayStation/Xbox storefronts."""
-    active = set(_display_shops_for_region(region))
-    platform = (getattr(game, "platform", None) or "pc").strip().lower()
-    if platform == "ps":
-        active |= {
-            "PlayStation Store",
-            "Instant Gaming",
-            "Kinguin",
-            "G2A",
-            "Gamivo",
-            "CDKeys",
-            "Eneba",
-        }
-        # PC-only storefronts are noise on PS stubs.
-        active -= {"Steam", "Steam US", "GOG", "Epic Games", "Fanatical"}
-    elif platform == "xbox":
-        active |= {"Xbox Store", "Instant Gaming", "Kinguin", "G2A", "Gamivo", "CDKeys", "Eneba"}
-        active -= {"Steam", "Steam US", "GOG", "Epic Games", "Fanatical"}
-    else:
-        active -= {"PlayStation Store", "Xbox Store"}
-    return active
-
-
-def _best_offers_map(
-    db: Session,
-    game_ids: list[int],
-    *,
-    region: str = "pl",
-) -> dict[int, Offer]:
-    if not game_ids:
-        return {}
-    region = _normalize_shopping_region(region)
-    steam_shop = _steam_shop_for_region(region)
-    steam_map = _steam_offers_map(
-        db,
-        game_ids,
-        shop_name=steam_shop,
-        fallback_shop="Steam" if region == "us" else None,
-    )
-    games = {
-        g.id: g
-        for g in db.query(Game).filter(Game.id.in_(game_ids)).all()
-    }
-    offers = (
-        db.query(Offer)
-        .filter(
-            Offer.game_id.in_(game_ids),
-            Offer.in_stock == True,
-            Offer.price_pln.isnot(None),
-            Offer.price_pln > 0,
-        )
-        .all()
-    )
-    by_game: dict[int, list[Offer]] = {}
-    for offer in offers:
-        if not _offer_visible_for_shopping_region(offer, region):
-            continue
-        game = games.get(offer.game_id)
-        if not game:
-            continue
-        allowed = _display_shops_for_game(game, region=region)
-        if offer.shop_name not in allowed:
-            continue
-        by_game.setdefault(offer.game_id, []).append(offer)
-
-    best: dict[int, Offer] = {}
-    for game_id, game_offers in by_game.items():
-        steam = steam_map.get(game_id)
-        steam_price = float(steam.price_pln) if steam and steam.price_pln else None
-        peer_prices = [float(o.price_pln) for o in game_offers if o.price_pln]
-        for offer in game_offers:
-            if not offer_eligible_for_best_price(
-                offer,
-                steam_price_pln=steam_price,
-                peer_prices=peer_prices,
-            ):
-                continue
-            prev = best.get(game_id)
-            if prev is None or offer.price_pln < prev.price_pln:
-                best[game_id] = offer
-    return best
-
-
-def _steam_offers_map(
-    db: Session,
-    game_ids: list[int],
-    shop_name: str = "Steam",
-    *,
-    fallback_shop: str | None = None,
-) -> dict[int, Offer]:
-    if not game_ids:
-        return {}
-    names = [shop_name]
-    if fallback_shop and fallback_shop != shop_name:
-        names.append(fallback_shop)
-    offers = (
-        db.query(Offer)
-        .filter(
-            Offer.game_id.in_(game_ids),
-            Offer.shop_name.in_(names),
-            Offer.in_stock == True,
-            Offer.price_pln.isnot(None),
-            Offer.price_pln > 0,
-        )
-        .all()
-    )
-    primary: dict[int, Offer] = {}
-    fallback: dict[int, Offer] = {}
-    for offer in offers:
-        target = primary if offer.shop_name == shop_name else fallback
-        prev = target.get(offer.game_id)
-        if prev is None or offer.price_pln < prev.price_pln:
-            target[offer.game_id] = offer
-    if not fallback_shop:
-        return primary
-    out = dict(primary)
-    for gid, offer in fallback.items():
-        if gid not in out:
-            out[gid] = offer
-    return out
 
 
 def _savings_vs_steam(best: Offer | None, steam: Offer | None) -> dict[str, float | int | None]:
@@ -1226,12 +1073,20 @@ def google_site_verification_file():
 
 @app.get("/sitemap.xml", response_class=Response)
 def sitemap_index(db: Session = Depends(get_db)):
-    return Response(content=sitemap_index_xml(), media_type="application/xml; charset=utf-8")
+    return Response(content=sitemap_index_xml(db), media_type="application/xml; charset=utf-8")
 
 
 @app.get("/sitemap-games.xml", response_class=Response)
 def sitemap_games(db: Session = Depends(get_db)):
     return Response(content=sitemap_games_xml(db), media_type="application/xml; charset=utf-8")
+
+
+@app.get("/sitemap-games-{shard}.xml", response_class=Response)
+def sitemap_games_numbered(shard: int, db: Session = Depends(get_db)):
+    xml = sitemap_games_shard_xml(db, shard)
+    if xml is None:
+        raise HTTPException(status_code=404, detail="Sitemap not found")
+    return Response(content=xml, media_type="application/xml; charset=utf-8")
 
 
 @app.get("/sitemap-categories.xml", response_class=Response)
@@ -1874,13 +1729,19 @@ def affiliate_go_redirect(
     # Unwrap Awin (awin1.com) server-side → shop URL + awc= so ad blockers
     # do not kill the buy click in the browser.
     destination = resolve_outbound_url(offer.affiliate_url, offer.shop_name)
-    log_affiliate_click(
-        db,
-        offer=offer,
-        game=offer.game,
-        destination_url=destination,
-        request=request,
-    )
+    try:
+        log_affiliate_click(
+            db,
+            offer=offer,
+            game=offer.game,
+            destination_url=destination,
+            request=request,
+        )
+    except Exception:
+        # Never block the shop redirect if analytics logging fails.
+        logging.getLogger("affiliate_go").exception(
+            "affiliate click log failed for offer %s", offer_id
+        )
     return RedirectResponse(url=destination, status_code=302)
 
 
@@ -3101,6 +2962,15 @@ def _games_cache_set(key: str, etag: str, payload: GamesPageResponse) -> None:
             oldest = min(_GAMES_CACHE.items(), key=lambda kv: kv[1][0])[0]
             _GAMES_CACHE.pop(oldest, None)
         _GAMES_CACHE[key] = (time.time() + _GAMES_CACHE_TTL, etag, payload)
+
+
+def _clear_public_response_caches() -> None:
+    _HOME_RESP_CACHE.clear()
+    with _GAMES_CACHE_LOCK:
+        _GAMES_CACHE.clear()
+
+
+on_catalog_change(_clear_public_response_caches)
 
 
 def _games_response(

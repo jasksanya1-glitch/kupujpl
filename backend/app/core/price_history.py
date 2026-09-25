@@ -53,12 +53,13 @@ def _eligible_offer_prices(db: Session, game_id: int) -> list[float]:
     )
     steam = _steam_price_for_game(db, game_id)
     raw = [float(r.price_pln) for r in rows]
+    trusted_official = frozenset({"Steam", "Steam US", "PlayStation Store", "Xbox Store"})
     out: list[float] = []
     for price, is_official, conf, shop_name in rows:
         price_f = float(price)
         if not is_official and (conf is None or float(conf) < HISTORY_MIN_CONFIDENCE):
             continue
-        if steam is not None and steam >= 5 and shop_name != "Steam":
+        if steam is not None and steam >= 5 and shop_name not in trusted_official:
             if price_f / steam < STEAM_PRICE_RATIO_FLOOR:
                 continue
         others = list(raw)
@@ -66,7 +67,8 @@ def _eligible_offer_prices(db: Session, game_id: int) -> list[float]:
             others.remove(price_f)
         except ValueError:
             pass
-        if not is_official and is_peer_price_outlier(price_f, others):
+        # Official GOG/Epic can still be a wrong-title match — peer-filter them too.
+        if shop_name not in trusted_official and is_peer_price_outlier(price_f, others):
             continue
         out.append(price_f)
     return out

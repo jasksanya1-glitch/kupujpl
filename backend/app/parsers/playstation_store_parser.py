@@ -69,6 +69,13 @@ def _score_link(title: str, name: str) -> float:
     return score
 
 
+def _chihiro_query(title: str) -> str:
+    """Chihiro returns 0 hits when the query contains ':' — strip punctuation."""
+    cleaned = re.sub(r"[:™®©|/\\\\]+", " ", title or "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
 def search_playstation_store_price(
     title: str,
     game_slug: str = "",
@@ -78,16 +85,17 @@ def search_playstation_store_price(
     if not query:
         return None, None, None
 
-    search_url = CHIHIRO_SEARCH.format(query=quote(query, safe=""))
+    search_query = _chihiro_query(query)
+    search_url = CHIHIRO_SEARCH.format(query=quote(search_query, safe=""))
     response = fetch_url(search_url, prefer_cffi=True)
     if response is None or response.status_code != 200:
-        logger.warning("PS Store search failed for %s", query)
+        logger.warning("PS Store search failed for %s", search_query)
         return None, None, None
 
     try:
         data = response.json()
     except Exception:
-        logger.warning("PS Store search JSON parse failed for %s", query)
+        logger.warning("PS Store search JSON parse failed for %s", search_query)
         return None, None, None
 
     best: tuple[float, str, str] | None = None  # score, product_id, name

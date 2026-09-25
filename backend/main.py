@@ -1547,13 +1547,19 @@ def affiliate_go_redirect(
     # Unwrap Awin (awin1.com) server-side → shop URL + awc= so ad blockers
     # do not kill the buy click in the browser.
     destination = resolve_outbound_url(offer.affiliate_url, offer.shop_name)
-    log_affiliate_click(
-        db,
-        offer=offer,
-        game=offer.game,
-        destination_url=destination,
-        request=request,
-    )
+    try:
+        log_affiliate_click(
+            db,
+            offer=offer,
+            game=offer.game,
+            destination_url=destination,
+            request=request,
+        )
+    except Exception:
+        # Never block the shop redirect if analytics logging fails.
+        logging.getLogger("affiliate_go").exception(
+            "affiliate click log failed for offer %s", offer_id
+        )
     return RedirectResponse(url=destination, status_code=302)
 
 

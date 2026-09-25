@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import html
 import json
+import os
+import threading
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
@@ -10,7 +13,14 @@ from xml.sax.saxutils import escape as xml_escape
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.catalog_cache import catalog_generation, on_catalog_change
+from app.core.game_offer_selection import (
+    SITEMAP_SHOPPING_REGION,
+    best_offers_map,
+    iter_games_with_slugs,
+)
 from app.core.site_config import SITE_ORIGIN
+from app.models.models import Offer
 from app.schemas.schemas import GameListResponse, OfferResponse
 
 _BLOG = Path(__file__).resolve().parent.parent / "data" / "blog_posts.json"
@@ -71,21 +81,27 @@ def robots_txt() -> str:
     )
 
 
-def sitemap_index_xml() -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    parts = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-        f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-games.xml</loc><lastmod>{now}</lastmod></sitemap>",
-        f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-categories.xml</loc><lastmod>{now}</lastmod></sitemap>",
-        f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-deals.xml</loc><lastmod>{now}</lastmod></sitemap>",
-        f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-blog.xml</loc><lastmod>{now}</lastmod></sitemap>",
-        "</sitemapindex>",
-    ]
-    return "\n".join(parts)
+SITEMAP_URL_LIMIT = 50_000
+SITEMAP_MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+GAME_SITEMAP_BATCH_SIZE = 500
+SITEMAP_CACHE_TTL_SEC = float(os.environ.get("SITEMAP_CACHE_TTL", "90"))
+_URLSET_HEADER = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+)
+_URLSET_FOOTER = "</urlset>"
+_URLSET_OVERHEAD_BYTES = len(_URLSET_HEADER.encode("utf-8")) + len(_URLSET_FOOTER.encode("utf-8"))
+
+_sitemap_cache_lock = threading.Lock()
+_sitemap_cache_generation: int | None = None
+_sitemap_cache_shards: list[str] = []
+_sitemap_cache_lastmod = ""
+_sitemap_cache_built_at = 0.0
+
+SitemapUrl = tuple[str, str, str, str]
 
 
-def _url_entries(urls: list[tuple[str, str, str, str]]) -> str:
+def _url_entries(urls: list[SitemapUrl]) -> str:
     parts: list[str] = []
     for loc, lastmod, changefreq, priority in urls:
         parts.append(
@@ -95,40 +111,176 @@ def _url_entries(urls: list[tuple[str, str, str, str]]) -> str:
     return "\n".join(parts)
 
 
-def sitemap_games_xml(db: Session, *, limit: int = 50000) -> str:
-    from app.models.models import Game, Offer
+def _urlset_xml(urls: list[SitemapUrl]) -> str:
+    body = _url_entries(urls)
+    if body:
+        return _URLSET_HEADER + body + "\n" + _URLSET_FOOTER
+    return _URLSET_HEADER + _URLSET_FOOTER
 
-    # Only indexable game pages: in-stock offer with a real price (matches SSR indexable=best is not None).
-    subq = (
-        db.query(Offer.game_id, func.max(Offer.updated_at).label("lastmod"))
-        .filter(
-            Offer.in_stock.is_(True),
-            Offer.price_pln.isnot(None),
-            Offer.price_pln > 0,
-        )
-        .group_by(Offer.game_id)
-        .subquery()
-    )
-    rows = (
-        db.query(Game.slug, subq.c.lastmod)
-        .join(subq, Game.id == subq.c.game_id)
-        .filter(Game.slug.isnot(None), Game.slug != "")
-        .order_by(subq.c.lastmod.desc())
-        .limit(limit)
-        .all()
-    )
+
+class SitemapEntryTooLargeError(ValueError):
+    """A single sitemap URL cannot fit in one uncompressed sitemap file."""
+
+
+def pack_sitemap_url_shards(
+    urls: list[SitemapUrl],
+    *,
+    url_limit: int = SITEMAP_URL_LIMIT,
+    max_bytes: int = SITEMAP_MAX_UNCOMPRESSED_BYTES,
+) -> list[list[SitemapUrl]]:
+    """Split URL entries so each shard stays within sitemap size limits."""
+    if url_limit < 1:
+        raise ValueError("url_limit must be at least 1")
+    shards: list[list[SitemapUrl]] = []
+    current: list[SitemapUrl] = []
+    current_bytes = _URLSET_OVERHEAD_BYTES
+    for entry in urls:
+        line = _url_entries([entry]) + "\n"
+        line_bytes = len(line.encode("utf-8"))
+        wrapped_bytes = _URLSET_OVERHEAD_BYTES + line_bytes
+        if wrapped_bytes > max_bytes:
+            loc = entry[0]
+            raise SitemapEntryTooLargeError(
+                "Single sitemap entry does not fit in one uncompressed sitemap file: "
+                f"{loc!r} is {wrapped_bytes} bytes with XML wrapper, "
+                f"limit is {max_bytes} bytes."
+            )
+        over_count = len(current) >= url_limit
+        over_bytes = current and (current_bytes + line_bytes > max_bytes)
+        if current and (over_count or over_bytes):
+            shards.append(current)
+            current = []
+            current_bytes = _URLSET_OVERHEAD_BYTES
+        current.append(entry)
+        current_bytes += line_bytes
+    if current:
+        shards.append(current)
+    if not shards:
+        shards.append([])
+    return shards
+
+
+def _homepage_entry(now: str) -> SitemapUrl:
+    return (f"{SITE_ORIGIN}/", now, "daily", "1.0")
+
+
+def iter_indexable_game_sitemap_urls(
+    db: Session,
+    *,
+    region: str = SITEMAP_SHOPPING_REGION,
+    batch_size: int = GAME_SITEMAP_BATCH_SIZE,
+    now: str | None = None,
+) -> list[SitemapUrl]:
+    """Canonical /gra/{slug} URLs that share SSR best-offer eligibility. Read-only."""
+    today = now or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    urls: list[SitemapUrl] = []
+    for games in iter_games_with_slugs(db, batch_size=batch_size):
+        games_by_id = {g.id: g for g in games}
+        ids = [g.id for g in games]
+        best = best_offers_map(db, ids, region=region, games=games_by_id)
+        indexable_ids = [gid for gid in ids if gid in best]
+        lastmod_by_id: dict[int, datetime | None] = {}
+        if indexable_ids:
+            lastmod_rows = (
+                db.query(Offer.game_id, func.max(Offer.updated_at))
+                .filter(Offer.game_id.in_(indexable_ids))
+                .group_by(Offer.game_id)
+                .all()
+            )
+            lastmod_by_id = {gid: lm for gid, lm in lastmod_rows}
+        for game in games:
+            if game.id not in best:
+                continue
+            lastmod = lastmod_by_id.get(game.id)
+            lm = lastmod.strftime("%Y-%m-%d") if lastmod else today
+            urls.append((_game_page_url(game.slug), lm, "weekly", "0.7"))
+    return urls
+
+
+def _build_game_sitemap_shards(db: Session) -> list[str]:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    urls: list[tuple[str, str, str, str]] = [
-        (f"{SITE_ORIGIN}/", now, "daily", "1.0"),
-    ]
-    for slug, lastmod in rows:
-        lm = lastmod.strftime("%Y-%m-%d") if lastmod else now
-        urls.append((_game_page_url(slug), lm, "weekly", "0.7"))
-    header = [
+    urls = [_homepage_entry(now), *iter_indexable_game_sitemap_urls(db, now=now)]
+    packed = pack_sitemap_url_shards(urls)
+    return [_urlset_xml(shard) for shard in packed]
+
+
+def clear_game_sitemap_cache() -> None:
+    global _sitemap_cache_generation, _sitemap_cache_shards, _sitemap_cache_lastmod
+    global _sitemap_cache_built_at
+    with _sitemap_cache_lock:
+        _sitemap_cache_generation = None
+        _sitemap_cache_shards = []
+        _sitemap_cache_lastmod = ""
+        _sitemap_cache_built_at = 0.0
+
+
+on_catalog_change(clear_game_sitemap_cache)
+
+
+def game_sitemap_shards(db: Session) -> tuple[list[str], str]:
+    global _sitemap_cache_generation, _sitemap_cache_shards, _sitemap_cache_lastmod
+    global _sitemap_cache_built_at
+    gen = catalog_generation()
+    now_ts = time.time()
+    with _sitemap_cache_lock:
+        cache_fresh = (
+            _sitemap_cache_generation == gen
+            and _sitemap_cache_shards
+            and (now_ts - _sitemap_cache_built_at) < SITEMAP_CACHE_TTL_SEC
+        )
+        if cache_fresh:
+            return list(_sitemap_cache_shards), _sitemap_cache_lastmod
+    shards = _build_game_sitemap_shards(db)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    with _sitemap_cache_lock:
+        _sitemap_cache_generation = gen
+        _sitemap_cache_shards = list(shards)
+        _sitemap_cache_lastmod = now
+        _sitemap_cache_built_at = time.time()
+        return list(_sitemap_cache_shards), _sitemap_cache_lastmod
+
+
+def sitemap_index_xml(db: Session | None = None) -> str:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    game_locs: list[str] = [f"{SITE_ORIGIN}/sitemap-games-1.xml"]
+    if db is not None:
+        shards, now = game_sitemap_shards(db)
+        game_locs = [
+            f"{SITE_ORIGIN}/sitemap-games-{idx}.xml" for idx in range(1, len(shards) + 1)
+        ]
+    parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
-    return "\n".join(header + [_url_entries(urls), "</urlset>"])
+    for loc in game_locs:
+        parts.append(
+            f"  <sitemap><loc>{xml_escape(loc)}</loc><lastmod>{now}</lastmod></sitemap>"
+        )
+    parts.extend(
+        [
+            f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-categories.xml</loc><lastmod>{now}</lastmod></sitemap>",
+            f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-deals.xml</loc><lastmod>{now}</lastmod></sitemap>",
+            f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-blog.xml</loc><lastmod>{now}</lastmod></sitemap>",
+            "</sitemapindex>",
+        ]
+    )
+    return "\n".join(parts)
+
+
+def sitemap_games_xml(db: Session, *, limit: int | None = None) -> str:
+    """Compatibility alias for the first numbered game sitemap shard."""
+    del limit
+    shards, _lastmod = game_sitemap_shards(db)
+    return shards[0]
+
+
+def sitemap_games_shard_xml(db: Session, shard: int) -> str | None:
+    if shard < 1:
+        return None
+    shards, _lastmod = game_sitemap_shards(db)
+    if shard > len(shards):
+        return None
+    return shards[shard - 1]
 
 
 def sitemap_categories_xml(db: Session) -> str:

@@ -23,9 +23,11 @@ logger = logging.getLogger("clean_price_stats")
 
 
 def _is_bad_price(price: float, peers: list[float], steam: float | None) -> bool:
+    """Stricter than live CTA filters — historical mins must not be lone absurd lows."""
     if price <= 0:
         return True
-    if steam is not None and steam >= 5 and price / steam < STEAM_PRICE_RATIO_FLOOR:
+    # Live floor is 0.12; history cleanup uses 0.35 so stale wrong SKUs / stuck sales drop.
+    if steam is not None and steam >= 25 and price / steam < 0.35:
         return True
     others = list(peers)
     try:
@@ -36,9 +38,11 @@ def _is_bad_price(price: float, peers: list[float], steam: float | None) -> bool
         return True
     if len(peers) >= PEER_OUTLIER_MIN_OTHERS + 1:
         med = float(median(peers))
+        # 0.50 vs live 0.40 — catches Cyberpunk-style 59 zł vs ~120–200 cluster.
+        hist_ratio = max(PEER_OUTLIER_RATIO, 0.50)
         if (
             med >= PEER_OUTLIER_MIN_MEDIAN_PLN
-            and price <= med * PEER_OUTLIER_RATIO
+            and price <= med * hist_ratio
             and (med - price) >= PEER_OUTLIER_ABS_GAP_PLN
         ):
             return True

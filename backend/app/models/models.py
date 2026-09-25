@@ -245,3 +245,6 @@ class AffiliateClick(Base):
     has_tracking = Column(Boolean, default=False)
     is_monetized = Column(Boolean, default=True)
     visitor_key = Column(String(32), nullable=False, index=True)
+    user_agent = Column(String(480), nullable=True)
+    is_suspected_bot = Column(Boolean, default=False, index=True)
+    bot_reason = Column(String(64), nullable=True)

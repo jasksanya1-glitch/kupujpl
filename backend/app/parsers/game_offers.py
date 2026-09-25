@@ -51,8 +51,8 @@ _KEYSHOPS: tuple[tuple[str, object], ...] = (
 )
 _KEYSHOPS_FAST: tuple[tuple[str, object], ...] = (("Kinguin", search_kinguin_price),)
 
-# Console titles: keyshops that can return PS/Xbox SKUs + official console store.
-_CONSOLE_KEYSHOP_NAMES = frozenset({"Instant Gaming", "Kinguin", "G2A", "Gamivo", "CDKeys"})
+# Console titles: only keyshops with platform= filtering (others return PC Steam keys).
+_CONSOLE_KEYSHOP_NAMES = frozenset({"Instant Gaming", "Kinguin"})
 _CONSOLE_EXPECTED_PS = frozenset({"PlayStation Store", "Instant Gaming", "Kinguin"})
 _CONSOLE_EXPECTED_XBOX = frozenset({"Instant Gaming", "Kinguin"})
 _CONSOLE_ONLY_SHOPS = frozenset({"PlayStation Store", "Xbox Store"})
