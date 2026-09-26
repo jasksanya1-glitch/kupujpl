@@ -261,6 +261,7 @@ def sitemap_index_xml(db: Session | None = None) -> str:
             f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-categories.xml</loc><lastmod>{now}</lastmod></sitemap>",
             f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-deals.xml</loc><lastmod>{now}</lastmod></sitemap>",
             f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-blog.xml</loc><lastmod>{now}</lastmod></sitemap>",
+            f"  <sitemap><loc>{xml_escape(SITE_ORIGIN)}/sitemap-news.xml</loc><lastmod>{now}</lastmod></sitemap>",
             "</sitemapindex>",
         ]
     )
@@ -349,18 +350,151 @@ def sitemap_deals_xml(db: Session) -> str:
     return "\n".join(header + [_url_entries(urls), "</urlset>"])
 
 
-def sitemap_blog_xml() -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    posts = _load_blog_posts()
-    urls: list[tuple[str, str, str, str]] = [(f"{SITE_ORIGIN}/blog", now, "weekly", "0.6")]
-    for slug, post in posts.items():
-        lm = post.get("date") or now
-        urls.append((f"{SITE_ORIGIN}/blog/{slug}", lm, "monthly", "0.5"))
+def sitemap_blog_xml(db: Session | None = None) -> str:
+    """Published articles only; lastmod from date_modified (not request time)."""
+    from app.core.articles import list_published_articles
+    from app.core.database import SessionLocal
+    from app.models.models import Article
+
+    own = False
+    if db is None:
+        db = SessionLocal()
+        own = True
+    try:
+        arts = list_published_articles(db, limit=5000)
+        urls: list[tuple[str, str, str, str]] = []
+        # Index lastmod = newest article modified
+        index_lm = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if arts:
+            newest = max(
+                (a.date_modified or a.date_published or a.date_created for a in arts),
+                default=None,
+            )
+            if newest:
+                index_lm = newest.strftime("%Y-%m-%d")
+        urls.append((f"{SITE_ORIGIN}/blog", index_lm, "daily", "0.7"))
+        for art in arts:
+            lm_dt = art.date_modified or art.date_published or art.date_created
+            lm = lm_dt.strftime("%Y-%m-%d") if lm_dt else index_lm
+            urls.append((f"{SITE_ORIGIN}/blog/{art.slug}", lm, "weekly", "0.6"))
+        # Fallback to JSON if DB empty (pre-migration)
+        if len(urls) <= 1:
+            posts = _load_blog_posts()
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            for slug, post in posts.items():
+                lm = post.get("date") or now
+                urls.append((f"{SITE_ORIGIN}/blog/{slug}", lm, "monthly", "0.5"))
+    finally:
+        if own:
+            db.close()
     header = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
     return "\n".join(header + [_url_entries(urls), "</urlset>"])
+
+
+def sitemap_news_xml(db: Session | None = None) -> str:
+    """Google News sitemap — articles published in the last 2 days only."""
+    return _sitemap_news_xml_impl(db, own=False)
+
+
+def _sitemap_news_xml_impl(db: Session | None, own: bool = False) -> str:
+    from app.core.database import SessionLocal
+    from app.models.models import Article
+
+    close = False
+    if db is None:
+        db = SessionLocal()
+        close = True
+    cutoff = datetime.utcnow() - timedelta(days=2)
+    try:
+        arts = (
+            db.query(Article)
+            .filter(
+                Article.status == "published",
+                Article.date_published.isnot(None),
+                Article.date_published >= cutoff,
+            )
+            .order_by(Article.date_published.desc())
+            .limit(1000)
+            .all()
+        )
+        parts = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+            'xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">',
+        ]
+        for art in arts:
+            pub = art.date_published or art.date_created
+            pub_iso = pub.strftime("%Y-%m-%dT%H:%M:%SZ") if pub else ""
+            loc = f"{SITE_ORIGIN}/blog/{art.slug}"
+            parts.append("  <url>")
+            parts.append(f"    <loc>{xml_escape(loc)}</loc>")
+            parts.append("    <news:news>")
+            parts.append("      <news:publication>")
+            parts.append("        <news:name>KupujPL Games</news:name>")
+            parts.append("        <news:language>pl</news:language>")
+            parts.append("      </news:publication>")
+            parts.append(f"      <news:publication_date>{pub_iso}</news:publication_date>")
+            parts.append(f"      <news:title>{xml_escape(art.title)}</news:title>")
+            parts.append("    </news:news>")
+            parts.append("  </url>")
+        parts.append("</urlset>")
+        return "\n".join(parts)
+    finally:
+        if close:
+            db.close()
+
+
+def blog_rss_xml(db: Session | None = None) -> str:
+    from email.utils import format_datetime
+
+    from app.core.articles import list_published_articles
+    from app.core.database import SessionLocal
+
+    close = False
+    if db is None:
+        db = SessionLocal()
+        close = True
+    try:
+        arts = list_published_articles(db, limit=50)
+        items = []
+        for art in arts:
+            link = f"{SITE_ORIGIN}/blog/{art.slug}"
+            pub = art.date_published or art.date_created or datetime.utcnow()
+            if pub.tzinfo is None:
+                pub = pub.replace(tzinfo=timezone.utc)
+            desc = html.escape(art.excerpt or art.lead or art.seo_description or "")
+            enc = ""
+            if art.featured_image or art.og_image:
+                img = art.og_image or art.featured_image
+                enc = f'<enclosure url="{html.escape(img)}" type="image/jpeg" />'
+            items.append(
+                f"<item>"
+                f"<title>{html.escape(art.title)}</title>"
+                f"<link>{html.escape(link)}</link>"
+                f'<guid isPermaLink="true">{html.escape(link)}</guid>'
+                f"<pubDate>{format_datetime(pub)}</pubDate>"
+                f"<description>{desc}</description>"
+                f"<author>{html.escape(art.author or 'Redakcja KupujPL Games')}</author>"
+                f"{enc}"
+                f"</item>"
+            )
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<rss version="2.0">\n'
+            "<channel>\n"
+            "<title>KupujPL Games — Aktualności</title>\n"
+            f"<link>{SITE_ORIGIN}/blog</link>\n"
+            "<description>Aktualności, promocje i poradniki KupujPL Games</description>\n"
+            "<language>pl</language>\n"
+            + "\n".join(items)
+            + "\n</channel>\n</rss>\n"
+        )
+    finally:
+        if close:
+            db.close()
 
 
 def not_found_html() -> str:
@@ -1649,107 +1783,159 @@ oraz czasowe promocje <strong>Steam</strong>. Weź zanim znikną — lista odśw
 
 
 _BLOG_OG_IMAGE = f"{SITE_ORIGIN}/og/logo.png"
+_PUBLISHER_LOGO = f"{SITE_ORIGIN}/og/logo.png"
 
 
-def blog_index_html() -> str:
-    posts = _load_blog_posts()
-    cards = ""
-    for slug, post in posts.items():
-        cards += (
-            f'<a class="post-card" href="{SITE_ORIGIN}/blog/{slug}">'
-            f'<h2>{html.escape(post["title"])}</h2>'
-            f'<p class="muted">{html.escape(post.get("date", ""))}</p>'
-            f'<p>{html.escape(post.get("description", ""))}</p>'
-            f'<span class="read">Czytaj →</span></a>'
-        )
-    item_list = json.dumps(
-        {
-            "@context": "https://schema.org",
-            "@type": "ItemList",
-            "itemListElement": [
+def _fmt_iso(dt: datetime | None) -> str:
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def blog_index_html(db: Session | None = None) -> str:
+    from app.core.articles import list_published_articles
+    from app.core.database import SessionLocal
+
+    close = False
+    if db is None:
+        db = SessionLocal()
+        close = True
+    try:
+        arts = list_published_articles(db, limit=100)
+        if not arts:
+            # Legacy JSON fallback
+            posts = _load_blog_posts()
+            cards = ""
+            for slug, post in posts.items():
+                cards += (
+                    f'<a class="post-card" href="{SITE_ORIGIN}/blog/{slug}">'
+                    f'<h2>{html.escape(post["title"])}</h2>'
+                    f'<p class="muted">{html.escape(post.get("date", ""))}</p>'
+                    f'<p>{html.escape(post.get("description", ""))}</p>'
+                    f'<span class="read">Czytaj →</span></a>'
+                )
+            item_list = json.dumps(
                 {
-                    "@type": "ListItem",
-                    "position": i + 1,
-                    "url": f"{SITE_ORIGIN}/blog/{slug}",
-                    "name": post["title"],
-                }
-                for i, (slug, post) in enumerate(posts.items())
-            ],
-        },
-        ensure_ascii=False,
-    )
-    return f"""<!DOCTYPE html>
+                    "@context": "https://schema.org",
+                    "@type": "ItemList",
+                    "itemListElement": [
+                        {
+                            "@type": "ListItem",
+                            "position": i + 1,
+                            "url": f"{SITE_ORIGIN}/blog/{slug}",
+                            "name": post["title"],
+                        }
+                        for i, (slug, post) in enumerate(posts.items())
+                    ],
+                },
+                ensure_ascii=False,
+            )
+        else:
+            cards = ""
+            for art in arts:
+                date_s = (
+                    (art.date_published or art.date_created).strftime("%Y-%m-%d")
+                    if (art.date_published or art.date_created)
+                    else ""
+                )
+                excerpt = art.excerpt or art.lead or art.seo_description or ""
+                cards += (
+                    f'<a class="post-card" href="{SITE_ORIGIN}/blog/{art.slug}">'
+                    f'<h2>{html.escape(art.title)}</h2>'
+                    f'<p class="muted">{html.escape(date_s)} · {html.escape(art.author or "")}</p>'
+                    f'<p>{html.escape(excerpt)}</p>'
+                    f'<span class="read">Czytaj →</span></a>'
+                )
+            item_list = json.dumps(
+                {
+                    "@context": "https://schema.org",
+                    "@type": "ItemList",
+                    "itemListElement": [
+                        {
+                            "@type": "ListItem",
+                            "position": i + 1,
+                            "url": f"{SITE_ORIGIN}/blog/{art.slug}",
+                            "name": art.title,
+                        }
+                        for i, art in enumerate(arts)
+                    ],
+                },
+                ensure_ascii=False,
+            )
+        return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Blog — poradniki o tanich grach PC | KupujPL Gry</title>
-<meta name="description" content="Poradniki KupujPL: jak kupować gry taniej, Steam vs keyshopy, gdzie kupić klucz Steam i jak działają alerty cenowe.">
-<meta name="robots" content="index, follow">
+<title>Aktualności i poradniki — KupujPL Games</title>
+<meta name="description" content="Aktualności o promocjach na gry PC, darmowe gry i poradniki KupujPL Games.">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="{SITE_ORIGIN}/blog">
+<link rel="alternate" type="application/rss+xml" title="KupujPL RSS" href="{SITE_ORIGIN}/blog/feed.xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Blog — poradniki o tanich grach PC | KupujPL Gry">
-<meta property="og:description" content="Poradniki KupujPL: jak kupować gry taniej i bezpieczniej.">
+<meta property="og:title" content="Aktualności i poradniki — KupujPL Games">
+<meta property="og:description" content="Promocje, darmowe gry i poradniki KupujPL.">
 <meta property="og:image" content="{_BLOG_OG_IMAGE}">
 <meta property="og:url" content="{SITE_ORIGIN}/blog">
 <style>{_base_styles()}{_blog_styles()}</style>
 <script type="application/ld+json">{item_list}</script></head>
 <body>
-<nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Gry</a> · <span>Blog</span></nav>
-<h1>Blog KupujPL</h1>
-<p class="muted">Poradniki o tańszym i bezpiecznym kupowaniu gier PC.</p>
+<nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Games</a> · <span>Aktualności</span></nav>
+<h1>Aktualności i poradniki</h1>
+<p class="muted">Promocje, darmowe gry i poradniki o tańszym kupowaniu gier PC.</p>
 <div class="post-list">{cards}</div>
 <p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Przejdź do porównywarki</a></p>
 </body></html>"""
+    finally:
+        if close:
+            db.close()
 
 
-def blog_landing_html(slug: str) -> str | None:
-    posts = _load_blog_posts()
-    post = posts.get(slug)
-    if not post:
-        return None
-    page_url = f"{SITE_ORIGIN}/blog/{slug}"
-    date = post.get("date", "")
-    related = ""
-    others = [(s, p) for s, p in posts.items() if s != slug][:3]
-    if others:
-        links = "".join(
-            f'<li><a href="{SITE_ORIGIN}/blog/{s}">{html.escape(p["title"])}</a></li>'
-            for s, p in others
-        )
-        related = f'<h2>Zobacz też</h2><ul class="related">{links}</ul>'
+def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = False) -> str | None:
+    from app.core.articles import get_article_by_slug, list_published_articles
+    from app.core.database import SessionLocal
+    from app.core.price_history import lowest_ever_label_pl
+    from app.models.models import Offer
 
-    article_ld = json.dumps(
-        {
-            "@context": "https://schema.org",
-            "@type": "Article",
-            "headline": post["title"],
-            "description": post.get("description", ""),
-            "datePublished": date,
-            "dateModified": date,
-            "image": _BLOG_OG_IMAGE,
-            "author": {"@type": "Organization", "name": "KupujPL Gry"},
-            "publisher": {"@type": "Organization", "name": "KupujPL Gry"},
-            "mainEntityOfPage": page_url,
-        },
-        ensure_ascii=False,
-    )
-    breadcrumb_ld = json.dumps(
-        {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "KupujPL Gry", "item": SITE_ORIGIN + "/"},
-                {"@type": "ListItem", "position": 2, "name": "Blog", "item": SITE_ORIGIN + "/blog"},
-                {"@type": "ListItem", "position": 3, "name": post["title"], "item": page_url},
-            ],
-        },
-        ensure_ascii=False,
-    )
-    return f"""<!DOCTYPE html>
+    close = False
+    if db is None:
+        db = SessionLocal()
+        close = True
+    try:
+        art = get_article_by_slug(db, slug, allow_unpublished=preview)
+        if not art:
+            # Legacy JSON
+            posts = _load_blog_posts()
+            post = posts.get(slug)
+            if not post:
+                return None
+            page_url = f"{SITE_ORIGIN}/blog/{slug}"
+            date = post.get("date", "")
+            article_ld = json.dumps(
+                {
+                    "@context": "https://schema.org",
+                    "@type": "Article",
+                    "headline": post["title"],
+                    "description": post.get("description", ""),
+                    "datePublished": date,
+                    "dateModified": date,
+                    "image": _BLOG_OG_IMAGE,
+                    "author": {"@type": "Organization", "name": "Redakcja KupujPL Games"},
+                    "publisher": {
+                        "@type": "Organization",
+                        "name": "KupujPL Games",
+                        "logo": {"@type": "ImageObject", "url": _PUBLISHER_LOGO},
+                    },
+                    "mainEntityOfPage": page_url,
+                },
+                ensure_ascii=False,
+            )
+            return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{html.escape(post["title"])} | KupujPL Blog</title>
+<title>{html.escape(post["title"])} | KupujPL</title>
 <meta name="description" content="{html.escape(post.get("description", ""))}">
-<meta name="robots" content="index, follow">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="{html.escape(page_url)}">
 <meta property="og:type" content="article">
 <meta property="og:title" content="{html.escape(post["title"])}">
@@ -1758,16 +1944,191 @@ def blog_landing_html(slug: str) -> str | None:
 <meta property="og:url" content="{html.escape(page_url)}">
 <meta property="article:published_time" content="{html.escape(date)}">
 <style>{_base_styles()}{_blog_styles()}</style>
-<script type="application/ld+json">{article_ld}</script>
-<script type="application/ld+json">{breadcrumb_ld}</script></head>
+<script type="application/ld+json">{article_ld}</script></head>
 <body>
-<nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Gry</a> · <a href="{SITE_ORIGIN}/blog">Blog</a> · <span>{html.escape(post["title"])}</span></nav>
+<nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Games</a> · <a href="{SITE_ORIGIN}/blog">Aktualności</a> · <span>{html.escape(post["title"])}</span></nav>
 <article><h1>{html.escape(post["title"])}</h1>
-<p class="muted">{html.escape(date)}</p>
+<p class="muted">Redakcja KupujPL Games · {html.escape(date)}</p>
 {post.get("body_html", "")}</article>
-{related}
-<p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Porównaj ceny gier</a> · <a href="{SITE_ORIGIN}/blog">← Wszystkie artykuły</a></p>
+<p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Sprawdź aktualne ceny w KupujPL Games</a></p>
 </body></html>"""
+
+        page_url = art.canonical_url or f"{SITE_ORIGIN}/blog/{art.slug}"
+        is_indexable = art.status == "published" and not preview
+        robots = (
+            "index, follow, max-image-preview:large"
+            if is_indexable
+            else "noindex, follow"
+        )
+        title = art.seo_title or art.title
+        desc = art.seo_description or art.excerpt or art.lead or ""
+        og_title = art.og_title or title
+        og_desc = art.og_description or desc
+        og_image = art.og_image or art.featured_image or _BLOG_OG_IMAGE
+        pub = art.date_published or art.date_created
+        mod = art.date_modified or pub
+        pub_iso = _fmt_iso(pub)
+        mod_iso = _fmt_iso(mod)
+        author = art.author or "Redakcja KupujPL Games"
+
+        hero = ""
+        if art.featured_image:
+            w = art.featured_image_width or ""
+            h = art.featured_image_height or ""
+            wh = f' width="{w}" height="{h}"' if w and h else ""
+            alt = html.escape(art.featured_image_alt or art.title)
+            # LCP: no lazy on featured
+            hero = (
+                f'<figure class="article-hero">'
+                f'<img src="{html.escape(art.featured_image)}" alt="{alt}"{wh} '
+                f'fetchpriority="high" decoding="async">'
+                f"</figure>"
+            )
+
+        game_block = ""
+        if art.game_id and art.game:
+            g = art.game
+            best = (
+                db.query(Offer)
+                .filter(Offer.game_id == g.id, Offer.in_stock.is_(True), Offer.price_pln > 0)
+                .order_by(Offer.price_pln.asc())
+                .first()
+            )
+            cur = art.price_current if art.price_current is not None else (
+                best.price_pln if best else None
+            )
+            label = lowest_ever_label_pl(g, cur) if cur is not None else None
+            # Prefer careful wording when we cannot prove market-wide historical min
+            low_txt = ""
+            if label:
+                low_txt = f"<li>Najniższa cena zarejestrowana przez KupujPL: <strong>{html.escape(label)}</strong></li>"
+            elif g.lowest_ever_pln is not None:
+                low_txt = (
+                    f"<li>Jedna z najniższych cen w bazie KupujPL: "
+                    f"<strong>{g.lowest_ever_pln:.2f} zł</strong></li>"
+                )
+            disc = ""
+            if art.discount_percent:
+                disc = f"<li>Rabat (vs wyższa oferta w skanie): <strong>−{art.discount_percent}%</strong></li>"
+            shop = html.escape(art.shop_name or (best.shop_name if best else "—"))
+            price_s = f"{cur:.2f} zł" if cur is not None else "—"
+            game_block = f"""
+<aside class="article-game">
+  <h2>Aktualna cena: {html.escape(g.title)}</h2>
+  <ul>
+    <li>Aktualna cena: <strong>{price_s}</strong></li>
+    {low_txt}
+    {disc}
+    <li>Sklep: <strong>{shop}</strong></li>
+  </ul>
+  <a class="cta" href="{SITE_ORIGIN}/gra/{html.escape(g.slug)}">Porównaj ceny</a>
+</aside>"""
+
+        related_arts = [a for a in list_published_articles(db, limit=6) if a.slug != art.slug][:3]
+        related = ""
+        if related_arts:
+            links = "".join(
+                f'<li><a href="{SITE_ORIGIN}/blog/{a.slug}">{html.escape(a.title)}</a></li>'
+                for a in related_arts
+            )
+            related = f'<h2>Powiązane artykuły</h2><ul class="related">{links}</ul>'
+
+        schema_type = "NewsArticle" if art.article_type in (
+            "deal", "free_game", "news", "price_drop", "release"
+        ) else "Article"
+        image_ld: str | list = og_image
+        if art.featured_image_width and art.featured_image_height and art.featured_image:
+            image_ld = {
+                "@type": "ImageObject",
+                "url": art.featured_image,
+                "width": art.featured_image_width,
+                "height": art.featured_image_height,
+            }
+        article_ld = json.dumps(
+            {
+                "@context": "https://schema.org",
+                "@type": schema_type,
+                "headline": art.title,
+                "description": desc,
+                "image": image_ld,
+                "datePublished": pub_iso,
+                "dateModified": mod_iso,
+                "author": {"@type": "Organization", "name": author},
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "KupujPL Games",
+                    "logo": {"@type": "ImageObject", "url": _PUBLISHER_LOGO},
+                },
+                "mainEntityOfPage": {"@type": "WebPage", "@id": page_url},
+            },
+            ensure_ascii=False,
+        )
+        breadcrumb_ld = json.dumps(
+            {
+                "@context": "https://schema.org",
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {"@type": "ListItem", "position": 1, "name": "KupujPL Games", "item": SITE_ORIGIN + "/"},
+                    {"@type": "ListItem", "position": 2, "name": "Aktualności", "item": SITE_ORIGIN + "/blog"},
+                    {"@type": "ListItem", "position": 3, "name": art.title, "item": page_url},
+                ],
+            },
+            ensure_ascii=False,
+        )
+        org_ld = json.dumps(
+            {
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "name": "KupujPL Games",
+                "url": SITE_ORIGIN + "/",
+                "logo": _PUBLISHER_LOGO,
+            },
+            ensure_ascii=False,
+        )
+        og_wh = ""
+        if art.featured_image_width and art.featured_image_height:
+            og_wh = (
+                f'<meta property="og:image:width" content="{art.featured_image_width}">\n'
+                f'<meta property="og:image:height" content="{art.featured_image_height}">'
+            )
+        lead_html = f"<p class=\"lead\">{html.escape(art.lead)}</p>" if art.lead else ""
+        date_label = pub.strftime("%Y-%m-%d") if pub else ""
+
+        return f"""<!DOCTYPE html>
+<html lang="pl"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{html.escape(title)} | KupujPL Games</title>
+<meta name="description" content="{html.escape(desc)}">
+<meta name="robots" content="{robots}">
+<link rel="canonical" href="{html.escape(page_url)}">
+<meta property="og:type" content="article">
+<meta property="og:title" content="{html.escape(og_title)}">
+<meta property="og:description" content="{html.escape(og_desc)}">
+<meta property="og:url" content="{html.escape(page_url)}">
+<meta property="og:image" content="{html.escape(og_image)}">
+{og_wh}
+<meta property="article:published_time" content="{html.escape(pub_iso)}">
+<meta property="article:modified_time" content="{html.escape(mod_iso)}">
+<style>{_base_styles()}{_blog_styles()}</style>
+<script type="application/ld+json">{article_ld}</script>
+<script type="application/ld+json">{breadcrumb_ld}</script>
+<script type="application/ld+json">{org_ld}</script></head>
+<body>
+<nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Games</a> · <a href="{SITE_ORIGIN}/blog">Aktualności</a> · <span>{html.escape(art.title)}</span></nav>
+<article>
+<h1>{html.escape(art.title)}</h1>
+{lead_html}
+{hero}
+<p class="muted"><a href="{SITE_ORIGIN}/redakcja">{html.escape(author)}</a> · {html.escape(date_label)}</p>
+{art.content or ""}
+</article>
+{game_block}
+{related}
+<p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Sprawdź aktualne ceny w KupujPL Games</a> · <a href="{SITE_ORIGIN}/blog">← Wszystkie artykuły</a></p>
+</body></html>"""
+    finally:
+        if close:
+            db.close()
 
 
 def _blog_styles() -> str:
@@ -1782,6 +2143,11 @@ def _blog_styles() -> str:
     .related{padding-left:18px}
     .related a{color:#2563eb}
     article h2{margin-top:22px}
+    .lead{font-size:1.15rem;line-height:1.45;color:#333}
+    .article-hero{margin:16px 0}
+    .article-hero img{width:100%;max-width:960px;height:auto;border-radius:8px;display:block}
+    .article-game{margin:24px 0;padding:16px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa}
+    .article-game ul{padding-left:18px}
     """
 
 

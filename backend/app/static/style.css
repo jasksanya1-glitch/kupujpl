@@ -5586,3 +5586,24 @@ body.game-page-body.layout-split {
 .cp-btn-ghost{background:transparent;color:var(--cp-yellow);border:3px solid var(--cp-yellow);}
 .cp-btn-ghost:hover{background:var(--cp-yellow);color:var(--cp-black);}
 
+
+/* Home news / Discover teasers */
+.home-news { margin: 28px 0 12px; }
+.home-news-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.home-news-head h2 { margin: 0; font-size: 1.25rem; }
+.home-news-all { color: var(--brand, #2563eb); text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+.home-news-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.home-news-card { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; text-decoration: none; color: inherit; background: rgba(0,0,0,0.15); }
+.home-news-card-type { font-size: 11px; text-transform: uppercase; opacity: 0.7; letter-spacing: 0.04em; }
+.home-news-card-date { font-size: 12px; opacity: 0.65; }
+.home-news-card-ex { font-size: 13px; opacity: 0.85; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+.push-soft-consent { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 80; max-width: 420px; margin: 0 auto; padding: 16px; border-radius: 12px; background: #111; color: #f5f5f5; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.push-soft-title { margin: 0 0 6px; font-weight: 600; }
+.push-soft-topics { margin: 0 0 12px; font-size: 13px; opacity: 0.8; }
+.push-soft-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.panel3-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.panel3-table th, .panel3-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; vertical-align: top; }
+.panel3-btn--sm { padding: 4px 8px; font-size: 12px; }
+.panel3-row-actions { white-space: nowrap; }

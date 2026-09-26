@@ -105,9 +105,37 @@ def _ensure_games_platform() -> None:
     logger.info("Added games.platform column")
 
 
+def _ensure_articles_imported() -> None:
+    """Create articles tables (via metadata) and import legacy blog JSON once."""
+    from app.core.database import SessionLocal
+    from app.core.articles import import_legacy_blog_posts
+    from app.models.models import Article
+
+    insp = inspect(engine)
+    if not insp.has_table("articles"):
+        # create_all already ran in init_db before this; if missing, create now
+        from app.models.models import Base
+
+        Base.metadata.create_all(bind=engine, tables=[Article.__table__])
+        try:
+            from app.models.models import DiscoverCandidate
+
+            Base.metadata.create_all(bind=engine, tables=[DiscoverCandidate.__table__])
+        except Exception:
+            pass
+    db = SessionLocal()
+    try:
+        import_legacy_blog_posts(db)
+    except Exception as exc:
+        logger.warning("Legacy blog import failed: %s", exc)
+    finally:
+        db.close()
+
+
 def ensure_sqlite_schema() -> None:
     _ensure_offers_activation_region()
     _ensure_games_platform()
+    _ensure_articles_imported()
     if engine.dialect.name != "sqlite":
         return
     insp = inspect(engine)

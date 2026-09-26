@@ -780,6 +780,127 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
 Імпорт Steam: ${JSON.stringify(s.steam_import || {}, null, 2) || '—'}</div>`;
     }
 
+    async function loadDiscoverCandidates() {
+        const body = document.getElementById('discover-candidates-body');
+        if (!body) return;
+        const reason = document.getElementById('discover-filter-reason')?.value || '';
+        const q = new URLSearchParams({ status: 'open', limit: '80' });
+        if (reason) q.set('reason', reason);
+        try {
+            const res = await fetch(`api/admin/discover/candidates?${q}`, { credentials: 'same-origin' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const items = data.items || [];
+            if (!items.length) {
+                body.innerHTML = '<tr><td colspan="9" class="panel3-muted">Немає відкритих кандидатів</td></tr>';
+                return;
+            }
+            body.innerHTML = items.map((it) => {
+                const gameLink = it.game_slug
+                    ? `<a href="../gra/${encodeURIComponent(it.game_slug)}" target="_blank" rel="noopener">${esc(it.game_title || it.game_slug)}</a>`
+                    : esc(it.game_title || String(it.game_id));
+                return `<tr>
+                    <td>${gameLink}</td>
+                    <td>${it.price_current != null ? Number(it.price_current).toFixed(2) : '—'}</td>
+                    <td>${it.price_previous != null ? Number(it.price_previous).toFixed(2) : '—'}</td>
+                    <td>${it.discount_percent != null ? '−' + it.discount_percent + '%' : '—'}</td>
+                    <td>${esc(it.shop_name || '—')}</td>
+                    <td>${esc(it.reason)}</td>
+                    <td><strong>${it.score}</strong></td>
+                    <td>${esc((it.detected_at || '').slice(0, 16))}</td>
+                    <td class="panel3-row-actions">
+                        <button type="button" class="panel3-btn panel3-btn--sm" data-draft="${it.id}">Draft</button>
+                        <button type="button" class="panel3-btn panel3-btn--sm panel3-btn--danger" data-ignore="${it.id}">Ignore</button>
+                    </td>
+                </tr>`;
+            }).join('');
+            body.querySelectorAll('[data-draft]').forEach((btn) => {
+                btn.addEventListener('click', () => discoverDraft(Number(btn.getAttribute('data-draft'))));
+            });
+            body.querySelectorAll('[data-ignore]').forEach((btn) => {
+                btn.addEventListener('click', () => discoverIgnore(Number(btn.getAttribute('data-ignore'))));
+            });
+        } catch (err) {
+            body.innerHTML = `<tr><td colspan="9">Помилка: ${esc(err.message)}</td></tr>`;
+        }
+    }
+
+    function esc(s) {
+        return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    async function discoverDraft(id) {
+        const res = await fetch(`api/admin/discover/candidates/${id}/draft`, {
+            method: 'POST',
+            credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            alert(data.detail || 'Draft failed');
+            return;
+        }
+        const warn = data.article?.image_warn_under_1200
+            ? '\n⚠ Featured image < 1200px (Discover warning)'
+            : '';
+        alert(`Draft: ${data.article?.title || ''}\n${data.article?.preview_url || ''}${warn}`);
+        loadDiscoverCandidates();
+        loadDiscoverArticles();
+    }
+
+    async function discoverIgnore(id) {
+        await fetch(`api/admin/discover/candidates/${id}/ignore`, {
+            method: 'POST',
+            credentials: 'same-origin',
+        });
+        loadDiscoverCandidates();
+    }
+
+    async function loadDiscoverArticles() {
+        const el = document.getElementById('discover-articles-list');
+        if (!el) return;
+        try {
+            const res = await fetch('api/admin/articles?limit=30', { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const data = await res.json();
+            el.innerHTML = (data.items || []).map((a) => {
+                const warn = a.image_warn_under_1200 ? ' ⚠&lt;1200px' : '';
+                const pubBtn = a.status !== 'published'
+                    ? ` <button type="button" class="panel3-btn panel3-btn--sm" data-pub="${a.id}">Publish</button>`
+                    : '';
+                return `<li><strong>${esc(a.status)}</strong> · <a href="../blog/${encodeURIComponent(a.slug)}${a.status === 'published' ? '' : '?preview=1'}" target="_blank">${esc(a.title)}</a>${warn}${pubBtn}</li>`;
+            }).join('') || '<li class="panel3-muted">Порожньо</li>';
+            el.querySelectorAll('[data-pub]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const id = Number(btn.getAttribute('data-pub'));
+                    await fetch(`api/admin/articles/${id}/publish`, { method: 'POST', credentials: 'same-origin' });
+                    loadDiscoverArticles();
+                });
+            });
+        } catch (_) { /* ignore */ }
+    }
+
+    function bindDiscover() {
+        document.getElementById('btn-discover-scan')?.addEventListener('click', async () => {
+            const btn = document.getElementById('btn-discover-scan');
+            if (btn) btn.disabled = true;
+            try {
+                const res = await fetch('api/admin/discover/scan', { method: 'POST', credentials: 'same-origin' });
+                const data = await res.json();
+                alert(`Scan: created=${data.created || 0} updated=${data.updated || 0} skipped=${data.skipped || 0}`);
+                await loadDiscoverCandidates();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        });
+        document.getElementById('discover-filter-reason')?.addEventListener('change', () => loadDiscoverCandidates());
+    }
+
     async function loadStats() {
         const res = await fetch('api/admin/stats', { credentials: 'same-origin' });
         if (res.status === 401) {
@@ -799,6 +920,8 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
         await loadScanControls();
         const sched = { ...(data.scheduler || {}), steam_import: data.catalog?.steam_import };
         renderScheduler(sched);
+        loadDiscoverCandidates().catch(() => {});
+        loadDiscoverArticles().catch(() => {});
     }
 
     async function boot() {
@@ -810,6 +933,7 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
         });
         // #endregion
         bindStopButtons();
+        bindDiscover();
         await loadStats();
         pollEvents().catch(() => {});
         pollTierA().catch(() => {});

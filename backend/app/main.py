@@ -92,6 +92,8 @@ from app.core.seo_pages import (
     sitemap_categories_xml,
     sitemap_deals_xml,
     sitemap_blog_xml,
+    sitemap_news_xml,
+    blog_rss_xml,
     game_landing_html,  # kept for legacy SEO helpers
     category_landing_html,
     deals_landing_html,
@@ -1016,6 +1018,11 @@ def about_page():
     return _static_page("o-nas.html")
 
 
+@app.get("/redakcja")
+def redakcja_page():
+    return _static_page("redakcja.html")
+
+
 @app.get("/kontakt")
 def contact_page():
     return _static_page("kontakt.html")
@@ -1100,8 +1107,18 @@ def sitemap_deals(db: Session = Depends(get_db)):
 
 
 @app.get("/sitemap-blog.xml", response_class=Response)
-def sitemap_blog():
-    return Response(content=sitemap_blog_xml(), media_type="application/xml; charset=utf-8")
+def sitemap_blog(db: Session = Depends(get_db)):
+    return Response(content=sitemap_blog_xml(db), media_type="application/xml; charset=utf-8")
+
+
+@app.get("/sitemap-news.xml", response_class=Response)
+def sitemap_news(db: Session = Depends(get_db)):
+    return Response(content=sitemap_news_xml(db), media_type="application/xml; charset=utf-8")
+
+
+@app.get("/blog/feed.xml", response_class=Response)
+def blog_feed(db: Session = Depends(get_db)):
+    return Response(content=blog_rss_xml(db), media_type="application/rss+xml; charset=utf-8")
 
 
 def _game_landing_context(db: Session, game: Game) -> dict:
@@ -1437,16 +1454,58 @@ def api_free_giveaways(
 
 
 @app.get("/blog", response_class=HTMLResponse)
-def blog_index():
-    return HTMLResponse(blog_index_html())
+def blog_index(db: Session = Depends(get_db)):
+    return HTMLResponse(blog_index_html(db))
 
 
 @app.get("/blog/{slug}", response_class=HTMLResponse)
-def blog_post(slug: str):
-    html = blog_landing_html(slug)
+def blog_post(slug: str, db: Session = Depends(get_db), preview: int = 0):
+    html = blog_landing_html(slug, db, preview=bool(preview))
     if not html:
         raise HTTPException(status_code=404, detail="Artykuł nie znaleziony")
     return HTMLResponse(html)
+
+
+@app.get("/api/articles/latest")
+def api_articles_latest(db: Session = Depends(get_db), limit: int = 6):
+    from app.core.articles import list_published_articles
+
+    limit = max(1, min(limit, 20))
+    arts = list_published_articles(db, limit=limit)
+    return {
+        "ok": True,
+        "items": [
+            {
+                "slug": a.slug,
+                "title": a.title,
+                "excerpt": a.excerpt or a.lead or "",
+                "date": (a.date_published or a.date_created).strftime("%Y-%m-%d")
+                if (a.date_published or a.date_created)
+                else None,
+                "url": f"/games/blog/{a.slug}",
+                "article_type": a.article_type,
+            }
+            for a in arts
+        ],
+    }
+
+
+@app.get("/api/articles/for-game/{game_id}")
+def api_articles_for_game(game_id: int, db: Session = Depends(get_db), limit: int = 5):
+    from app.core.articles import articles_for_game
+
+    arts = articles_for_game(db, game_id, limit=max(1, min(limit, 10)))
+    return {
+        "ok": True,
+        "items": [
+            {
+                "slug": a.slug,
+                "title": a.title,
+                "url": f"/games/blog/{a.slug}",
+            }
+            for a in arts
+        ],
+    }
 
 
 def _freebies_page_html(db: Session) -> str:
@@ -1833,6 +1892,135 @@ def admin_tier_a_status(request: Request):
     out = get_tier_a_status()
     _cache_set(_ADMIN_GET_CACHE, "tier-a-status", out)
     return out
+
+
+@app.get("/api/admin/discover/candidates")
+def admin_discover_candidates(
+    request: Request,
+    db: Session = Depends(get_db),
+    status: str = "open",
+    reason: str | None = None,
+    limit: int = 100,
+):
+    require_panel3_admin(request)
+    from app.core.discover_candidates import list_candidates
+    from app.models.models import Game
+
+    rows = list_candidates(db, status=status or None, reason=reason, limit=min(limit, 200))
+    items = []
+    for r in rows:
+        game = db.query(Game).filter(Game.id == r.game_id).first()
+        items.append(
+            {
+                "id": r.id,
+                "game_id": r.game_id,
+                "game_title": game.title if game else None,
+                "game_slug": game.slug if game else None,
+                "reason": r.reason,
+                "score": r.score,
+                "shop_name": r.shop_name,
+                "price_current": r.price_current,
+                "price_previous": r.price_previous,
+                "discount_percent": r.discount_percent,
+                "valid_until": r.valid_until.isoformat() if r.valid_until else None,
+                "status": r.status,
+                "detected_at": r.detected_at.isoformat() if r.detected_at else None,
+                "article_id": r.article_id,
+                "image_warn": False,
+            }
+        )
+    return {"ok": True, "items": items}
+
+
+@app.post("/api/admin/discover/scan")
+def admin_discover_scan(request: Request, db: Session = Depends(get_db)):
+    require_panel3_admin(request)
+    from app.core.discover_candidates import scan_deal_candidates
+
+    stats = scan_deal_candidates(db)
+    return {"ok": True, **stats}
+
+
+@app.post("/api/admin/discover/candidates/{cand_id}/ignore")
+def admin_discover_ignore(cand_id: int, request: Request, db: Session = Depends(get_db)):
+    require_panel3_admin(request)
+    from app.core.discover_candidates import ignore_candidate
+
+    row = ignore_candidate(db, cand_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return {"ok": True, "id": row.id, "status": row.status}
+
+
+@app.post("/api/admin/discover/candidates/{cand_id}/draft")
+def admin_discover_draft(cand_id: int, request: Request, db: Session = Depends(get_db)):
+    require_panel3_admin(request)
+    from app.core.article_images import apply_image_probe_to_article, probe_image_dimensions
+    from app.core.discover_candidates import draft_from_candidate
+
+    art = draft_from_candidate(db, cand_id)
+    if not art:
+        raise HTTPException(status_code=404, detail="Candidate not found or ignored")
+    if art.featured_image:
+        probe = probe_image_dimensions(art.featured_image)
+        apply_image_probe_to_article(art, probe)
+        db.commit()
+        db.refresh(art)
+    return {
+        "ok": True,
+        "article": {
+            "id": art.id,
+            "slug": art.slug,
+            "title": art.title,
+            "status": art.status,
+            "preview_url": f"/games/blog/{art.slug}?preview=1",
+            "image_warn_under_1200": bool(art.image_warn_under_1200),
+        },
+    }
+
+
+@app.post("/api/admin/articles/{article_id}/publish")
+def admin_article_publish(article_id: int, request: Request, db: Session = Depends(get_db)):
+    require_panel3_admin(request)
+    from app.core.articles import publish_article
+    from app.models.models import Article
+
+    art = db.query(Article).filter(Article.id == article_id).first()
+    if not art:
+        raise HTTPException(status_code=404, detail="Article not found")
+    publish_article(db, art)
+    return {"ok": True, "slug": art.slug, "status": art.status, "url": f"/games/blog/{art.slug}"}
+
+
+@app.get("/api/admin/articles")
+def admin_articles_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    status: str | None = None,
+    limit: int = 50,
+):
+    require_panel3_admin(request)
+    from app.models.models import Article
+
+    q = db.query(Article).order_by(Article.date_modified.desc())
+    if status:
+        q = q.filter(Article.status == status)
+    arts = q.limit(min(limit, 200)).all()
+    return {
+        "ok": True,
+        "items": [
+            {
+                "id": a.id,
+                "slug": a.slug,
+                "title": a.title,
+                "status": a.status,
+                "article_type": a.article_type,
+                "image_warn_under_1200": bool(a.image_warn_under_1200),
+                "date_published": a.date_published.isoformat() if a.date_published else None,
+            }
+            for a in arts
+        ],
+    }
 
 
 @app.post("/api/admin/tier-a/laptop-state")
@@ -2366,6 +2554,21 @@ def update_account_alerts(
 def push_vapid_public_key():
     key = get_vapid_public_key()
     return VapidPublicKeyResponse(configured=vapid_configured(), public_key=key)
+
+
+@app.get("/api/push/soft-consent-config")
+def push_soft_consent_config():
+    from app.core.push_soft_consent import soft_consent_config
+
+    return {"ok": True, **soft_consent_config()}
+
+
+@app.get("/api/admin/search-console-status")
+def admin_search_console_status(request: Request):
+    require_panel3_admin(request)
+    from app.core.search_console_hooks import search_console_integration_status
+
+    return {"ok": True, **search_console_integration_status()}
 
 
 @app.get("/api/push/status", response_model=PushStatusResponse)

@@ -469,6 +469,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentPage < totalPages) fetchGames(currentPage + 1, true);
     });
 
+    async function loadHomeNews() {
+        const host = document.getElementById('home-news');
+        const list = document.getElementById('home-news-list');
+        if (!host || !list) return;
+        try {
+            const res = await fetch(api('articles/latest?limit=6'));
+            if (!res.ok) return;
+            const data = await res.json();
+            const items = data.items || [];
+            if (!items.length) {
+                host.hidden = true;
+                list.innerHTML = '';
+                return;
+            }
+            host.hidden = false;
+            list.innerHTML = items.map((it) => `
+                <a class="home-news-card" href="${escapeHtml(it.url || ('blog/' + it.slug))}">
+                    <span class="home-news-card-type">${escapeHtml(it.article_type || 'news')}</span>
+                    <strong>${escapeHtml(it.title)}</strong>
+                    <span class="home-news-card-date">${escapeHtml(it.date || '')}</span>
+                    <span class="home-news-card-ex">${escapeHtml(it.excerpt || '')}</span>
+                </a>
+            `).join('');
+        } catch (e) {
+            console.warn('home news', e);
+        }
+    }
+
     async function loadHomeSections() {
         try {
             const res = await fetch(api(withRegion('home')));
@@ -478,6 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try { renderDealFeeds(data); } catch (e) { console.warn(e); }
             try { renderHomeSections(data.sections || []); } catch (e) { console.warn(e); }
             try { loadWishlistDeals(); } catch (e) { console.warn(e); }
+            try { loadHomeNews(); } catch (e) { console.warn(e); }
             trackPageView('/view/home');
         } catch (e) {
             console.warn('home sections', e);

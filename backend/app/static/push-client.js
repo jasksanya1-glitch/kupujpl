@@ -108,11 +108,55 @@
         return { ok: true };
     }
 
+    function showSoftConsentBanner() {
+        try {
+            if (localStorage.getItem('kupujpl-push-soft-consent') === 'dismissed') return;
+            if (localStorage.getItem('kupujpl-push-soft-consent') === 'enabled') return;
+            if (!pushSupported()) return;
+            if (Notification.permission === 'granted' || Notification.permission === 'denied') return;
+        } catch (_) {
+            return;
+        }
+        if (document.getElementById('kupujpl-push-soft')) return;
+        const el = document.createElement('div');
+        el.id = 'kupujpl-push-soft';
+        el.className = 'push-soft-consent';
+        el.innerHTML = `
+            <p class="push-soft-title">Chcesz otrzymywać informacje o darmowych grach i dużych promocjach?</p>
+            <p class="push-soft-topics">Darmowe gry · Promocje 70%+ · Wishlist</p>
+            <div class="push-soft-actions">
+                <button type="button" class="btn" id="push-soft-yes">Włącz powiadomienia</button>
+                <button type="button" class="btn btn-outline" id="push-soft-no">Nie teraz</button>
+            </div>`;
+        document.body.appendChild(el);
+        document.getElementById('push-soft-no')?.addEventListener('click', () => {
+            try { localStorage.setItem('kupujpl-push-soft-consent', 'dismissed'); } catch (_) {}
+            el.remove();
+        });
+        document.getElementById('push-soft-yes')?.addEventListener('click', async () => {
+            try {
+                localStorage.setItem('kupujpl-push-soft-consent', 'enabled');
+                await subscribeWebPush();
+            } catch (err) {
+                console.warn('push soft consent', err);
+            }
+            el.remove();
+        });
+    }
+
+    // Delay soft prompt — never on first paint / immediate permission spam
+    if (document.readyState === 'complete') {
+        setTimeout(showSoftConsentBanner, 8000);
+    } else {
+        window.addEventListener('load', () => setTimeout(showSoftConsentBanner, 8000));
+    }
+
     window.KupujPLPush = {
         pushSupported,
         getPushStatus,
         subscribeWebPush,
         unsubscribeWebPush,
         registerServiceWorker,
+        showSoftConsentBanner,
     };
 })();

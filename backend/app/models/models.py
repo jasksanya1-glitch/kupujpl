@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Index, Table
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Index, Table, Text
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -248,3 +248,78 @@ class AffiliateClick(Base):
     user_agent = Column(String(480), nullable=True)
     is_suspected_bot = Column(Boolean, default=False, index=True)
     bot_reason = Column(String(64), nullable=True)
+
+
+class Article(Base):
+    """Editorial / deal articles for /games/blog/{slug} (Discover-ready)."""
+
+    __tablename__ = "articles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    slug = Column(String(255), nullable=False, unique=True, index=True)
+    title = Column(String(320), nullable=False)
+    subtitle = Column(String(500), nullable=True)
+    lead = Column(Text, nullable=True)
+    content = Column(Text, nullable=False, default="")
+    excerpt = Column(String(600), nullable=True)
+    status = Column(String(16), nullable=False, default="draft", index=True)
+    # draft | review | published | archived
+    article_type = Column(String(24), nullable=False, default="guide", index=True)
+    # deal | free_game | news | release | price_drop | guide
+    featured_image = Column(String(700), nullable=True)
+    featured_image_alt = Column(String(300), nullable=True)
+    featured_image_width = Column(Integer, nullable=True)
+    featured_image_height = Column(Integer, nullable=True)
+    author = Column(String(120), nullable=False, default="Redakcja KupujPL Games")
+    source_url = Column(String(700), nullable=True)
+    game_id = Column(Integer, ForeignKey("games.id", ondelete="SET NULL"), nullable=True, index=True)
+    shop_name = Column(String(100), nullable=True)
+    price_current = Column(Float, nullable=True)
+    price_previous = Column(Float, nullable=True)
+    discount_percent = Column(Integer, nullable=True)
+    valid_from = Column(DateTime, nullable=True)
+    valid_until = Column(DateTime, nullable=True)
+    date_created = Column(DateTime, default=datetime.utcnow)
+    date_published = Column(DateTime, nullable=True, index=True)
+    date_modified = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_featured = Column(Boolean, default=False)
+    seo_title = Column(String(320), nullable=True)
+    seo_description = Column(String(400), nullable=True)
+    canonical_url = Column(String(700), nullable=True)
+    og_title = Column(String(320), nullable=True)
+    og_description = Column(String(400), nullable=True)
+    og_image = Column(String(700), nullable=True)
+    discover_candidate = Column(Boolean, default=False)
+    image_warn_under_1200 = Column(Boolean, default=False)
+
+    game = relationship("Game")
+
+
+Index("idx_articles_status_published", Article.status, Article.date_published)
+
+
+class DiscoverCandidate(Base):
+    """Deal/news candidates for editors — never auto-published."""
+
+    __tablename__ = "discover_candidates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    fingerprint = Column(String(160), nullable=False, unique=True, index=True)
+    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True)
+    reason = Column(String(64), nullable=False, index=True)
+    # free_game | price_drop_50 | price_drop_70 | new_low | expiring_soon | popular_drop
+    score = Column(Integer, nullable=False, default=0)
+    shop_name = Column(String(100), nullable=True)
+    price_current = Column(Float, nullable=True)
+    price_previous = Column(Float, nullable=True)
+    discount_percent = Column(Integer, nullable=True)
+    valid_until = Column(DateTime, nullable=True)
+    status = Column(String(16), nullable=False, default="open", index=True)
+    # open | drafted | ignored
+    article_id = Column(Integer, ForeignKey("articles.id", ondelete="SET NULL"), nullable=True)
+    detected_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    payload_json = Column(Text, nullable=True)
+
+    game = relationship("Game")
+    article = relationship("Article")
