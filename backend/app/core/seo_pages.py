@@ -19,6 +19,8 @@ from app.core.game_offer_selection import (
     best_offers_map,
     iter_games_with_slugs,
 )
+from app.core.html_sanitize import sanitize_article_html
+from app.core.json_ld_safe import absolute_public_asset_url, ensure_valid_json_ld
 from app.core.site_config import SITE_ORIGIN
 from app.models.models import Offer
 from app.schemas.schemas import GameListResponse, OfferResponse
@@ -1911,7 +1913,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
                 return None
             page_url = f"{SITE_ORIGIN}/blog/{slug}"
             date = post.get("date", "")
-            article_ld = json.dumps(
+            article_ld = ensure_valid_json_ld(
                 {
                     "@context": "https://schema.org",
                     "@type": "Article",
@@ -1927,9 +1929,9 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
                         "logo": {"@type": "ImageObject", "url": _PUBLISHER_LOGO},
                     },
                     "mainEntityOfPage": page_url,
-                },
-                ensure_ascii=False,
+                }
             )
+            safe_body = sanitize_article_html(post.get("body_html", ""))
             return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1949,7 +1951,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
 <nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Games</a> · <a href="{SITE_ORIGIN}/blog">Aktualności</a> · <span>{html.escape(post["title"])}</span></nav>
 <article><h1>{html.escape(post["title"])}</h1>
 <p class="muted">Redakcja KupujPL Games · {html.escape(date)}</p>
-{post.get("body_html", "")}</article>
+{safe_body}</article>
 <p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Sprawdź aktualne ceny w KupujPL Games</a></p>
 </body></html>"""
 
@@ -1964,12 +1966,16 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
         desc = art.seo_description or art.excerpt or art.lead or ""
         og_title = art.og_title or title
         og_desc = art.og_description or desc
-        og_image = art.og_image or art.featured_image or _BLOG_OG_IMAGE
+        og_image = absolute_public_asset_url(
+            art.og_image or art.featured_image,
+            fallback=_BLOG_OG_IMAGE,
+        )
         pub = art.date_published or art.date_created
         mod = art.date_modified or pub
         pub_iso = _fmt_iso(pub)
         mod_iso = _fmt_iso(mod)
         author = art.author or "Redakcja KupujPL Games"
+        safe_content = sanitize_article_html(art.content)
 
         hero = ""
         if art.featured_image:
@@ -1977,10 +1983,11 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
             h = art.featured_image_height or ""
             wh = f' width="{w}" height="{h}"' if w and h else ""
             alt = html.escape(art.featured_image_alt or art.title)
+            hero_src = absolute_public_asset_url(art.featured_image, fallback=_BLOG_OG_IMAGE)
             # LCP: no lazy on featured
             hero = (
                 f'<figure class="article-hero">'
-                f'<img src="{html.escape(art.featured_image)}" alt="{alt}"{wh} '
+                f'<img src="{html.escape(hero_src)}" alt="{alt}"{wh} '
                 f'fetchpriority="high" decoding="async">'
                 f"</figure>"
             )
@@ -2036,15 +2043,17 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
         schema_type = "NewsArticle" if art.article_type in (
             "deal", "free_game", "news", "price_drop", "release"
         ) else "Article"
-        image_ld: str | list = og_image
+        image_ld: str | dict
         if art.featured_image_width and art.featured_image_height and art.featured_image:
             image_ld = {
                 "@type": "ImageObject",
-                "url": art.featured_image,
+                "url": absolute_public_asset_url(art.featured_image, fallback=og_image),
                 "width": art.featured_image_width,
                 "height": art.featured_image_height,
             }
-        article_ld = json.dumps(
+        else:
+            image_ld = og_image
+        article_ld = ensure_valid_json_ld(
             {
                 "@context": "https://schema.org",
                 "@type": schema_type,
@@ -2060,10 +2069,9 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
                     "logo": {"@type": "ImageObject", "url": _PUBLISHER_LOGO},
                 },
                 "mainEntityOfPage": {"@type": "WebPage", "@id": page_url},
-            },
-            ensure_ascii=False,
+            }
         )
-        breadcrumb_ld = json.dumps(
+        breadcrumb_ld = ensure_valid_json_ld(
             {
                 "@context": "https://schema.org",
                 "@type": "BreadcrumbList",
@@ -2072,18 +2080,16 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
                     {"@type": "ListItem", "position": 2, "name": "Aktualności", "item": SITE_ORIGIN + "/blog"},
                     {"@type": "ListItem", "position": 3, "name": art.title, "item": page_url},
                 ],
-            },
-            ensure_ascii=False,
+            }
         )
-        org_ld = json.dumps(
+        org_ld = ensure_valid_json_ld(
             {
                 "@context": "https://schema.org",
                 "@type": "Organization",
                 "name": "KupujPL Games",
                 "url": SITE_ORIGIN + "/",
                 "logo": _PUBLISHER_LOGO,
-            },
-            ensure_ascii=False,
+            }
         )
         og_wh = ""
         if art.featured_image_width and art.featured_image_height:
@@ -2120,7 +2126,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
 {lead_html}
 {hero}
 <p class="muted"><a href="{SITE_ORIGIN}/redakcja">{html.escape(author)}</a> · {html.escape(date_label)}</p>
-{art.content or ""}
+{safe_content}
 </article>
 {game_block}
 {related}

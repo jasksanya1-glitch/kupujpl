@@ -47,13 +47,60 @@ _TRACK_EXACT = frozenset({
     "/layouts",
 })
 
-_BOT_RE = re.compile(r"bot|crawler|spider|slurp|curl/|wget|python-requests", re.I)
+_BOT_RE = re.compile(
+    r"bot|crawler|spider|slurp|curl/|wget|python-requests|"
+    r"googleother|google-extended|google-inspectiontool|apis-google|"
+    r"rootevidence|internetmeasurement|modatscanner|bytespider",
+    re.I,
+)
 _KNOWN_CLIENT_AGENTS = frozenset({"cursor"})
 _HEADLESS_UA_RE = re.compile(r"headless|puppeteer|playwright|selenium", re.I)
+_GOOGLE_CRAWLER_UA_RE = re.compile(
+    r"googleother|googlebot|adsbot-google|storebot-google|"
+    r"google-inspectiontool|google-extended|apis-google|"
+    r"mediapartners-google|feedfetcher-google|"
+    r"nexus 5x.+mmb29p",
+    re.I,
+)
+_SEARCH_REFERRER_HOSTS = frozenset(
+    {
+        "google.com",
+        "www.google.com",
+        "google.pl",
+        "www.google.pl",
+        "bing.com",
+        "www.bing.com",
+        "duckduckgo.com",
+        "www.duckduckgo.com",
+        "search.yahoo.com",
+        "yandex.ru",
+        "yandex.com",
+        "ecosia.org",
+        "www.ecosia.org",
+    }
+)
+_BROWSE_PATH_PREFIXES = (
+    "/",
+    "/view/",
+    "/kategoria/",
+    "/promocje",
+    "/blog",
+    "/gry-",
+    "/darmowe",
+    "/szukaj",
+    "/panel",
+    "/login",
+    "/register",
+)
 _BLOCKED_CRAWLER_RE = re.compile(
     r"semrush|bytespider|ahrefsbot|mj12bot|dotbot|petalbot|"
-    r"meta-externalagent|facebookexternalhit|googlebot|bingbot|"
-    r"seranking|censysinspect|l9explore|python-requests|curl/|wget|go-http-client",
+    r"meta-externalagent|facebookexternalhit|"
+    r"seranking|censysinspect|l9explore|python-requests|curl/|wget|go-http-client|"
+    r"googleother|rootevidence|internetmeasurement|modatscanner",
+    re.I,
+)
+_OG_PREVIEW_RE = re.compile(
+    r"facebookexternalhit|twitterbot|telegrambot|slackbot|discordbot|linkedinbot|whatsapp",
     re.I,
 )
 _BLOCKED_PROBE_PATHS = (
@@ -76,13 +123,14 @@ _BLOCKED_BOT_REASONS = frozenset(
         "mj12bot",
         "dotbot",
         "petalbot",
-        "bingbot",
-        "googlebot",
         "headless_ua",
         "generic_bot_ua",
         "missing_user_agent",
         "missing_accept",
         "non_html_accept",
+        "google_crawler",
+        "probe_ua",
+        "deep_link_no_home",
     }
 )
 _BOT_SIGNATURES: tuple[tuple[str, str], ...] = (
@@ -94,8 +142,16 @@ _BOT_SIGNATURES: tuple[tuple[str, str], ...] = (
     ("mj12bot", "mj12bot"),
     ("dotbot", "dotbot"),
     ("petalbot", "petalbot"),
-    ("bingbot", "bingbot"),
-    ("googlebot", "googlebot"),
+    ("googleother", "google_crawler"),
+    ("googlebot", "google_crawler"),
+    ("adsbot-google", "google_crawler"),
+    ("storebot-google", "google_crawler"),
+    ("google-inspectiontool", "google_crawler"),
+    ("google-extended", "google_crawler"),
+    ("rootevidence", "probe_ua"),
+    ("internetmeasurement", "probe_ua"),
+    ("modatscanner", "probe_ua"),
+    ("wp-safe-scanner", "probe_ua"),
 )
 
 
@@ -362,6 +418,8 @@ def _detect_bot_visit(
     for token, reason in _BOT_SIGNATURES:
         if token in lower_ua:
             return True, reason
+    if _GOOGLE_CRAWLER_UA_RE.search(lower_ua):
+        return True, "google_crawler"
     if _HEADLESS_UA_RE.search(lower_ua):
         return True, "headless_ua"
     if _BOT_RE.search(lower_ua):
@@ -376,6 +434,56 @@ def _detect_bot_visit(
         if not accept_lang and path not in _TRACK_EXACT and not path.startswith("/gra/"):
             return True, "missing_accept_language"
     return False, None
+
+
+def _is_browse_path(path: str | None) -> bool:
+    raw = (path or "").split("?", 1)[0].strip() or "/"
+    if raw.startswith("/gra/") or raw.startswith("/historia-cen/") or raw.startswith("/out/"):
+        return False
+    if raw == "/":
+        return True
+    return any(raw == p or raw.startswith(p) for p in _BROWSE_PATH_PREFIXES if p != "/")
+
+
+def _referrer_host_is_search(host: str | None) -> bool:
+    h = (host or "").strip().lower()
+    if not h:
+        return False
+    if h in _SEARCH_REFERRER_HOSTS:
+        return True
+    return h.endswith(".google.com") or h.endswith(".google.pl") or h.endswith(".bing.com")
+
+
+def _visitor_has_prior_browse(db: Session, visitor_key: str, *, before: datetime) -> bool:
+    """True if this visitor already opened home/catalog (typical human path)."""
+    if not visitor_key:
+        return False
+    since = before - timedelta(hours=48)
+    rows = (
+        db.query(SiteVisit.path)
+        .filter(
+            SiteVisit.visitor_key == visitor_key,
+            SiteVisit.visited_at >= since,
+            SiteVisit.visited_at < before,
+            SiteVisit.is_suspected_bot.is_(False),
+        )
+        .limit(40)
+        .all()
+    )
+    return any(_is_browse_path(r[0]) for r in rows)
+
+
+def ua_looks_like_crawler(user_agent: str | None) -> bool:
+    """Read-time guard for LIVE (catches already-stored GoogleOther rows)."""
+    lower = (user_agent or "").lower()
+    if not lower:
+        return True
+    if _GOOGLE_CRAWLER_UA_RE.search(lower) or _BOT_RE.search(lower) or _HEADLESS_UA_RE.search(lower):
+        return True
+    for token, _reason in _BOT_SIGNATURES:
+        if token in lower:
+            return True
+    return False
 
 
 def visitor_geo_hint(request: Request) -> dict[str, str | None]:
@@ -420,6 +528,52 @@ def should_track_visit(request: Request) -> bool:
         return True
     if path.startswith("/promocje") or path.startswith("/kategoria/"):
         return True
+    if path.startswith("/gry-pc-do-") or path.startswith("/gry-ponizej-"):
+        return True
+    if path.startswith("/gry-pc-znizka-"):
+        return True
+    if path in {"/gry-rpg", "/gry-strategie", "/gry-co-op",
+                "/najtansze-gry-steam", "/gry-steam-tanio", "/gdzie-kupic-gry-pc-najtaniej"}:
+        return True
+    if path.startswith("/gry-z-polskim-") or path.startswith("/igry-z-polskim-"):
+        return True
+    if path.startswith("/darmowe-gry") or path.startswith("/gry-za-darmo"):
+        return True
+    if path.startswith("/historia-cen/"):
+        return True
+    return False
+
+
+def _is_public_seo_path(path: str) -> bool:
+    """Paths that must stay crawlable for organic search traffic."""
+    if path == "/" or path.startswith("/gra/") or path.startswith("/historia-cen/"):
+        return True
+    if path.startswith("/kategoria/") or path.startswith("/blog"):
+        return True
+    if path.startswith("/promocje") or path.startswith("/najwieksze-okazje"):
+        return True
+    if path.startswith("/gry-ponizej-") or path.startswith("/gry-pc-do-"):
+        return True
+    if path.startswith("/gry-pc-znizka-"):
+        return True
+    if path in {"/gry-rpg", "/gry-strategie", "/gry-co-op"}:
+        return True
+    if path in {
+        "/najtansze-gry-steam",
+        "/gry-steam-tanio",
+        "/gdzie-kupic-gry-pc-najtaniej",
+    }:
+        return True
+    if path.startswith("/gry-z-polskim-") or path.startswith("/igry-z-polskim-"):
+        return True
+    if path.startswith("/darmowe-gry") or path.startswith("/gry-za-darmo"):
+        return True
+    if path.startswith("/sitemap") or path == "/robots.txt":
+        return True
+    if path in {"/redakcja", "/feed.xml", "/o-nas", "/kontakt", "/wsparcie"}:
+        return True
+    if path.startswith("/og/"):
+        return True
     return False
 
 
@@ -431,7 +585,19 @@ def should_block_crawler_request(request: Request) -> bool:
         return False
     if path.startswith("/panel3") or path.startswith("/health"):
         return False
+    # Never block Google/Bing or other legitimate SEO crawlers on public pages.
     ua = request.headers.get("user-agent") or ""
+    if re.search(r"googlebot|bingbot|duckduckbot|yandexbot|applebot", ua, re.I):
+        return False
+    if _OG_PREVIEW_RE.search(ua) and (path.startswith("/gra/") or _is_public_seo_path(path)):
+        return False
+    if _is_public_seo_path(path):
+        # Still block noisy scrapers on SEO URLs, but not search engines (above).
+        if any(path.startswith(prefix) for prefix in _BLOCKED_PROBE_PATHS):
+            return True
+        if _BLOCKED_CRAWLER_RE.search(ua):
+            return True
+        return False
     if any(path.startswith(prefix) for prefix in _BLOCKED_PROBE_PATHS):
         return True
     if _BLOCKED_CRAWLER_RE.search(ua):
@@ -499,6 +665,22 @@ def record_site_visit(
     )
     db = SessionLocal()
     try:
+        # Bots often open /gra/... cold; people usually hit home/catalog first
+        # (or arrive from Google/Bing). Keep search deep-links as human.
+        if (
+            not is_bot
+            and not user_id
+            and visit_path.startswith("/gra/")
+        ):
+            ref_host = marketing.get("referrer_host")
+            internal = bool(ref_host and "kupujpl.pl" in str(ref_host).lower())
+            if (
+                not internal
+                and not _referrer_host_is_search(ref_host)
+                and not _visitor_has_prior_browse(db, vkey, before=now)
+            ):
+                is_bot, bot_reason = True, "deep_link_no_home"
+
         if user_id:
             guest_hit = (
                 db.query(SiteVisit)

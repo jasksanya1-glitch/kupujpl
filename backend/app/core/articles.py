@@ -9,6 +9,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.html_sanitize import sanitize_article_html
 from app.models.models import Article, Game
 
 logger = logging.getLogger("articles")
@@ -79,7 +80,7 @@ def import_legacy_blog_posts(db: Session) -> dict[str, int]:
             title=post.get("title") or slug,
             lead=desc,
             excerpt=desc[:600] if desc else None,
-            content=post.get("body_html") or "",
+            content=sanitize_article_html(post.get("body_html") or ""),
             status=PUBLISHED,
             article_type="guide",
             author=DEFAULT_AUTHOR,
@@ -131,7 +132,7 @@ def create_draft_from_candidate(
         title=title[:320],
         lead=lead,
         excerpt=(lead or "")[:600],
-        content=content,
+        content=sanitize_article_html(content),
         status="draft",
         article_type=article_type,
         author=DEFAULT_AUTHOR,
@@ -158,6 +159,7 @@ def create_draft_from_candidate(
 
 def publish_article(db: Session, article: Article) -> Article:
     now = datetime.utcnow()
+    article.content = sanitize_article_html(article.content)
     article.status = PUBLISHED
     if not article.date_published:
         article.date_published = now

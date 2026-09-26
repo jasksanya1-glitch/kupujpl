@@ -27,6 +27,30 @@
     const NOTIFIED_CAP = 200;
 
     let eventsReady = false;
+    let _csrfToken = null;
+
+    async function getCsrfToken(force) {
+        if (_csrfToken && !force) return _csrfToken;
+        const res = await fetch('api/admin/csrf', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('CSRF fetch HTTP ' + res.status);
+        const data = await res.json();
+        _csrfToken = data.csrf_token || null;
+        if (!_csrfToken) throw new Error('CSRF token missing');
+        return _csrfToken;
+    }
+
+    async function adminMutate(url, opts) {
+        const token = await getCsrfToken(false);
+        const headers = Object.assign({}, (opts && opts.headers) || {}, { 'X-CSRF-Token': token });
+        const res = await fetch(url, Object.assign({}, opts || {}, { credentials: 'same-origin', headers }));
+        if (res.status === 403) {
+            // Refresh token once and retry
+            const token2 = await getCsrfToken(true);
+            headers['X-CSRF-Token'] = token2;
+            return fetch(url, Object.assign({}, opts || {}, { credentials: 'same-origin', headers }));
+        }
+        return res;
+    }
 
     function loadCursor(key) {
         try {
@@ -834,9 +858,8 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
     }
 
     async function discoverDraft(id) {
-        const res = await fetch(`api/admin/discover/candidates/${id}/draft`, {
+        const res = await adminMutate(`api/admin/discover/candidates/${id}/draft`, {
             method: 'POST',
-            credentials: 'same-origin',
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -852,9 +875,8 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
     }
 
     async function discoverIgnore(id) {
-        await fetch(`api/admin/discover/candidates/${id}/ignore`, {
+        await adminMutate(`api/admin/discover/candidates/${id}/ignore`, {
             method: 'POST',
-            credentials: 'same-origin',
         });
         loadDiscoverCandidates();
     }
@@ -876,7 +898,7 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
             el.querySelectorAll('[data-pub]').forEach((btn) => {
                 btn.addEventListener('click', async () => {
                     const id = Number(btn.getAttribute('data-pub'));
-                    await fetch(`api/admin/articles/${id}/publish`, { method: 'POST', credentials: 'same-origin' });
+                    await adminMutate(`api/admin/articles/${id}/publish`, { method: 'POST' });
                     loadDiscoverArticles();
                 });
             });
@@ -888,7 +910,7 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
             const btn = document.getElementById('btn-discover-scan');
             if (btn) btn.disabled = true;
             try {
-                const res = await fetch('api/admin/discover/scan', { method: 'POST', credentials: 'same-origin' });
+                const res = await adminMutate('api/admin/discover/scan', { method: 'POST' });
                 const data = await res.json();
                 alert(`Scan: created=${data.created || 0} updated=${data.updated || 0} skipped=${data.skipped || 0}`);
                 await loadDiscoverCandidates();

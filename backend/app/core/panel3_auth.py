@@ -91,3 +91,16 @@ def panel3_admin_ok(request: Request) -> bool:
 def require_panel3_admin(request: Request) -> None:
     if not panel3_admin_ok(request):
         raise HTTPException(status_code=401, detail="Panel3 admin required")
+
+
+def panel3_csrf_token() -> str:
+    """Gate-bound CSRF token (HMAC). Safe to expose only to authenticated panel clients."""
+    return hmac.new(_cookie_secret_bytes(), b"panel3-csrf-v1", hashlib.sha256).hexdigest()
+
+
+def require_panel3_csrf(request: Request) -> None:
+    """Require X-CSRF-Token on state-changing panel3/admin article endpoints."""
+    got = (request.headers.get("X-CSRF-Token") or request.headers.get("x-csrf-token") or "").strip()
+    expected = panel3_csrf_token()
+    if not got or len(got) != len(expected) or not hmac.compare_digest(got, expected):
+        raise HTTPException(status_code=403, detail="CSRF validation failed")

@@ -53,7 +53,9 @@ from app.core.panel3_auth import (
     PANEL3_COOKIE_NAME,
     panel3_cookie_kwargs,
     panel3_cookie_value,
+    panel3_csrf_token,
     panel3_gate_ok,
+    require_panel3_csrf,
     require_panel3_gate,
     require_panel3_admin,
 )
@@ -1116,6 +1118,7 @@ def sitemap_news(db: Session = Depends(get_db)):
     return Response(content=sitemap_news_xml(db), media_type="application/xml; charset=utf-8")
 
 
+@app.get("/feed.xml", response_class=Response)
 @app.get("/blog/feed.xml", response_class=Response)
 def blog_feed(db: Session = Depends(get_db)):
     return Response(content=blog_rss_xml(db), media_type="application/rss+xml; charset=utf-8")
@@ -1894,6 +1897,12 @@ def admin_tier_a_status(request: Request):
     return out
 
 
+@app.get("/api/admin/csrf")
+def admin_csrf_token(request: Request):
+    require_panel3_admin(request)
+    return {"ok": True, "csrf_token": panel3_csrf_token()}
+
+
 @app.get("/api/admin/discover/candidates")
 def admin_discover_candidates(
     request: Request,
@@ -1935,6 +1944,7 @@ def admin_discover_candidates(
 @app.post("/api/admin/discover/scan")
 def admin_discover_scan(request: Request, db: Session = Depends(get_db)):
     require_panel3_admin(request)
+    require_panel3_csrf(request)
     from app.core.discover_candidates import scan_deal_candidates
 
     stats = scan_deal_candidates(db)
@@ -1944,6 +1954,7 @@ def admin_discover_scan(request: Request, db: Session = Depends(get_db)):
 @app.post("/api/admin/discover/candidates/{cand_id}/ignore")
 def admin_discover_ignore(cand_id: int, request: Request, db: Session = Depends(get_db)):
     require_panel3_admin(request)
+    require_panel3_csrf(request)
     from app.core.discover_candidates import ignore_candidate
 
     row = ignore_candidate(db, cand_id)
@@ -1955,6 +1966,7 @@ def admin_discover_ignore(cand_id: int, request: Request, db: Session = Depends(
 @app.post("/api/admin/discover/candidates/{cand_id}/draft")
 def admin_discover_draft(cand_id: int, request: Request, db: Session = Depends(get_db)):
     require_panel3_admin(request)
+    require_panel3_csrf(request)
     from app.core.article_images import apply_image_probe_to_article, probe_image_dimensions
     from app.core.discover_candidates import draft_from_candidate
 
@@ -1982,6 +1994,7 @@ def admin_discover_draft(cand_id: int, request: Request, db: Session = Depends(g
 @app.post("/api/admin/articles/{article_id}/publish")
 def admin_article_publish(article_id: int, request: Request, db: Session = Depends(get_db)):
     require_panel3_admin(request)
+    require_panel3_csrf(request)
     from app.core.articles import publish_article
     from app.models.models import Article
 
