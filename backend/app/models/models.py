@@ -299,7 +299,16 @@ Index("idx_articles_status_published", Article.status, Article.date_published)
 
 
 class DiscoverCandidate(Base):
-    """Deal/news candidates for editors — never auto-published."""
+    """Deal Candidate Engine rows for editors — never auto-published.
+
+    ``reason`` stores candidate_type codes:
+    free_game | big_discount | price_drop | historical_low | expiring_deal
+    (legacy: price_drop_50 | price_drop_70 | new_low | expiring_soon | popular_drop).
+
+    Human-readable Polish explanation lives in payload_json["reason_text"].
+    ``fingerprint`` is the stable dedupe key.
+    Status: open (=new) | drafted (=converted) | ignored | reviewed.
+    """
 
     __tablename__ = "discover_candidates"
 
@@ -307,15 +316,15 @@ class DiscoverCandidate(Base):
     fingerprint = Column(String(160), nullable=False, unique=True, index=True)
     game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True)
     reason = Column(String(64), nullable=False, index=True)
-    # free_game | price_drop_50 | price_drop_70 | new_low | expiring_soon | popular_drop
     score = Column(Integer, nullable=False, default=0)
     shop_name = Column(String(100), nullable=True)
     price_current = Column(Float, nullable=True)
     price_previous = Column(Float, nullable=True)
     discount_percent = Column(Integer, nullable=True)
+    historical_minimum = Column(Float, nullable=True)
+    historical_period_days = Column(Integer, nullable=True)
     valid_until = Column(DateTime, nullable=True)
     status = Column(String(16), nullable=False, default="open", index=True)
-    # open | drafted | ignored
     article_id = Column(Integer, ForeignKey("articles.id", ondelete="SET NULL"), nullable=True)
     detected_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

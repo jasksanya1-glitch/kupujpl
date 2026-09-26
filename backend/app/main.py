@@ -958,6 +958,13 @@ def on_startup():
         start_offer_scheduler()
         _time.sleep(30)
         start_enrich_scheduler()
+        _time.sleep(15)
+        try:
+            from app.core.discover_candidates import start_deal_candidate_scheduler
+
+            start_deal_candidate_scheduler()
+        except Exception as exc:
+            logging.getLogger("startup").warning("Deal candidate scheduler failed: %s", exc)
         logging.getLogger("startup").info("Background schedulers started (staggered)")
 
     threading.Thread(target=_start_background_schedulers, daemon=True).start()
@@ -1912,32 +1919,49 @@ def admin_discover_candidates(
     limit: int = 100,
 ):
     require_panel3_admin(request)
-    from app.core.discover_candidates import list_candidates
+    from app.core.discover_candidates import list_candidates, reason_text_for
     from app.models.models import Game
 
     rows = list_candidates(db, status=status or None, reason=reason, limit=min(limit, 200))
     items = []
     for r in rows:
         game = db.query(Game).filter(Game.id == r.game_id).first()
+        status_out = r.status
+        if status_out == "open":
+            status_out = "new"
+        elif status_out == "drafted":
+            status_out = "converted"
         items.append(
             {
                 "id": r.id,
                 "game_id": r.game_id,
                 "game_title": game.title if game else None,
                 "game_slug": game.slug if game else None,
-                "reason": r.reason,
+                "candidate_type": r.reason,
+                "reason": reason_text_for(r),
                 "score": r.score,
                 "shop_name": r.shop_name,
                 "price_current": r.price_current,
                 "price_previous": r.price_previous,
                 "discount_percent": r.discount_percent,
+                "historical_minimum": r.historical_minimum,
+                "historical_period_days": r.historical_period_days,
                 "valid_until": r.valid_until.isoformat() if r.valid_until else None,
-                "status": r.status,
+                "status": status_out,
                 "detected_at": r.detected_at.isoformat() if r.detected_at else None,
                 "article_id": r.article_id,
                 "image_warn": False,
+                "confidence": None,
+                "evidence_source": None,
             }
         )
+        if r.payload_json:
+            try:
+                payload = json.loads(r.payload_json)
+                items[-1]["confidence"] = payload.get("confidence")
+                items[-1]["evidence_source"] = payload.get("evidence_source")
+            except json.JSONDecodeError:
+                pass
     return {"ok": True, "items": items}
 
 

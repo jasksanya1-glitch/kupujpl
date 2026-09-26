@@ -210,21 +210,26 @@
 
         <section class="panel3-section" id="section-discover">
             <div class="panel3-section-head">
-                <h2>Discover / News Candidates</h2>
+                <h2>Deal Candidates</h2>
             </div>
             <p class="panel3-section-lead">
-                Кандидати на статті (не публікуються автоматично). Score — лише для редактора.
+                Кандидати на статті (не публікуються автоматично). Score — лише для редактора, не для SEO.
             </p>
             <div class="panel3-scan-actions">
                 <button type="button" class="panel3-btn" id="btn-discover-scan">Сканувати кандидатів</button>
+                <select id="discover-filter-status" class="panel3-select">
+                    <option value="open">New / open</option>
+                    <option value="">All statuses</option>
+                    <option value="ignored">Ignored</option>
+                    <option value="converted">Converted</option>
+                </select>
                 <select id="discover-filter-reason" class="panel3-select">
-                    <option value="">Усі причини</option>
+                    <option value="">All types</option>
                     <option value="free_game">Free games</option>
-                    <option value="price_drop_70">70%+</option>
-                    <option value="price_drop_50">50%+</option>
-                    <option value="new_low">New low (KupujPL)</option>
-                    <option value="popular_drop">Popular drop</option>
-                    <option value="expiring_soon">Expiring soon</option>
+                    <option value="70+">70%+</option>
+                    <option value="50+">50%+</option>
+                    <option value="historical_low">Historical lows (KupujPL)</option>
+                    <option value="expiring_deal">Expiring soon</option>
                 </select>
             </div>
             <div class="panel3-card" style="overflow-x:auto">
@@ -232,18 +237,20 @@
                     <thead>
                         <tr>
                             <th>Game</th>
-                            <th>Price</th>
-                            <th>Old</th>
-                            <th>%</th>
                             <th>Store</th>
+                            <th>Current</th>
+                            <th>Previous</th>
+                            <th>Discount</th>
+                            <th>Type</th>
                             <th>Reason</th>
                             <th>Score</th>
                             <th>Detected</th>
+                            <th>Status</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody id="discover-candidates-body">
-                        <tr><td colspan="9" class="panel3-muted">Завантаження…</td></tr>
+                        <tr><td colspan="11" class="panel3-muted">Завантаження…</td></tr>
                     </tbody>
                 </table>
             </div>

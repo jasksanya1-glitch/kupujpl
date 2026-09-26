@@ -132,10 +132,39 @@ def _ensure_articles_imported() -> None:
         db.close()
 
 
+def _ensure_discover_candidate_columns() -> None:
+    """Add Phase-2 Deal Candidate columns when discover_candidates already exists."""
+    insp = inspect(engine)
+    if not insp.has_table("discover_candidates"):
+        try:
+            from app.models.models import Base, DiscoverCandidate
+
+            Base.metadata.create_all(bind=engine, tables=[DiscoverCandidate.__table__])
+        except Exception as exc:
+            logger.warning("discover_candidates create failed: %s", exc)
+            return
+        insp = inspect(engine)
+    cols = {c["name"] for c in insp.get_columns("discover_candidates")}
+    alters: list[str] = []
+    if "historical_minimum" not in cols:
+        alters.append("ALTER TABLE discover_candidates ADD COLUMN historical_minimum FLOAT")
+    if "historical_period_days" not in cols:
+        alters.append(
+            "ALTER TABLE discover_candidates ADD COLUMN historical_period_days INTEGER"
+        )
+    if not alters:
+        return
+    with engine.begin() as conn:
+        for stmt in alters:
+            conn.execute(text(stmt))
+    logger.info("Added discover_candidates historical_* columns")
+
+
 def ensure_sqlite_schema() -> None:
     _ensure_offers_activation_region()
     _ensure_games_platform()
     _ensure_articles_imported()
+    _ensure_discover_candidate_columns()
     if engine.dialect.name != "sqlite":
         return
     insp = inspect(engine)

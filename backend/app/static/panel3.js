@@ -808,7 +808,9 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
         const body = document.getElementById('discover-candidates-body');
         if (!body) return;
         const reason = document.getElementById('discover-filter-reason')?.value || '';
-        const q = new URLSearchParams({ status: 'open', limit: '80' });
+        const status = document.getElementById('discover-filter-status')?.value || 'open';
+        const q = new URLSearchParams({ limit: '80' });
+        if (status) q.set('status', status);
         if (reason) q.set('reason', reason);
         try {
             const res = await fetch(`api/admin/discover/candidates?${q}`, { credentials: 'same-origin' });
@@ -816,24 +818,30 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
             const data = await res.json();
             const items = data.items || [];
             if (!items.length) {
-                body.innerHTML = '<tr><td colspan="9" class="panel3-muted">Немає відкритих кандидатів</td></tr>';
+                body.innerHTML = '<tr><td colspan="11" class="panel3-muted">Немає кандидатів</td></tr>';
                 return;
             }
             body.innerHTML = items.map((it) => {
                 const gameLink = it.game_slug
                     ? `<a href="../gra/${encodeURIComponent(it.game_slug)}" target="_blank" rel="noopener">${esc(it.game_title || it.game_slug)}</a>`
                     : esc(it.game_title || String(it.game_id));
+                const ctype = it.candidate_type || it.reason || '—';
+                const reasonTxt = it.reason && it.candidate_type && it.reason !== it.candidate_type
+                    ? it.reason
+                    : (it.reason || ctype);
                 return `<tr>
                     <td>${gameLink}</td>
+                    <td>${esc(it.shop_name || '—')}</td>
                     <td>${it.price_current != null ? Number(it.price_current).toFixed(2) : '—'}</td>
                     <td>${it.price_previous != null ? Number(it.price_previous).toFixed(2) : '—'}</td>
                     <td>${it.discount_percent != null ? '−' + it.discount_percent + '%' : '—'}</td>
-                    <td>${esc(it.shop_name || '—')}</td>
-                    <td>${esc(it.reason)}</td>
+                    <td>${esc(ctype)}</td>
+                    <td title="${esc(reasonTxt)}">${esc(String(reasonTxt).slice(0, 80))}</td>
                     <td><strong>${it.score}</strong></td>
                     <td>${esc((it.detected_at || '').slice(0, 16))}</td>
+                    <td>${esc(it.status || '—')}</td>
                     <td class="panel3-row-actions">
-                        <button type="button" class="panel3-btn panel3-btn--sm" data-draft="${it.id}">Draft</button>
+                        <button type="button" class="panel3-btn panel3-btn--sm" data-draft="${it.id}">Create draft</button>
                         <button type="button" class="panel3-btn panel3-btn--sm panel3-btn--danger" data-ignore="${it.id}">Ignore</button>
                     </td>
                 </tr>`;
@@ -845,7 +853,7 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
                 btn.addEventListener('click', () => discoverIgnore(Number(btn.getAttribute('data-ignore'))));
             });
         } catch (err) {
-            body.innerHTML = `<tr><td colspan="9">Помилка: ${esc(err.message)}</td></tr>`;
+            body.innerHTML = `<tr><td colspan="11">Помилка: ${esc(err.message)}</td></tr>`;
         }
     }
 
@@ -921,6 +929,7 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
             }
         });
         document.getElementById('discover-filter-reason')?.addEventListener('change', () => loadDiscoverCandidates());
+        document.getElementById('discover-filter-status')?.addEventListener('change', () => loadDiscoverCandidates());
     }
 
     async function loadStats() {
