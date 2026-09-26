@@ -17,7 +17,7 @@ from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 import requests
 from dotenv import load_dotenv
 
-from app.core.affiliate import make_affiliate_link
+from app.core.affiliate import attach_merchant_fallback, make_affiliate_link
 from app.core.database import BASE_DIR
 from app.parsers.currency_pln import money_to_pln, to_pln
 from app.parsers.keyshop_common import (
@@ -768,13 +768,37 @@ def _row_to_feed_row(row: dict[str, str]) -> _FeedRow | None:
         or lowered.get("name")
         or ""
     )
-    url = (
+    awin_url = (
         lowered.get("aw_deep_link")
         or lowered.get("deep_link")
-        or lowered.get("link")
-        or lowered.get("url")
         or ""
     )
+    merchant_url = (
+        lowered.get("merchant_deep_link")
+        or lowered.get("merchant_link")
+        or lowered.get("merchant_product_url")
+        or ""
+    )
+    other_url = lowered.get("link") or lowered.get("url") or ""
+    # Keep Awin click URL as primary so /api/go can unwrap → shop + awc=.
+    # Stash merchant_deep_link as kp_dest fallback when unwrap fails.
+    awin_host = ""
+    try:
+        awin_host = urlparse(awin_url).netloc.lower() if awin_url else ""
+    except Exception:
+        awin_host = ""
+    if awin_url and (
+        _is_opaque_awin_url(awin_url)
+        or "awin1.com" in awin_host
+        or "awstrack.me" in awin_host
+    ):
+        url = awin_url
+        if merchant_url.startswith(("http://", "https://")):
+            url = attach_merchant_fallback(awin_url, merchant_url)
+    elif merchant_url.startswith(("http://", "https://")):
+        url = merchant_url
+    else:
+        url = other_url or awin_url or merchant_url
     if not name or not url:
         return None
 
