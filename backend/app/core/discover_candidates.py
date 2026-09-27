@@ -1672,7 +1672,12 @@ def draft_from_candidate(db: Session, cand_id: int) -> Article | None:
 
 
 def start_deal_candidate_scheduler() -> None:
-    """Hourly background scan — never publishes articles."""
+    """Background candidate scan — never publishes articles.
+
+    Cadence: DEAL_CANDIDATE_INTERVAL_SEC (rollout default 10800 = 3h).
+    Guardrail: if one cycle creates >20 editorial candidates, halt further
+    scheduled scans in this process and write a halt marker (web service stays up).
+    """
     global _STARTED
     if not SCHEDULER_ENABLED:
         logger.info("Deal candidate scheduler disabled")
@@ -1682,24 +1687,102 @@ def start_deal_candidate_scheduler() -> None:
             return
         _STARTED = True
 
+    halt_marker = os.environ.get(
+        "DEAL_CANDIDATE_HALT_FILE",
+        "/opt/kupujpl-games/tmp/deal_candidate_scheduler_halted",
+    )
+    monitor_log = os.environ.get(
+        "DEAL_CANDIDATE_MONITOR_LOG",
+        "/opt/kupujpl-games/tmp/deal_candidate_scans.jsonl",
+    )
+    max_created = int(os.environ.get("DEAL_CANDIDATE_MAX_CREATED_PER_SCAN", "20"))
+
+    def _append_monitor(payload: dict[str, Any]) -> None:
+        try:
+            os.makedirs(os.path.dirname(monitor_log) or ".", exist_ok=True)
+            with open(monitor_log, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+        except OSError as exc:
+            logger.warning("Deal candidate monitor log write failed: %s", exc)
+
     def _loop() -> None:
-        # Stagger startup
+        # Stagger startup so boot is not a scan spike
         time.sleep(90)
         while True:
+            if os.path.exists(halt_marker):
+                logger.error(
+                    "Deal candidate scheduler halted (marker present): %s",
+                    halt_marker,
+                )
+                return
+            cycle: dict[str, Any] = {
+                "ts": datetime.utcnow().isoformat() + "Z",
+                "offers_scanned": 0,
+                "created": 0,
+                "duplicates_skipped": 0,
+                "by_type": {},
+                "runtime_sec": None,
+                "error": None,
+            }
             try:
                 from app.core.database import SessionLocal
 
                 db = SessionLocal()
                 try:
-                    scan_deal_candidates(db, limit=80, dry_run=False)
+                    stats = scan_deal_candidates(db, limit=80, dry_run=False)
+                    cycle["offers_scanned"] = stats.get("offers_scanned", 0)
+                    cycle["created"] = stats.get("created", 0)
+                    cycle["duplicates_skipped"] = int(stats.get("duplicates") or 0) + int(
+                        stats.get("skipped") or 0
+                    )
+                    cycle["by_type"] = stats.get("by_type") or {}
+                    cycle["runtime_sec"] = stats.get("runtime_sec")
+                    logger.info(
+                        "deal candidate scheduler cycle: created=%s skipped=%s "
+                        "offers=%s by_type=%s runtime=%ss next_in=%ss",
+                        cycle["created"],
+                        cycle["duplicates_skipped"],
+                        cycle["offers_scanned"],
+                        cycle["by_type"],
+                        cycle["runtime_sec"],
+                        max(SCHEDULER_INTERVAL_SEC, 600),
+                    )
+                    if int(cycle["created"] or 0) > max_created:
+                        cycle["error"] = f"guardrail_created_gt_{max_created}"
+                        _append_monitor(cycle)
+                        try:
+                            os.makedirs(os.path.dirname(halt_marker) or ".", exist_ok=True)
+                            with open(halt_marker, "w", encoding="utf-8") as fh:
+                                fh.write(
+                                    json.dumps(
+                                        {
+                                            "halted_at": cycle["ts"],
+                                            "reason": cycle["error"],
+                                            "created": cycle["created"],
+                                            "by_type": cycle["by_type"],
+                                        },
+                                        ensure_ascii=False,
+                                    )
+                                )
+                        except OSError:
+                            pass
+                        logger.error(
+                            "Deal candidate scheduler GUARDRAIL: created=%s > %s — "
+                            "halting scheduler (web service continues)",
+                            cycle["created"],
+                            max_created,
+                        )
+                        return
                 finally:
                     db.close()
             except Exception as exc:
+                cycle["error"] = str(exc)[:300]
                 logger.warning("Deal candidate scheduler cycle failed: %s", exc)
+            _append_monitor(cycle)
             time.sleep(max(SCHEDULER_INTERVAL_SEC, 600))
 
     threading.Thread(target=_loop, daemon=True, name="deal-candidates").start()
     logger.info(
-        "Deal candidate scheduler started (every %ss)",
+        "Deal candidate scheduler started (every %ss); auto-publish=never",
         SCHEDULER_INTERVAL_SEC,
     )
