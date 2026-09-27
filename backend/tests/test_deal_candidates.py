@@ -54,6 +54,23 @@ def _game(db: Session, **kwargs) -> Game:
     return g
 
 
+def _steam_url(game: Game) -> str:
+    return f"https://store.steampowered.com/app/{game.steam_appid}"
+
+
+def _same_shop_history(db: Session, game: Game, shop: str, prices: list[tuple[int, float]], now: datetime) -> None:
+    for day, price in prices:
+        db.add(
+            PriceSnapshot(
+                game_id=game.id,
+                shop_name=shop,
+                price_pln=price,
+                in_stock=True,
+                recorded_at=now - timedelta(days=day),
+            )
+        )
+
+
 def test_free_game_with_same_shop_prior_snapshot(db: Session):
     g = _game(db, title="Promo Free", slug="promo-free")
     now = datetime.utcnow()
@@ -605,23 +622,28 @@ def test_noise_price_drop_ignored():
 def test_strictly_lower_than_prior_minimum_historical_low(db: Session):
     g = _game(db, title="New Low", slug="new-low")
     now = datetime.utcnow()
-    for day, price in ((30, 50.0), (24, 49.0), (18, 48.0), (12, 47.0), (8, 46.0)):
-        db.add(
-            PriceSnapshot(
-                game_id=g.id,
-                shop_name="Steam",
-                price_pln=price,
-                in_stock=True,
-                recorded_at=now - timedelta(days=day),
-            )
+    _same_shop_history(
+        db, g, "Steam", [(30, 50.0), (24, 49.0), (18, 48.0), (12, 47.0), (8, 46.0)], now
+    )
+    # Confirm current price (same timestamp as offer → excluded from prior via `< before`)
+    db.add(
+        PriceSnapshot(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=40.0,
+            in_stock=True,
+            recorded_at=now,
         )
+    )
     db.add(
         Offer(
             game_id=g.id,
             shop_name="Steam",
             price_pln=40.0,
-            affiliate_url="https://example.com/newlow",
+            original_price_pln=46.0,
+            affiliate_url=_steam_url(g),
             in_stock=True,
+            is_official=True,
             updated_at=now,
         )
     )
@@ -667,8 +689,10 @@ def test_current_snapshot_excluded_from_historical_baseline(db: Session):
             game_id=g.id,
             shop_name="Steam",
             price_pln=30.0,
-            affiliate_url="https://example.com/ex",
+            original_price_pln=60.0,
+            affiliate_url=_steam_url(g),
             in_stock=True,
+            is_official=True,
             updated_at=now,
         )
     )
@@ -701,9 +725,310 @@ def test_equal_to_old_minimum_no_historical_low(db: Session):
             game_id=g.id,
             shop_name="Steam",
             price_pln=40.0,
-            affiliate_url="https://example.com/flat",
+            affiliate_url=_steam_url(g),
             in_stock=True,
+            is_official=True,
             updated_at=now,
+        )
+    )
+    db.commit()
+    scan_deal_candidates(db, limit=20)
+    assert (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .count()
+        == 0
+    )
+
+
+def test_extreme_one_snapshot_drop_excluded(db: Session):
+    """163→8.99 style: one offer scrape without confirmation is not hist-low."""
+    g = _game(db, title="Cliff Game", slug="cliff-game")
+    now = datetime.utcnow()
+    _same_shop_history(db, g, "Steam", [(40, 163.99), (30, 163.99), (20, 163.99), (10, 163.99)], now)
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=8.99,
+            affiliate_url=_steam_url(g),
+            in_stock=True,
+            is_official=True,
+            updated_at=now,
+        )
+    )
+    db.commit()
+    stats = scan_deal_candidates(db, limit=20)
+    assert (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .count()
+        == 0
+    )
+    assert stats.get("suspicious_hist_excluded", 0) >= 1
+
+
+def test_same_entity_repeated_confirmation_allows_extreme(db: Session):
+    """Extreme ratio with 2 consecutive current snaps + original may pass under cliff*1.2."""
+    g = _game(db, title="Confirmed Cliff", slug="confirmed-cliff")
+    now = datetime.utcnow()
+    # ratio 9.5 — between P95 and P99, needs confirmation
+    _same_shop_history(db, g, "Steam", [(40, 95.0), (30, 95.0), (20, 95.0), (10, 95.0)], now)
+    for minutes in (20, 5):
+        db.add(
+            PriceSnapshot(
+                game_id=g.id,
+                shop_name="Steam",
+                price_pln=10.0,
+                in_stock=True,
+                recorded_at=now,  # not before offer.updated_at
+            )
+        )
+    # bump second snap slightly after first for ordering; still not < before if before==now
+    # Use identical `now` — prior filter is strict `<`.
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=10.0,
+            original_price_pln=95.0,
+            affiliate_url=_steam_url(g),
+            in_stock=True,
+            is_official=True,
+            updated_at=now,
+        )
+    )
+    db.commit()
+    scan_deal_candidates(db, limit=20)
+    assert (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .count()
+        == 1
+    )
+
+
+def test_different_sku_entity_snapshots_excluded(db: Session):
+    """GOG URL for a different product must not create hist-low."""
+    g = _game(
+        db,
+        title="Warhammer 40,000: Dawn of War IV",
+        slug="warhammer-40000-dawn-of-war-iv",
+        steam_appid=2272360,
+    )
+    now = datetime.utcnow()
+    _same_shop_history(db, g, "GOG", [(40, 163.99), (30, 163.99), (20, 163.99), (10, 163.99)], now)
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="GOG",
+            price_pln=8.99,
+            affiliate_url="https://www.gog.com/pl/game/warhammer_40000_dawn_of_war_anniversary_edition",
+            in_stock=True,
+            is_official=True,
+            updated_at=now,
+        )
+    )
+    db.commit()
+    scan_deal_candidates(db, limit=20)
+    assert (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .count()
+        == 0
+    )
+
+
+def test_official_store_alone_not_sufficient(db: Session):
+    """Steam without matching app URL / confirmation is not enough."""
+    g = _game(db, title="No Identity", slug="no-identity")
+    now = datetime.utcnow()
+    _same_shop_history(db, g, "Steam", [(30, 50.0), (24, 49.0), (18, 48.0), (8, 46.0)], now)
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=20.0,
+            affiliate_url="https://example.com/not-steam",
+            in_stock=True,
+            is_official=True,
+            updated_at=now,
+        )
+    )
+    db.commit()
+    stats = scan_deal_candidates(db, limit=20)
+    assert (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .count()
+        == 0
+    )
+    assert stats.get("suspicious_hist_excluded", 0) >= 1
+
+
+def test_ratio_cliff_guard_excludes(db: Session):
+    g = _game(db, title="Hard Cliff", slug="hard-cliff")
+    now = datetime.utcnow()
+    _same_shop_history(db, g, "Steam", [(40, 200.0), (30, 200.0), (20, 200.0), (10, 200.0)], now)
+    for _ in range(2):
+        db.add(
+            PriceSnapshot(
+                game_id=g.id,
+                shop_name="Steam",
+                price_pln=10.0,
+                in_stock=True,
+                recorded_at=now,
+            )
+        )
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=10.0,
+            original_price_pln=200.0,
+            affiliate_url=_steam_url(g),
+            in_stock=True,
+            is_official=True,
+            updated_at=now,
+        )
+    )
+    db.commit()
+    # 20x > P99 cliff (10x) — excluded even with confirms (20 > 10*1.2)
+    scan_deal_candidates(db, limit=20)
+    assert (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .count()
+        == 0
+    )
+
+
+def test_normal_genuine_lower_price_allowed(db: Session):
+    g = _game(db, title="Genuine Low", slug="genuine-low")
+    now = datetime.utcnow()
+    _same_shop_history(db, g, "Steam", [(28, 80.0), (21, 75.0), (14, 70.0), (7, 70.0)], now)
+    db.add(
+        PriceSnapshot(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=55.0,
+            in_stock=True,
+            recorded_at=now,
+        )
+    )
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=55.0,
+            original_price_pln=70.0,
+            affiliate_url=_steam_url(g),
+            in_stock=True,
+            is_official=True,
+            updated_at=now,
+        )
+    )
+    db.commit()
+    scan_deal_candidates(db, limit=20)
+    assert (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .count()
+        == 1
+    )
+
+
+def test_offer_without_current_snapshot_pending(db: Session):
+    """Original_price alone without a current-price snapshot is not enough."""
+    g = _game(db, title="Pending Confirm", slug="pending-confirm")
+    now = datetime.utcnow()
+    _same_shop_history(db, g, "Steam", [(28, 90.0), (21, 90.0), (14, 90.0), (7, 90.0)], now)
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=22.0,
+            original_price_pln=90.0,
+            affiliate_url=_steam_url(g),
+            in_stock=True,
+            is_official=True,
+            updated_at=now,
+        )
+    )
+    db.commit()
+    stats = scan_deal_candidates(db, limit=20)
+    assert (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .count()
+        == 0
+    )
+    assert stats.get("suspicious_hist_excluded", 0) >= 1
+
+
+def test_cross_shop_prior_not_used_for_hist(db: Session):
+    """Game-wide cheap keyshop history must not seed Steam hist-low."""
+    g = _game(db, title="Cross Shop", slug="cross-shop")
+    now = datetime.utcnow()
+    _same_shop_history(db, g, "Steam", [(28, 100.0), (21, 100.0), (14, 100.0), (7, 100.0)], now)
+    # Keyshop history lower — must be ignored for Steam hist baseline
+    for day in (25, 15, 8):
+        db.add(
+            PriceSnapshot(
+                game_id=g.id,
+                shop_name="Gamivo",
+                price_pln=20.0,
+                in_stock=True,
+                recorded_at=now - timedelta(days=day),
+            )
+        )
+    db.add(
+        PriceSnapshot(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=80.0,
+            in_stock=True,
+            recorded_at=now,
+        )
+    )
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=80.0,
+            original_price_pln=100.0,
+            affiliate_url=_steam_url(g),
+            in_stock=True,
+            is_official=True,
+            updated_at=now,
+        )
+    )
+    db.commit()
+    scan_deal_candidates(db, limit=20)
+    row = (
+        db.query(DiscoverCandidate)
+        .filter(DiscoverCandidate.game_id == g.id, DiscoverCandidate.reason == TYPE_HIST)
+        .first()
+    )
+    assert row is not None
+    assert row.historical_minimum == 100.0
+
+
+def test_stale_snapshots_excluded_from_hist(db: Session):
+    """Offer older than MAX_OFFER_AGE cannot become hist-low."""
+    g = _game(db, title="Stale Hist", slug="stale-hist")
+    now = datetime.utcnow()
+    _same_shop_history(db, g, "Steam", [(60, 50.0), (50, 50.0), (40, 50.0), (30, 50.0)], now)
+    db.add(
+        Offer(
+            game_id=g.id,
+            shop_name="Steam",
+            price_pln=20.0,
+            original_price_pln=50.0,
+            affiliate_url=_steam_url(g),
+            in_stock=True,
+            is_official=True,
+            updated_at=now - timedelta(hours=100),
         )
     )
     db.commit()

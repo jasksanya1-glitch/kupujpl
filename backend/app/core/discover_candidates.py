@@ -35,6 +35,12 @@ MIN_ABS_DROP_PLN = float(os.environ.get("DEAL_CANDIDATE_MIN_ABS_DROP", "5"))
 MIN_REL_DROP_PCT = float(os.environ.get("DEAL_CANDIDATE_MIN_REL_DROP", "10"))
 HIST_MIN_SNAPSHOTS = int(os.environ.get("DEAL_CANDIDATE_HIST_MIN_SNAPS", "3"))
 HIST_MIN_DAYS = int(os.environ.get("DEAL_CANDIDATE_HIST_MIN_DAYS", "7"))
+# Official same-shop new-low vs prior_min distribution (prod 2026-09):
+#   P95 ≈ 5.0, P99 ≈ 10.0. Above P99 is treated as a cliff (exclude).
+#   Between P95 and P99 requires multi-snapshot / original_price confirmation.
+HIST_RATIO_EXTREME = float(os.environ.get("DEAL_CANDIDATE_HIST_RATIO_EXTREME", "5.0"))
+HIST_RATIO_CLIFF = float(os.environ.get("DEAL_CANDIDATE_HIST_RATIO_CLIFF", "10.0"))
+HIST_CURRENT_CONFIRM_MIN = int(os.environ.get("DEAL_CANDIDATE_HIST_CONFIRM_SNAPS", "2"))
 SCAN_OFFER_HOURS = int(os.environ.get("DEAL_CANDIDATE_SCAN_HOURS", "48"))
 # Editorial candidates require fresh offers — stale zeros (months old) are rejected.
 MAX_OFFER_AGE_HOURS = int(os.environ.get("DEAL_CANDIDATE_MAX_OFFER_AGE_HOURS", "72"))
@@ -374,6 +380,197 @@ def _prior_history(
 
 def _history_is_proven(count: int, period_days: int) -> bool:
     return count >= HIST_MIN_SNAPSHOTS and period_days >= HIST_MIN_DAYS
+
+
+def _same_shop_prior_history(
+    db: Session,
+    game_id: int,
+    shop_name: str,
+    *,
+    before: datetime,
+) -> tuple[float | None, int, int, datetime | None]:
+    """Same-shop prior snapshots only — never mix keyshop/Steam/GOG history."""
+    row = (
+        db.query(
+            func.min(PriceSnapshot.price_pln),
+            func.count(PriceSnapshot.id),
+            func.min(PriceSnapshot.recorded_at),
+            func.max(PriceSnapshot.recorded_at),
+        )
+        .filter(
+            PriceSnapshot.game_id == game_id,
+            PriceSnapshot.shop_name == shop_name,
+            PriceSnapshot.in_stock.is_(True),
+            PriceSnapshot.price_pln > 0,
+            PriceSnapshot.recorded_at < before,
+        )
+        .one()
+    )
+    min_price, count, first_at, last_at = row
+    if not count or min_price is None or not first_at or not last_at:
+        return None, 0, 0, None
+    period_days = max(0, int((last_at - first_at).total_seconds() // 86400))
+    return float(min_price), int(count), period_days, first_at
+
+
+_GOG_SLUG_RE = re.compile(r"gog\.com/(?:[a-z]{2}/)?game/([a-z0-9_]+)", re.I)
+_STEAM_APP_RE = re.compile(r"store\.steampowered\.com/app/(\d+)", re.I)
+
+
+def _normalize_identity_tokens(text: str) -> set[str]:
+    raw = re.sub(r"[^a-z0-9]+", " ", (text or "").lower())
+    stop = {
+        "the",
+        "and",
+        "edition",
+        "deluxe",
+        "standard",
+        "goty",
+        "game",
+        "of",
+        "a",
+        "an",
+        "i",
+        "ii",
+        "iii",
+        "iv",
+        "v",
+    }
+    return {t for t in raw.split() if len(t) >= 3 and t not in stop}
+
+
+def _offer_product_identity(offer: Offer, game: Game) -> str | None:
+    """Strongest proven product identity for hist-low, or None if unproven.
+
+    Snapshots only store game_id + shop_name, so we require the *current* offer
+    URL/id to resolve to the catalog game. Cross-edition GOG mismatches fail.
+    """
+    url = (offer.affiliate_url or "").strip()
+    shop = _shop_key(offer.shop_name)
+    if shop == "steam":
+        appid = getattr(game, "steam_appid", None)
+        if not appid:
+            return None
+        m = _STEAM_APP_RE.search(url)
+        if not m or int(m.group(1)) != int(appid):
+            return None
+        return f"steam:{int(appid)}"
+    if shop == "gog":
+        m = _GOG_SLUG_RE.search(url)
+        if not m:
+            return None
+        gog_slug = m.group(1)
+        tokens = _normalize_identity_tokens(gog_slug.replace("_", " "))
+        game_tokens = _normalize_identity_tokens(
+            f"{game.slug or ''} {game.title or ''}".replace("-", " ")
+        )
+        if not tokens or not game_tokens:
+            return None
+        overlap = tokens & game_tokens
+        edition_markers = {
+            "anniversary",
+            "classic",
+            "remaster",
+            "remastered",
+            "complete",
+            "bundle",
+            "trilogy",
+            "collection",
+            "definitive",
+            "enhanced",
+        }
+        if (tokens - game_tokens) & edition_markers:
+            return None
+        union = tokens | game_tokens
+        jaccard = len(overlap) / max(len(union), 1)
+        if jaccard < 0.5 or len(overlap) < 2:
+            return None
+        return f"gog:{gog_slug}"
+    if shop in ("epic", "epic games"):
+        if "epicgames.com" not in url.lower() and "store.epicgames.com" not in url.lower():
+            return None
+        return f"epic:game:{game.id}"
+    # Other official shops: require a non-empty product URL + shop+game key.
+    if len(url) < 12:
+        return None
+    return f"shop:{shop}:game:{game.id}:offer:{offer.id}"
+
+
+def _current_price_confirmations(
+    db: Session,
+    *,
+    game_id: int,
+    shop_name: str,
+    price: float,
+    now: datetime | None = None,
+) -> tuple[int, int]:
+    """Return (total same-price snaps, consecutive tail same-price snaps)."""
+    now = now or datetime.utcnow()
+    since = now - timedelta(days=14)
+    rows = (
+        db.query(PriceSnapshot.price_pln, PriceSnapshot.recorded_at)
+        .filter(
+            PriceSnapshot.game_id == game_id,
+            PriceSnapshot.shop_name == shop_name,
+            PriceSnapshot.in_stock.is_(True),
+            PriceSnapshot.price_pln > 0,
+            PriceSnapshot.recorded_at >= since,
+        )
+        .order_by(PriceSnapshot.recorded_at.desc())
+        .limit(12)
+        .all()
+    )
+    total = sum(1 for p, _ in rows if abs(float(p) - price) < 0.06)
+    consec = 0
+    for p, _ in rows:
+        if abs(float(p) - price) < 0.06:
+            consec += 1
+        else:
+            break
+    return total, consec
+
+
+def _hist_transition_allowed(
+    *,
+    prior_min: float,
+    current: float,
+    confirm_total: int,
+    confirm_consec: int,
+    original_price: float | None,
+) -> tuple[bool, str]:
+    """Cliff + confirmation gate. Returns (allowed, reason_code)."""
+    if current <= 0 or prior_min <= 0 or current >= prior_min:
+        return False, "not_a_new_low"
+    ratio = prior_min / current
+    original_ok = (
+        original_price is not None
+        and _valid_price(original_price)
+        and float(original_price) > current
+        and abs(float(original_price) - prior_min) / prior_min <= 0.20
+    )
+    # Hard cliff: above official P99 — never editorial without repeated confirms
+    # AND original corroboration (still capped — absurd cliffs stay out).
+    if ratio > HIST_RATIO_CLIFF:
+        if (
+            confirm_consec >= HIST_CURRENT_CONFIRM_MIN
+            and confirm_total >= HIST_CURRENT_CONFIRM_MIN
+            and original_ok
+            and ratio <= HIST_RATIO_CLIFF * 1.2
+        ):
+            return True, "cliff_confirmed"
+        return False, "cliff_excluded"
+    # Extreme (P95–P99): need repeated current-price snaps or original+one snap.
+    if ratio > HIST_RATIO_EXTREME:
+        if confirm_consec >= HIST_CURRENT_CONFIRM_MIN:
+            return True, "extreme_confirmed"
+        if original_ok and confirm_total >= 1:
+            return True, "extreme_original_evidence"
+        return False, "extreme_pending"
+    # Normal new low: require at least one same-shop snapshot at the current
+    # price so a lone offer scrape cannot beat a long MSRP history alone.
+    if confirm_total >= 1 or confirm_consec >= 1:
+        return True, "normal_confirmed"
+    return False, "pending_confirmation"
 
 
 def _same_shop_prior_paid(
@@ -818,12 +1015,17 @@ def _hist_low_offer_eligible(offer: Offer) -> bool:
     return True
 
 
-def _detect_historical_low_events(db: Session, *, limit: int = 40) -> list[_Event]:
-    """Strict prior-minimum: current must be < previous observed min (not <=)."""
+def _detect_historical_low_events(
+    db: Session, *, limit: int = 40
+) -> tuple[list[_Event], int]:
+    """Same-entity prior minimum: current must be < prior same-shop min (not <=).
+
+    Returns (events, suspicious_excluded_count).
+    """
     events: list[_Event] = []
+    suspicious = 0
     now = datetime.utcnow()
     fresh_since = now - timedelta(hours=MAX_OFFER_AGE_HOURS)
-    # Candidate games: any fresh in-stock offer (eligibility checked on official row).
     game_ids = [
         gid
         for (gid,) in (
@@ -840,7 +1042,7 @@ def _detect_historical_low_events(db: Session, *, limit: int = 40) -> list[_Even
         )
     ]
     if not game_ids:
-        return events
+        return events, 0
     games = (
         db.query(Game)
         .filter(Game.id.in_(game_ids), Game.is_free.is_(False))
@@ -865,15 +1067,39 @@ def _detect_historical_low_events(db: Session, *, limit: int = 40) -> list[_Even
         offer = next((o for o in fresh_offers if _hist_low_offer_eligible(o)), None)
         if not offer or not _offer_is_fresh(offer, now=now):
             continue
+        # Official alone is not enough — product identity must resolve.
+        entity = _offer_product_identity(offer, game)
+        if not entity:
+            suspicious += 1
+            continue
         current = float(offer.price_pln)
         before = offer.updated_at or now
-        prior_min, count, period_days, history_start = _prior_history(
-            db, game.id, before=before
+        prior_min, count, period_days, history_start = _same_shop_prior_history(
+            db, game.id, offer.shop_name or "", before=before
         )
         if not _history_is_proven(count, period_days) or prior_min is None:
             continue
-        # Strictly lower than prior observed minimum (exclude current from baseline)
         if current >= prior_min:
+            continue
+        confirm_total, confirm_consec = _current_price_confirmations(
+            db,
+            game_id=game.id,
+            shop_name=offer.shop_name or "",
+            price=current,
+            now=now,
+        )
+        original = None
+        if offer.original_price_pln is not None and _valid_price(offer.original_price_pln):
+            original = float(offer.original_price_pln)
+        allowed, gate = _hist_transition_allowed(
+            prior_min=prior_min,
+            current=current,
+            confirm_total=confirm_total,
+            confirm_consec=confirm_consec,
+            original_price=original,
+        )
+        if not allowed:
+            suspicious += 1
             continue
         events.append(
             _Event(
@@ -886,19 +1112,20 @@ def _detect_historical_low_events(db: Session, *, limit: int = 40) -> list[_Even
                 score=_editorial_score(SCORE_HIST_LOW, game, CONF_HIGH),
                 reason_text=(
                     f"Najniższa cena zarejestrowana przez KupujPL dla {game.title}: "
-                    f"{current:.2f} zł (wcześniejsze minimum obserwacji: {prior_min:.2f} zł; "
-                    f"okres {period_days} dni, {count} wcześniejszych pomiarów)."
+                    f"{current:.2f} zł (wcześniejsze minimum w {offer.shop_name}: "
+                    f"{prior_min:.2f} zł; okres {period_days} dni, {count} pomiarów "
+                    f"tego samego sklepu)."
                 ),
                 historical_minimum=prior_min,
                 historical_period_days=period_days,
                 history_start_at=history_start,
                 confidence=CONF_HIGH,
-                evidence_source="prior_snapshots",
+                evidence_source=f"same_shop_prior:{gate}:{entity}",
             )
         )
         if len(events) >= limit:
             break
-    return events
+    return events, suspicious
 
 
 def _detect_expiring_events(db: Session, *, limit: int = 30) -> list[_Event]:
@@ -1199,12 +1426,15 @@ def scan_deal_candidates(
         "events_considered": 0,
         "msrp_excluded": 0,
         "editorial_duplicates_collapsed": 0,
+        "suspicious_hist_excluded": 0,
         "by_type": {},
         "by_confidence": {},
         "runtime_sec": 0.0,
         "dry_run": dry_run,
         "max_offer_age_hours": MAX_OFFER_AGE_HOURS,
         "prior_promo_max_age_days": PRIOR_PROMO_MAX_AGE_DAYS,
+        "hist_ratio_extreme": HIST_RATIO_EXTREME,
+        "hist_ratio_cliff": HIST_RATIO_CLIFF,
         "scheduler_enabled_flag": SCHEDULER_ENABLED,
     }
     cooldown_since = datetime.utcnow() - timedelta(hours=COOLDOWN_HOURS)
@@ -1221,7 +1451,9 @@ def scan_deal_candidates(
     disc_events, msrp_excluded = _detect_discount_and_drop_events(db, limit=limit)
     events.extend(disc_events)
     stats["msrp_excluded"] = msrp_excluded
-    events.extend(_detect_historical_low_events(db, limit=min(40, limit)))
+    hist_events, hist_suspicious = _detect_historical_low_events(db, limit=min(40, limit))
+    events.extend(hist_events)
+    stats["suspicious_hist_excluded"] = hist_suspicious
     events.extend(_detect_expiring_events(db, limit=min(30, limit)))
     # Editorial queue = HIGH + MEDIUM only
     editorial = [e for e in events if e.confidence in EDITORIAL_CONFIDENCE and e.score > 0]
@@ -1345,12 +1577,27 @@ def reason_text_for(row: DiscoverCandidate) -> str:
     return row.reason or ""
 
 
-def ignore_candidate(db: Session, cand_id: int) -> DiscoverCandidate | None:
+def ignore_candidate(
+    db: Session,
+    cand_id: int,
+    *,
+    reason: str | None = None,
+) -> DiscoverCandidate | None:
     row = db.query(DiscoverCandidate).filter(DiscoverCandidate.id == cand_id).first()
     if not row:
         return None
     row.status = "ignored"
     row.updated_at = datetime.utcnow()
+    if reason:
+        data: dict[str, Any] = {}
+        if row.payload_json:
+            try:
+                data = json.loads(row.payload_json)
+            except json.JSONDecodeError:
+                data = {}
+        data["ignore_reason"] = reason
+        data["ignored_at"] = datetime.utcnow().isoformat() + "Z"
+        row.payload_json = json.dumps(data, ensure_ascii=False)
     db.commit()
     db.refresh(row)
     return row
