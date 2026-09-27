@@ -17,10 +17,83 @@ WORKER_CANCEL_FLAG_PATHS = {
     "laptop": Path(BASE_DIR) / "tmp" / "tier_a_laptop_cancel.flag",
     "pc": Path(BASE_DIR) / "tmp" / "tier_a_pc_cancel.flag",
 }
+WORKER_START_FLAG_PATHS = {
+    "laptop": Path(BASE_DIR) / "tmp" / "tier_a_laptop_start.flag",
+    "pc": Path(BASE_DIR) / "tmp" / "tier_a_pc_start.flag",
+}
+WORKER_START_TTL_SEC = 15 * 60
+# Running phases with no progress update are treated as dead (crash / reboot).
+RUNNING_STALE_SEC = int(os.environ.get("TIER_A_RUNNING_STALE_SEC", str(5 * 60)))
+RUNNING_PHASES = frozenset({"rebuild_list", "scan_official", "scan_keyshops", "scan_cdkeys"})
 
 
 def _worker_name(worker: str | None) -> str:
     return "pc" if str(worker or "").lower() == "pc" else "laptop"
+
+
+def _parse_iso(ts: str | None) -> datetime | None:
+    if not ts:
+        return None
+    try:
+        raw = str(ts).replace("Z", "")
+        if "." in raw:
+            head, tail = raw.split(".", 1)
+            raw = f"{head}.{tail[:6]}"
+        return datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def _state_age_sec(state: dict[str, Any]) -> float | None:
+    updated = _parse_iso(state.get("updated_at")) or _parse_iso(state.get("started_at"))
+    if not updated:
+        return None
+    return max(0.0, (datetime.utcnow() - updated).total_seconds())
+
+
+def is_running_state_fresh(state: dict[str, Any], *, stale_sec: int | None = None) -> bool:
+    """True when phase looks running AND updated recently enough to be alive."""
+    phase = str(state.get("phase") or "idle")
+    if phase not in RUNNING_PHASES:
+        return False
+    age = _state_age_sec(state)
+    limit = RUNNING_STALE_SEC if stale_sec is None else stale_sec
+    if age is None:
+        return False
+    return age <= limit
+
+
+def mark_stale_running_as_idle(state: dict[str, Any]) -> dict[str, Any]:
+    """If a 'running' phase is stale, persist idle so start APIs can proceed."""
+    if str(state.get("phase") or "") not in RUNNING_PHASES:
+        return state
+    if is_running_state_fresh(state):
+        return state
+    worker = str(state.get("worker") or "vps").lower()
+    patch = {
+        "phase": "idle",
+        "stale_cleared_at": datetime.utcnow().isoformat() + "Z",
+        "stale_cleared_reason": "running_phase_stale",
+        "eta_sec": None,
+        "games_per_min": None,
+        "current_game": None,
+        "scan_subphase": None,
+    }
+    if worker == "pc":
+        return save_pc_state(patch)
+    if worker == "laptop":
+        return save_laptop_state(patch)
+    return save_vps_state(patch)
+
+
+def is_vps_scan_running() -> bool:
+    state = load_vps_state()
+    if is_running_state_fresh(state):
+        phase = str(state.get("phase") or "")
+        return phase in ("rebuild_list", "scan_official")
+    if str(state.get("phase") or "") in ("rebuild_list", "scan_official"):
+        mark_stale_running_as_idle(state)
+    return False
 
 
 def clear_vps_cancel() -> None:
@@ -53,11 +126,56 @@ def is_worker_cancel_requested(worker: str | None) -> bool:
     return WORKER_CANCEL_FLAG_PATHS[_worker_name(worker)].is_file()
 
 
+def clear_worker_start(worker: str | None) -> None:
+    path = WORKER_START_FLAG_PATHS[_worker_name(worker)]
+    if path.is_file():
+        path.unlink()
+
+
+def request_worker_start(worker: str | None) -> None:
+    name = _worker_name(worker)
+    clear_worker_cancel(name)
+    path = WORKER_START_FLAG_PATHS[name]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(datetime.utcnow().isoformat() + "Z", encoding="utf-8")
+
+
+def is_worker_start_requested(worker: str | None) -> bool:
+    path = WORKER_START_FLAG_PATHS[_worker_name(worker)]
+    if not path.is_file():
+        return False
+    try:
+        raw = path.read_text(encoding="utf-8").strip().rstrip("Z")
+        requested_at = datetime.fromisoformat(raw)
+    except (OSError, ValueError):
+        path.unlink(missing_ok=True)
+        return False
+    age = (datetime.utcnow() - requested_at).total_seconds()
+    if age > WORKER_START_TTL_SEC:
+        path.unlink(missing_ok=True)
+        return False
+    return True
+
+
+def request_all_worker_starts() -> dict[str, bool]:
+    """Kick laptop + PC workers (picked up by SpAdmin / local listeners)."""
+    request_worker_start("laptop")
+    request_worker_start("pc")
+    return {
+        "laptop": is_worker_start_requested("laptop"),
+        "pc": is_worker_start_requested("pc"),
+    }
+
+
 def stop_vps_scan() -> dict[str, Any]:
+    if not is_vps_scan_running():
+        vps = load_vps_state()
+        return {
+            "ok": False,
+            "message": "VPS Tier A scan is not running",
+            "phase": str(vps.get("phase") or "idle"),
+        }
     vps = load_vps_state()
-    phase = str(vps.get("phase") or "idle")
-    if phase not in ("rebuild_list", "scan_official"):
-        return {"ok": False, "message": "VPS Tier A scan is not running", "phase": phase}
     request_vps_cancel()
     now = datetime.utcnow().isoformat() + "Z"
     done = int(vps.get("games_done") or 0)
@@ -218,19 +336,6 @@ def _phase_label(phase: str | None) -> str:
     return labels.get(phase or "", phase or "—")
 
 
-def _parse_iso(ts: str | None) -> datetime | None:
-    if not ts:
-        return None
-    try:
-        raw = str(ts).replace("Z", "")
-        if "." in raw:
-            head, tail = raw.split(".", 1)
-            raw = f"{head}.{tail[:6]}"
-        return datetime.fromisoformat(raw)
-    except ValueError:
-        return None
-
-
 def _elapsed_sec(state: dict[str, Any]) -> int | None:
     t0 = _parse_iso(state.get("started_at"))
     if not t0:
@@ -260,14 +365,16 @@ def _infer_worker_phase(state: dict[str, Any], worker: str) -> str:
     total = int(state.get("games_total") or 0)
     if stopped_at and (not total or done < total):
         return "stopped" if (datetime.utcnow() - stopped_at).total_seconds() <= 86400 else "idle"
-    if phase in (
-        "rebuild_list",
-        "scan_official",
-        "scan_keyshops",
-        "scan_cdkeys",
-        "done",
-        "failed",
-    ):
+    if phase in RUNNING_PHASES:
+        if is_running_state_fresh(state):
+            return phase
+        # Stale "running" after crash/reboot — show done if nearly finished, else idle.
+        if total > 0 and done >= total:
+            return "done"
+        if total > 0 and done >= max(1, int(total * 0.98)):
+            return "done"
+        return "idle"
+    if phase in ("done", "failed"):
         return phase
     if state.get("finished_at"):
         return "done"
@@ -298,7 +405,8 @@ def _enrich_worker(state: dict[str, Any], default_shops: list[str]) -> dict[str,
         **state,
         "progress_pct": round(done / total * 100, 1) if total else 0,
         "phase_label": _phase_label(phase),
-        "cancel_requested": is_worker_cancel_requested(worker),
+        "cancel_requested": is_worker_cancel_requested(worker) if worker in ("laptop", "pc") else is_vps_cancel_requested(),
+        "start_requested": is_worker_start_requested(worker) if worker in ("laptop", "pc") else False,
         "elapsed_sec": elapsed,
         "duration_sec": duration,
         "shops": state.get("shops") or default_shops,

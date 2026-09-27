@@ -205,7 +205,7 @@
         });
         const res = await fetch(`api/admin/events?${q}`, { credentials: 'same-origin' });
         if (res.status === 401) {
-            window.location.href = 'panel3';
+            window.location.href = '/games/panel3';
             return;
         }
         if (!res.ok) return;
@@ -664,7 +664,7 @@
         try {
             const res = await fetch('api/admin/scan-shops', { credentials: 'same-origin' });
             if (res.status === 401) {
-                window.location.href = 'panel3';
+                window.location.href = '/games/panel3';
                 return;
             }
             if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -687,7 +687,7 @@
                 body: JSON.stringify({ shop, enabled }),
             });
             if (res.status === 401) {
-                window.location.href = 'panel3';
+                window.location.href = '/games/panel3';
                 return;
             }
             if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -705,10 +705,35 @@
     }
 
     function setStopButtonsDisabled(disabled) {
-        ['btn-stop-vps', 'btn-stop-local', 'btn-stop-all-scans'].forEach((id) => {
+        ['btn-start-all-scans', 'btn-stop-vps', 'btn-stop-local', 'btn-stop-all-scans'].forEach((id) => {
             const btn = document.getElementById(id);
             if (btn) btn.disabled = disabled;
         });
+    }
+
+    async function startAllScans() {
+        setStopButtonsDisabled(true);
+        setStopStatus('Запускаю всі скани…');
+        try {
+            const res = await fetch('api/admin/tier-a/scan-all', {
+                method: 'POST',
+                credentials: 'same-origin',
+            });
+            if (res.status === 401) {
+                window.location.href = '/games/panel3';
+                return;
+            }
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+            }
+            setStopStatus(data.message || 'OK');
+            await pollTierA();
+        } catch (err) {
+            setStopStatus(`Помилка start: ${err.message}`);
+        } finally {
+            setStopButtonsDisabled(false);
+        }
     }
 
     async function stopVpsScan() {
@@ -717,7 +742,7 @@
             credentials: 'same-origin',
         });
         if (res.status === 401) {
-            window.location.href = 'panel3';
+            window.location.href = '/games/panel3';
             return { ok: false, message: 'Потрібен вхід у Panel3' };
         }
         const data = await res.json().catch(() => ({}));
@@ -734,7 +759,7 @@
         });
         const data = await res.json().catch(() => ({}));
         if (res.status === 401) {
-            window.location.href = 'panel3';
+            window.location.href = '/games/panel3';
             return { ok: false, message: 'Потрібен вхід у Panel3' };
         }
         if (!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`);
@@ -779,6 +804,7 @@
     }
 
     function bindStopButtons() {
+        document.getElementById('btn-start-all-scans')?.addEventListener('click', () => startAllScans());
         document.getElementById('btn-stop-vps')?.addEventListener('click', () => runStopAction('vps'));
         document.getElementById('btn-stop-local')?.addEventListener('click', () => runStopAction('local'));
         document.getElementById('btn-stop-all-scans')?.addEventListener('click', () => runStopAction('all'));
@@ -935,7 +961,7 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
     async function loadStats() {
         const res = await fetch('api/admin/stats', { credentials: 'same-origin' });
         if (res.status === 401) {
-            window.location.href = 'panel3';
+            window.location.href = '/games/panel3';
             return;
         }
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -955,6 +981,54 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
         loadDiscoverArticles().catch(() => {});
     }
 
+    const PANEL3_PANES = [
+        'scans', 'shops', 'traffic', 'affiliate', 'users', 'coverage', 'catalog', 'deals', 'system',
+    ];
+    // Absolute path — bare "#pane" + <base href="/games/"> resolves to /games/#pane and drops panel3.
+    const PANEL3_PATH = '/games/panel3';
+
+    function currentPaneFromHash() {
+        const raw = (location.hash || '').replace(/^#/, '').trim().toLowerCase();
+        return PANEL3_PANES.includes(raw) ? raw : 'scans';
+    }
+
+    function showPane(paneId, { updateHash } = { updateHash: true }) {
+        const id = PANEL3_PANES.includes(paneId) ? paneId : 'scans';
+        document.querySelectorAll('.panel3-pane').forEach((pane) => {
+            const match = pane.getAttribute('data-pane') === id;
+            pane.classList.toggle('is-active', match);
+            pane.hidden = !match;
+        });
+        document.querySelectorAll('.panel3-nav__btn').forEach((btn) => {
+            btn.classList.toggle('is-active', btn.getAttribute('data-pane') === id);
+        });
+        if (updateHash) {
+            const next = PANEL3_PATH + '#' + id;
+            const cur = location.pathname + location.hash;
+            if (cur !== next) {
+                history.replaceState(null, '', next);
+            }
+        }
+        if (id === 'deals') {
+            loadDiscoverCandidates().catch(() => {});
+            loadDiscoverArticles().catch(() => {});
+        }
+    }
+
+    function bindNav() {
+        const nav = document.getElementById('panel3-nav');
+        if (!nav) return;
+        nav.addEventListener('click', (event) => {
+            const btn = event.target.closest('.panel3-nav__btn');
+            if (!btn) return;
+            showPane(btn.getAttribute('data-pane') || 'scans');
+        });
+        window.addEventListener('hashchange', () => {
+            showPane(currentPaneFromHash(), { updateHash: false });
+        });
+        showPane(currentPaneFromHash(), { updateHash: true });
+    }
+
     async function boot() {
         // #region agent log
         agentDebugLog('pre-fix', 'D', 'app/static/panel3.js:boot', 'Panel3 boot started', {
@@ -963,6 +1037,7 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
             hasTierA: Boolean(document.getElementById('tier-a-box')),
         });
         // #endregion
+        bindNav();
         bindStopButtons();
         bindDiscover();
         await loadStats();

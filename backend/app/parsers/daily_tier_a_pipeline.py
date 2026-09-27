@@ -107,8 +107,10 @@ def run_daily_tier_a_pipeline(*, bootstrap: bool = False, force: bool = False) -
     started = datetime.utcnow()
     clear_vps_cancel()
     if not bootstrap and not force:
-        phase = str(load_vps_state().get("phase") or "idle")
-        if phase in ("rebuild_list", "scan_official"):
+        from app.parsers.tier_a_scan_state import is_vps_scan_running
+
+        if is_vps_scan_running():
+            phase = str(load_vps_state().get("phase") or "idle")
             logger.info("Tier A pipeline skipped — already running (%s)", phase)
             return {"skipped": True, "reason": "already_running", "phase": phase}
         if _should_skip_scheduled_run():

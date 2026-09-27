@@ -890,6 +890,28 @@ def _load_game_with_offers(db: Session, game_id: int) -> Game | None:
 def on_startup():
     init_db()
 
+    try:
+        # BackgroundTasks die on service restart — never leave a zombie "running" VPS phase.
+        from app.parsers.tier_a_scan_state import RUNNING_PHASES, load_vps_state, save_vps_state
+        from datetime import datetime as _dt
+
+        vps = load_vps_state()
+        if str(vps.get("phase") or "") in RUNNING_PHASES and str(vps.get("worker") or "vps") == "vps":
+            save_vps_state(
+                {
+                    "phase": "idle",
+                    "stale_cleared_at": _dt.utcnow().isoformat() + "Z",
+                    "stale_cleared_reason": "service_restart",
+                    "eta_sec": None,
+                    "games_per_min": None,
+                    "current_game": None,
+                    "scan_subphase": None,
+                }
+            )
+            logging.getLogger("startup").info("Cleared zombie Tier A VPS running phase after restart")
+    except Exception as exc:
+        logging.getLogger("startup").warning("Tier A VPS stale clear failed: %s", exc)
+
     def _refresh_home_if_stale():
         if not cache_needs_refresh():
             return
@@ -2064,7 +2086,11 @@ def admin_articles_list(
 async def admin_tier_a_laptop_state(request: Request):
     """Laptop worker pushes scan progress to VPS."""
     require_panel3_admin(request)
-    from app.parsers.tier_a_scan_state import clear_worker_cancel, save_laptop_state
+    from app.parsers.tier_a_scan_state import (
+        clear_worker_cancel,
+        clear_worker_start,
+        save_laptop_state,
+    )
     from app.parsers.tier_a_auto_scan import is_auto_scan_paused
 
     try:
@@ -2076,6 +2102,7 @@ async def admin_tier_a_laptop_state(request: Request):
     manual_force = bool(body.get("manual_force"))
     if manual_force and body.get("phase") == "scan_keyshops":
         clear_worker_cancel("laptop")
+        clear_worker_start("laptop")
     if is_auto_scan_paused() and body.get("phase") == "scan_keyshops" and not manual_force:
         body = {
             "worker": "laptop",
@@ -2090,6 +2117,8 @@ async def admin_tier_a_laptop_state(request: Request):
         body.get("started_at") or body.get("finished_at") or body.get("stopped_at")
     ):
         clear_worker_cancel("laptop")
+        if body.get("phase") == "scan_keyshops":
+            clear_worker_start("laptop")
     state = save_laptop_state(body)
     return {"ok": True, "games_done": state.get("games_done"), "phase": state.get("phase")}
 
@@ -2098,7 +2127,11 @@ async def admin_tier_a_laptop_state(request: Request):
 async def admin_tier_a_pc_state(request: Request):
     """Dev PC worker pushes CDKeys scan progress to VPS."""
     require_panel3_admin(request)
-    from app.parsers.tier_a_scan_state import clear_worker_cancel, save_pc_state
+    from app.parsers.tier_a_scan_state import (
+        clear_worker_cancel,
+        clear_worker_start,
+        save_pc_state,
+    )
     from app.parsers.tier_a_auto_scan import is_auto_scan_paused
 
     try:
@@ -2110,6 +2143,7 @@ async def admin_tier_a_pc_state(request: Request):
     manual_force = bool(body.get("manual_force"))
     if manual_force and body.get("phase") == "scan_cdkeys":
         clear_worker_cancel("pc")
+        clear_worker_start("pc")
     if is_auto_scan_paused() and body.get("phase") == "scan_cdkeys" and not manual_force:
         body = {
             "worker": "pc",
@@ -2124,6 +2158,8 @@ async def admin_tier_a_pc_state(request: Request):
         body.get("started_at") or body.get("finished_at") or body.get("stopped_at")
     ):
         clear_worker_cancel("pc")
+        if body.get("phase") == "scan_cdkeys":
+            clear_worker_start("pc")
     state = save_pc_state(body)
     return {"ok": True, "games_done": state.get("games_done"), "phase": state.get("phase")}
 
@@ -2133,11 +2169,9 @@ def admin_tier_a_scan_vps(request: Request, background_tasks: BackgroundTasks):
     """Manual trigger: Tier A official-shop scan on VPS (Steam, GOG, Epic)."""
     require_panel3_admin(request)
     from app.parsers.daily_tier_a_pipeline import run_daily_tier_a_pipeline
-    from app.parsers.tier_a_scan_state import clear_vps_cancel, load_vps_state
+    from app.parsers.tier_a_scan_state import clear_vps_cancel, is_vps_scan_running
 
-    vps = load_vps_state()
-    phase = str(vps.get("phase") or "idle")
-    if phase in ("rebuild_list", "scan_official"):
+    if is_vps_scan_running():
         raise HTTPException(status_code=409, detail="VPS Tier A scan already running")
 
     clear_vps_cancel()
@@ -2150,6 +2184,113 @@ def admin_tier_a_scan_vps(request: Request, background_tasks: BackgroundTasks):
 
     background_tasks.add_task(_job)
     return {"ok": True, "message": "VPS Tier A scan started"}
+
+
+@app.post("/api/admin/tier-a/scan-all")
+def admin_tier_a_scan_all(request: Request, background_tasks: BackgroundTasks):
+    """Start VPS scan + kick laptop/PC workers (SpAdmin picks up start_requested)."""
+    require_panel3_admin(request)
+    from app.parsers.daily_tier_a_pipeline import run_daily_tier_a_pipeline
+    from app.parsers.tier_a_auto_scan import set_auto_scan_paused
+    from app.parsers.tier_a_scan_state import (
+        clear_vps_cancel,
+        clear_worker_start,
+        is_running_state_fresh,
+        is_vps_scan_running,
+        load_laptop_state,
+        load_pc_state,
+        load_vps_state,
+        request_worker_start,
+    )
+
+    set_auto_scan_paused(False, by="panel3-scan-all")
+
+    vps = load_vps_state()
+    laptop = load_laptop_state()
+    pc = load_pc_state()
+
+    local_kicks: dict[str, bool] = {"laptop": False, "pc": False}
+    local_already: dict[str, bool] = {
+        "laptop": is_running_state_fresh(laptop),
+        "pc": is_running_state_fresh(pc),
+    }
+    for worker, already in local_already.items():
+        if already:
+            clear_worker_start(worker)
+        else:
+            request_worker_start(worker)
+            local_kicks[worker] = True
+
+    vps_started = False
+    vps_already = is_vps_scan_running()
+    if not vps_already:
+        clear_vps_cancel()
+
+        def _job() -> None:
+            try:
+                run_daily_tier_a_pipeline(force=True)
+            except Exception as exc:
+                logging.getLogger(__name__).exception("Tier A scan-all VPS failed: %s", exc)
+
+        background_tasks.add_task(_job)
+        vps_started = True
+        vps = load_vps_state()
+
+    def _progress(state: dict) -> str:
+        done = int(state.get("games_done") or 0)
+        total = int(state.get("games_total") or 0)
+        if total > 0:
+            return f"{done}/{total}"
+        return str(state.get("phase") or "idle")
+
+    parts: list[str] = []
+    if vps_started:
+        parts.append("VPS запущено")
+    elif vps_already:
+        parts.append(f"VPS уже сканує ({_progress(vps)})")
+    else:
+        parts.append("VPS idle")
+
+    if local_already["laptop"]:
+        parts.append(f"ноутбук уже сканує ({_progress(laptop)})")
+    elif local_kicks["laptop"]:
+        parts.append("ноутбук: kick надіслано")
+
+    if local_already["pc"]:
+        parts.append(f"ПК уже сканує ({_progress(pc)})")
+    elif local_kicks["pc"]:
+        parts.append("ПК: kick надіслано")
+
+    return {
+        "ok": True,
+        "vps_started": vps_started,
+        "vps_already_running": vps_already,
+        "message": " · ".join(parts),
+        "local_kicks": local_kicks,
+        "local_already_running": local_already,
+        "progress": {
+            "vps": _progress(vps),
+            "laptop": _progress(laptop),
+            "pc": _progress(pc),
+        },
+    }
+
+
+@app.post("/api/admin/tier-a/ack-start")
+async def admin_tier_a_ack_start(request: Request):
+    """Clear start_requested after SpAdmin has launched the local scan."""
+    require_panel3_admin(request)
+    from app.parsers.tier_a_scan_state import clear_worker_start, is_worker_start_requested
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    worker = str((body or {}).get("worker") or "").strip().lower()
+    if worker not in ("laptop", "pc"):
+        raise HTTPException(status_code=400, detail="worker must be laptop or pc")
+    clear_worker_start(worker)
+    return {"ok": True, "worker": worker, "start_requested": is_worker_start_requested(worker)}
 
 
 @app.post("/api/admin/tier-a/stop-vps")
