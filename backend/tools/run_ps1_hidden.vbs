@@ -9,5 +9,6 @@ Dim i
 For i = 1 To WScript.Arguments.Count - 1
   extra = extra & " " & WScript.Arguments(i)
 Next
-cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & ps1 & """" & extra
+' conhost --headless does not create a console, so the game keeps focus.
+cmd = "conhost.exe --headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File """ & ps1 & """" & extra
 sh.Run cmd, 0, False

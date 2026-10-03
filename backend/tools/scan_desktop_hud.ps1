@@ -39,7 +39,25 @@ function Get-ScanState {
     }
 }
 
-$form = New-Object System.Windows.Forms.Form
+if (-not ("NoActivateForm" -as [type])) {
+    Add-Type -ReferencedAssemblies System.Windows.Forms @"
+using System;
+using System.Windows.Forms;
+public class NoActivateForm : Form {
+    protected override bool ShowWithoutActivation { get { return true; } }
+    protected override CreateParams CreateParams {
+        get {
+            const int WS_EX_NOACTIVATE = 0x08000000;
+            const int WS_EX_TOOLWINDOW = 0x00000080;
+            CreateParams cp = base.CreateParams;
+            cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+            return cp;
+        }
+    }
+}
+"@
+}
+$form = New-Object NoActivateForm
 $form.Text = "KupujPL Scan"
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
 $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
@@ -156,7 +174,7 @@ $canvas.Add_Paint({
 
 function Show-HudUi {
     if (-not $form.Visible) { $form.Show() }
-    $form.TopMost = $true
+    if (-not $form.TopMost) { $form.TopMost = $true }
     $form.Opacity = 0.94
     $timer.Interval = 250
 }
