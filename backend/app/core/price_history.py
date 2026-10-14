@@ -8,9 +8,16 @@ from statistics import median
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.game_offer_selection import (
+    display_shops_for_game,
+    normalize_shopping_region,
+    offer_visible_for_shopping_region,
+    steam_shop_for_region,
+)
 from app.core.offer_quality import (
     STEAM_PRICE_RATIO_FLOOR,
     is_peer_price_outlier,
+    offer_eligible_for_best_price,
 )
 from app.models.models import Game, Offer, PriceSnapshot
 from app.parsers.shop_scan_config import get_display_shops
@@ -19,16 +26,19 @@ logger = logging.getLogger("price_history")
 
 RETENTION_DAYS = 90
 PRICE_EPSILON = 0.009
-# Marketplace/keyshop offers below this confidence are excluded from history rollups.
-HISTORY_MIN_CONFIDENCE = 0.55
+# Default shopping region for catalogue history / rollups (matches SSR + SEO).
+HISTORY_SHOPPING_REGION = "pl"
 
 
-def _steam_price_for_game(db: Session, game_id: int) -> float | None:
+def _steam_price_for_game(
+    db: Session, game_id: int, *, region: str = HISTORY_SHOPPING_REGION
+) -> float | None:
+    shop = steam_shop_for_region(normalize_shopping_region(region))
     row = (
         db.query(func.min(Offer.price_pln))
         .filter(
             Offer.game_id == game_id,
-            Offer.shop_name == "Steam",
+            Offer.shop_name == shop,
             Offer.in_stock.is_(True),
             Offer.price_pln > 0,
         )
@@ -37,45 +47,48 @@ def _steam_price_for_game(db: Session, game_id: int) -> float | None:
     return float(row) if row is not None else None
 
 
-def _eligible_offer_prices(db: Session, game_id: int) -> list[float]:
-    """Current in-stock prices eligible for history / best (official or confident)."""
-    display = list(get_display_shops())
+def _eligible_offers(
+    db: Session, game_id: int, *, region: str = HISTORY_SHOPPING_REGION
+) -> list[Offer]:
+    """Current in-stock offers eligible for history — same rules as catalog best price."""
+    region = normalize_shopping_region(region)
+    game = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
+        return []
+    allowed = display_shops_for_game(game, region=region)
     rows = (
-        db.query(Offer.price_pln, Offer.is_official, Offer.match_confidence, Offer.shop_name)
+        db.query(Offer)
         .filter(
             Offer.game_id == game_id,
             Offer.in_stock.is_(True),
             Offer.price_pln.isnot(None),
             Offer.price_pln > 0,
-            Offer.shop_name.in_(display),
+            Offer.shop_name.in_(list(allowed)),
         )
         .all()
     )
-    steam = _steam_price_for_game(db, game_id)
-    raw = [float(r.price_pln) for r in rows]
-    trusted_official = frozenset({"Steam", "Steam US", "PlayStation Store", "Xbox Store"})
-    out: list[float] = []
-    for price, is_official, conf, shop_name in rows:
-        price_f = float(price)
-        if not is_official and (conf is None or float(conf) < HISTORY_MIN_CONFIDENCE):
-            continue
-        if steam is not None and steam >= 5 and shop_name not in trusted_official:
-            if price_f / steam < STEAM_PRICE_RATIO_FLOOR:
-                continue
-        others = list(raw)
-        try:
-            others.remove(price_f)
-        except ValueError:
-            pass
-        # Official GOG/Epic can still be a wrong-title match — peer-filter them too.
-        if shop_name not in trusted_official and is_peer_price_outlier(price_f, others):
-            continue
-        out.append(price_f)
-    return out
+    visible = [o for o in rows if offer_visible_for_shopping_region(o, region)]
+    steam = _steam_price_for_game(db, game_id, region=region)
+    peer_prices = [float(o.price_pln) for o in visible if o.price_pln]
+    return [
+        o
+        for o in visible
+        if offer_eligible_for_best_price(
+            o, steam_price_pln=steam, peer_prices=peer_prices
+        )
+    ]
 
 
-def _best_price_for_game(db: Session, game_id: int) -> float | None:
-    prices = _eligible_offer_prices(db, game_id)
+def _eligible_offer_prices(
+    db: Session, game_id: int, *, region: str = HISTORY_SHOPPING_REGION
+) -> list[float]:
+    return [float(o.price_pln) for o in _eligible_offers(db, game_id, region=region)]
+
+
+def _best_price_for_game(
+    db: Session, game_id: int, *, region: str = HISTORY_SHOPPING_REGION
+) -> float | None:
+    prices = _eligible_offer_prices(db, game_id, region=region)
     if not prices:
         return None
     return min(prices)
@@ -142,15 +155,19 @@ def record_offer_price_change(
     update_game_price_rollups(db, game_id)
 
 
-def update_game_price_rollups(db: Session, game_id: int) -> None:
+def update_game_price_rollups(
+    db: Session, game_id: int, *, region: str = HISTORY_SHOPPING_REGION
+) -> None:
     game = db.query(Game).filter(Game.id == game_id).first()
     if not game:
         return
+    region = normalize_shopping_region(region)
     now = datetime.utcnow()
     since_30 = now - timedelta(days=30)
-    display = list(get_display_shops())
-    steam = _steam_price_for_game(db, game_id)
-    peer_now = _eligible_offer_prices(db, game_id)
+    # Snapshots may still contain Steam US / junk shops — filter by region shop set.
+    display = list(display_shops_for_game(game, region=region))
+    steam = _steam_price_for_game(db, game_id, region=region)
+    peer_now = _eligible_offer_prices(db, game_id, region=region)
 
     snaps = (
         db.query(PriceSnapshot)
@@ -267,12 +284,21 @@ def get_price_history(
     *,
     days: int = 90,
     current_best_pln: float | None = None,
+    region: str = HISTORY_SHOPPING_REGION,
 ) -> list[dict]:
     """Daily best price across shops; fold in live best so chart matches offers."""
+    region = normalize_shopping_region(region)
     since = datetime.utcnow() - timedelta(days=days)
-    display = list(get_display_shops())
-    steam = _steam_price_for_game(db, game_id)
-    peer_now = _eligible_offer_prices(db, game_id)
+    game = db.query(Game).filter(Game.id == game_id).first()
+    display = list(display_shops_for_game(game, region=region)) if game else list(
+        get_display_shops()
+    )
+    if region == "pl":
+        display = [s for s in display if s != "Steam US"]
+    elif region == "us":
+        display = [s for s in display if s != "Steam"]
+    steam = _steam_price_for_game(db, game_id, region=region)
+    peer_now = _eligible_offer_prices(db, game_id, region=region)
     snaps = (
         db.query(PriceSnapshot)
         .filter(

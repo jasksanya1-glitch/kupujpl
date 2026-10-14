@@ -13,6 +13,7 @@ from typing import List, Optional, Any
 import logging
 import math
 import os
+import re
 import json
 import time
 import hashlib
@@ -532,6 +533,85 @@ def _static_page(name: str):
     return FileResponse(path)
 
 
+_MOBILE_HOME_UA_RE = re.compile(
+    r"Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini|"
+    r"Googlebot-Mobile|AdsBot-Google-Mobile|Mobile Safari",
+    re.I,
+)
+_MOBILE_HOME_BLOCK_RE = re.compile(
+    r"<!--\s*Mobile-only legacy home[\s\S]*?-->\s*"
+    r'<div id="mobile-home-mount"></div>\s*'
+    r'<template id="tpl-mobile-home-legacy">([\s\S]*?)</template>',
+    re.I,
+)
+_MOBILE_SORT_RE = re.compile(
+    r'<label class="catalog-sort"[^>]*id="mobile-catalog-sort"[^>]*>[\s\S]*?</label>',
+    re.I,
+)
+
+
+def _wants_mobile_home_html(request: Request) -> bool:
+    """Prefer Client Hints; fall back to UA. Desktop browsers must not get legacy hero HTML."""
+    ch = (request.headers.get("sec-ch-ua-mobile") or "").strip()
+    if ch == "?1":
+        return True
+    if ch == "?0":
+        return False
+    ua = request.headers.get("user-agent") or ""
+    return bool(_MOBILE_HOME_UA_RE.search(ua))
+
+
+def _index_html_response(request: Request) -> HTMLResponse:
+    path = os.path.join(STATIC_DIR, "index.html")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Page not found")
+    with open(path, encoding="utf-8") as fh:
+        html = fh.read()
+    match = _MOBILE_HOME_BLOCK_RE.search(html)
+    if match:
+        inner = match.group(1)
+        if _wants_mobile_home_html(request):
+            sort_m = _MOBILE_SORT_RE.search(inner)
+            sort_html = sort_m.group(0) if sort_m else ""
+            home_html = _MOBILE_SORT_RE.sub("", inner, count=1) if sort_m else inner
+            replacement = f'<div id="mobile-home-mount">{home_html}</div>'
+            html = _MOBILE_HOME_BLOCK_RE.sub(replacement, html, count=1)
+            if sort_html:
+                html = html.replace(
+                    '<div id="catalog-sort-slot"></div>',
+                    f'<div id="catalog-sort-slot">{sort_html}</div>',
+                    1,
+                )
+        else:
+            html = _MOBILE_HOME_BLOCK_RE.sub(
+                '<div id="mobile-home-mount" hidden></div>',
+                html,
+                count=1,
+            )
+    # Crawlable first paint: Polecane + news + first catalogue cards (JS still hydrates).
+    try:
+        from app.core.home_ssr import inject_homepage_ssr, safe_homepage_ssr
+
+        db = SessionLocal()
+        try:
+            fragments = safe_homepage_ssr(db)
+            if fragments:
+                html = inject_homepage_ssr(html, fragments)
+        finally:
+            db.close()
+    except Exception:
+        logging.getLogger("home_ssr").exception("homepage SSR inject failed")
+    return HTMLResponse(
+        content=html,
+        media_type="text/html; charset=utf-8",
+        headers={
+            "Cache-Control": "private, no-cache",
+            "Vary": "User-Agent, Sec-CH-UA-Mobile",
+            "Accept-CH": "Sec-CH-UA-Mobile",
+        },
+    )
+
+
 def _display_title(title: str | None) -> str:
     if not title:
         return ""
@@ -539,17 +619,25 @@ def _display_title(title: str | None) -> str:
 
 
 def _savings_vs_steam(best: Offer | None, steam: Offer | None) -> dict[str, float | int | None]:
+    """Discount vs Steam reference — omit when reference/current invalid."""
     steam_price = float(steam.price_pln) if steam and steam.price_pln else None
     best_price = float(best.price_pln) if best and best.price_pln else None
-    if steam_price is None or best_price is None or best_price >= steam_price:
-        return {"steam_price_pln": steam_price, "savings_pln": None, "savings_pct": None}
+    empty = {"steam_price_pln": steam_price, "savings_pln": None, "savings_pct": None}
+    # reference_price > current_price > 0
+    if steam_price is None or best_price is None:
+        return empty
+    if steam_price <= 0 or best_price <= 0 or best_price >= steam_price:
+        return empty
     savings = steam_price - best_price
     if savings < 0.01:
-        return {"steam_price_pln": steam_price, "savings_pln": None, "savings_pct": None}
+        return empty
+    pct = int(round((savings / steam_price) * 100))
+    if pct < 1 or pct > 99:
+        return empty
     return {
         "steam_price_pln": steam_price,
         "savings_pln": round(savings, 2),
-        "savings_pct": int(round((savings / steam_price) * 100)),
+        "savings_pct": pct,
     }
 
 
@@ -732,6 +820,7 @@ def _offer_to_response(
         trust_label=trust["label"] if trust else None,
         trust_tier=trust["tier"] if trust else None,
         trust_note=trust.get("notes_pl") if trust else None,
+        store_class=trust.get("store_class") if trust else None,
         refund_policy_url=trust.get("refund_policy_url") if trust else None,
         refund_note_pl=trust.get("refund_note_pl") if trust else None,
         refund_note_uk=trust.get("refund_note_uk") if trust else None,
@@ -1010,8 +1099,8 @@ def service_worker_js():
 
 
 @app.get("/")
-def read_root():
-    return _static_page("index.html")
+def read_root(request: Request):
+    return _index_html_response(request)
 
 
 @app.get("/login")
@@ -1067,6 +1156,27 @@ def support_page():
 @app.get("/legal-en")
 def legal_en_page():
     return _static_page("legal-en.html")
+
+
+@app.get("/legal", response_class=HTMLResponse)
+def legal_hub_page():
+    """Public legal hub (200) linking Polish terms + privacy + EN legal."""
+    body = """<!DOCTYPE html><html lang="pl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Informacje prawne — KupujPL</title>
+<link rel="canonical" href="https://kupujpl.pl/games/legal">
+<meta name="robots" content="index,follow">
+<link rel="stylesheet" href="static/style.css?v=93">
+</head><body class="legal-page"><main class="wrap" style="max-width:720px;margin:2rem auto;padding:1rem">
+<h1>Informacje prawne</h1>
+<ul>
+<li><a href="regulamin">Regulamin</a></li>
+<li><a href="polityka-prywatnosci">Polityka prywatności</a></li>
+<li><a href="legal-en">Legal information (EN)</a></li>
+</ul>
+<p><a href="./">← KupujPL Gry</a></p>
+</main></body></html>"""
+    return HTMLResponse(body)
 
 
 @app.get("/api/site/info")
@@ -1516,6 +1626,7 @@ def api_articles_latest(db: Session = Depends(get_db), limit: int = 6):
                 else None,
                 "url": f"/games/blog/{a.slug}",
                 "article_type": a.article_type,
+                "featured_image": a.featured_image,
             }
             for a in arts
         ],
@@ -2972,13 +3083,23 @@ def catalog_status(db: Session = Depends(get_db)):
         .group_by(Offer.shop_name)
         .all()
     )
+    offers_by_shop = {name: count for name, count in offer_rows}
+    display_shops_all = list(get_display_shops())
+    # PL marketing count excludes Steam US (region-specific storefront).
+    pl_shops = sorted(_display_shops_for_region("pl"))
     return {
         **get_catalog_progress(),
         "games_total": visible,
         "games_in_db": total_in_db,
         "games_enriched": enriched,
         "categories_total": categories,
-        "offers_by_shop": {name: count for name, count in offer_rows},
+        # Canonical public storefront count (marketing / FAQ / hero meta) — PL region.
+        "stores_total": len(pl_shops),
+        "display_shops": pl_shops,
+        "display_shops_all": display_shops_all,
+        # Raw distinct shop_name rows in Offer table (may include Steam US / console).
+        "stores_with_offers": len(offers_by_shop),
+        "offers_by_shop": offers_by_shop,
         "offer_scheduler": get_scheduler_status(),
     }
 

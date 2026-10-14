@@ -14,8 +14,13 @@ const LEGACY_CDN = 'https://cdn.akamai.steamstatic.com';
 
 function normalizeCoverUrl(url) {
     if (!url || !String(url).trim()) return null;
-    return String(url)
-        .trim()
+    let u = String(url).trim();
+    if (!u || u === 'null' || u === 'undefined') return null;
+    // Guard against bad relative joins like "/games/https://..."
+    u = u.replace(/^\/games\/(https?:\/\/)/i, '$1');
+    if (u.startsWith('//')) u = `https:${u}`;
+    if (u.startsWith('http://')) u = `https://${u.slice(7)}`;
+    return u
         .replace(/shared\.akamai\.steamstatic\.com/g, 'shared.cloudflare.steamstatic.com')
         .replace(/cdn\.akamai\.steamstatic\.com/g, 'shared.cloudflare.steamstatic.com')
         .replace(/shared\.fastly\.steamstatic\.com/g, 'shared.cloudflare.steamstatic.com');
@@ -42,6 +47,22 @@ function steamFallbackUrls(steamAppid) {
         `${STEAM_CDN}/steam/apps/${id}/header.jpg`,
         `${STEAM_CDN}/steam/apps/${id}/capsule_616x353.jpg`,
         `${STEAM_CDN}/steam/apps/${id}/library_600x900.jpg`,
+        `${LEGACY_CDN}/steam/apps/${id}/header.jpg`,
+        `${LEGACY_CDN}/steam/apps/${id}/capsule_616x353.jpg`,
+    ];
+}
+
+/** Large wide Steam hero art (~1920×620) — use for homepage hero, not tiny header.jpg. */
+function steamHeroFallbackUrls(steamAppid) {
+    if (!steamAppid) return [];
+    const id = String(steamAppid);
+    return [
+        `${STEAM_CDN}/store_item_assets/steam/apps/${id}/library_hero.jpg`,
+        `${STEAM_CDN}/steam/apps/${id}/library_hero.jpg`,
+        `${STEAM_CDN}/store_item_assets/steam/apps/${id}/header.jpg`,
+        `${STEAM_CDN}/steam/apps/${id}/header.jpg`,
+        `${STEAM_CDN}/store_item_assets/steam/apps/${id}/capsule_616x353.jpg`,
+        `${STEAM_CDN}/steam/apps/${id}/capsule_616x353.jpg`,
         `${LEGACY_CDN}/steam/apps/${id}/header.jpg`,
         `${LEGACY_CDN}/steam/apps/${id}/capsule_616x353.jpg`,
     ];
@@ -82,15 +103,56 @@ function gameCoverSrc(game) {
     return coverChainForGame(game)[0];
 }
 
-function bindCoverFallback(img, gameOrAppid) {
+function isPortraitCoverUrl(url) {
+    if (!url) return false;
+    return /library_600x900|portrait|vertical/i.test(url)
+        && !/library_hero|header|capsule_616|header_alt/i.test(url);
+}
+
+function isHeroWideCoverUrl(url) {
+    if (!url || isPortraitCoverUrl(url)) return false;
+    return /\/(library_hero|header|header_alt_assets|capsule_616x353)/i.test(url);
+}
+
+/** Prefer Steam library_hero (HD wide) for featured/hero banners. */
+function featuredCoverChain(game) {
+    const hero = steamHeroFallbackUrls(game?.steam_appid);
+    const chain = [...hero, ...coverChainForGame(game)].filter(Boolean);
+    const wide = [];
+    const other = [];
+    chain.forEach((u) => {
+        if (isHeroWideCoverUrl(u)) wide.push(u);
+        else other.push(u);
+    });
+    // library_hero first among wide assets
+    wide.sort((a, b) => {
+        const score = (u) => (/library_hero/i.test(u) ? 0 : /\/header(\.jpg|_alt)/i.test(u) ? 1 : 2);
+        return score(a) - score(b);
+    });
+    const out = [...wide, ...other, PLACEHOLDER_COVER];
+    return [...new Set(out.map(normalizeCoverUrl).filter(Boolean))];
+}
+
+function featuredCoverInfo(game) {
+    const chain = featuredCoverChain(game);
+    const src = chain[0] || PLACEHOLDER_COVER;
+    return { src, isPortrait: isPortraitCoverUrl(src), chain };
+}
+
+function bindCoverFallback(img, gameOrAppid, opts) {
     if (!img) return;
     const game =
         typeof gameOrAppid === 'object' && gameOrAppid !== null
             ? gameOrAppid
             : { steam_appid: gameOrAppid };
-    const chain = [...coverChainForGame(game), PLACEHOLDER_COVER];
-    const unique = [...new Set(chain)];
+    const preferWide = !!(opts && opts.preferWide);
+    const chain = preferWide
+        ? featuredCoverChain(game)
+        : [...coverChainForGame(game), PLACEHOLDER_COVER];
+    const unique = [...new Set(chain.map(normalizeCoverUrl).filter(Boolean))];
+    if (!unique.length) unique.push(PLACEHOLDER_COVER);
     img.dataset.fallbackStep = '0';
+    if (!img.getAttribute('src') && unique[0]) img.src = unique[0];
     img.onerror = () => {
         const next = parseInt(img.dataset.fallbackStep || '0', 10) + 1;
         if (next < unique.length) {

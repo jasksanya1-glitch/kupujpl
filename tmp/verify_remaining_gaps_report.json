@@ -1,0 +1,21 @@
+{
+  "verified_at": "2026-10-03",
+  "live_app_hardcodes": [],
+  "catalog": {"stores_total": 10, "games_total": 4959},
+  "prices_named_ok": "5/5",
+  "prices_random_ok": "20/20",
+  "taxonomy_ig_fanatical": "Autoryzowany / AUTHORIZED_RESELLER",
+  "robots_chrome": "200 text/plain Allow: /games/",
+  "robots_curl_ua": "403 Cloudflare (left unchanged)",
+  "sitemaps_sample20": {"200": 20, "noindex": 0, "canon_mismatch": 0},
+  "indexability_ok_paths": [
+    "/games/", "/games/promocje", "/games/regulamin", "/games/polityka-prywatnosci",
+    "/games/blog", "/games/blog/jak-kupowac-gry-taniej", "/games/blog/steam-vs-keyshopy",
+    "/games/blog/alert-cenowy-jak-dziala",
+    "5 games named", "5 categories from sitemap"
+  ],
+  "smoke": {
+    "desktop": {"h1": 1, "h2_before_cards": true, "ssr": 18, "d3": true},
+    "mobile": {"h1": 1, "h2_before_cards": true, "ssr": 18, "deal_meta": "10 sklepów // 4959 gier"}
+  }
+}

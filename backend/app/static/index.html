@@ -10,16 +10,16 @@
     <link rel="icon" href="/games/static/icons/favicon-16.png?v=1" type="image/png" sizes="16x16">
     <link rel="apple-touch-icon" href="/games/static/icons/apple-touch-icon.png?v=1">
     <link rel="manifest" href="/games/static/site.webmanifest">
-    <meta name="theme-color" content="#fcee09">
+    <meta name="theme-color" content="#050b12">
     <meta name="verify-admitad" content="d48581620c" />
     <meta name="impact-site-verification" value="a946c12b-ecd5-4262-ab8a-3e36647b2f34">
     <script>
-    (function(){try{var t=localStorage.getItem('kupujpl-theme');document.documentElement.dataset.theme=(!t||['night','ice','void','matrix'].indexOf(t)<0)?'night':t;}catch(e){document.documentElement.dataset.theme='night';}})();
+    (function(){try{localStorage.setItem('kupujpl-theme','ice');}catch(e){}document.documentElement.dataset.theme='ice';})();
     </script>
 
     <base href="/games/">
     <title>KupujPL — Porównywarka cen gier PC</title>
-    <meta name="description" content="Darmowa porównywarka cen gier PC w Polsce. Steam, GOG, Epic, Eneba, Kinguin, CDKeys, G2A, Fanatical — znajdź najtańszą ofertę w 10 sklepach.">
+    <meta name="description" content="Darmowa porównywarka cen gier PC w Polsce. Steam, GOG, Epic, Eneba, Kinguin, CDKeys, G2A, Fanatical — znajdź najtańszą ofertę __IN_STORES__.">
     <meta name="robots" content="index, follow">
     <meta name="google-site-verification" content="aMH7gCwPiUctDQtmz1TEl4nLuIxGF978rnCQjKrN2Qs">
     <link rel="canonical" href="https://kupujpl.pl/games/">
@@ -35,23 +35,50 @@
     </script>
     <meta property="og:type" content="website">
     <meta property="og:title" content="KupujPL — Porównywarka cen gier PC">
-    <meta property="og:description" content="Porównaj ceny gier PC w 10 sklepach. Znajdź najtańszą ofertę na Steam, GOG, Epic i marketplace'ach kluczy.">
+    <meta property="og:description" content="Porównaj ceny gier PC __IN_STORES__. Znajdź najtańszą ofertę na Steam, GOG, Epic i marketplace'ach kluczy.">
     <meta property="og:url" content="https://kupujpl.pl/games/">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="KupujPL — Porównywarka cen gier PC">
-    <meta name="twitter:description" content="Porównaj ceny gier PC w 10 sklepach. Znajdź najtańszą ofertę.">
-    <link rel="stylesheet" href="static/style.css?v=91">
+    <meta name="twitter:description" content="Porównaj ceny gier PC __IN_STORES__. Znajdź najtańszą ofertę.">
+    <link rel="stylesheet" href="static/style.css?v=93">
+    <link rel="stylesheet" href="static/mobile-concept4.css?v=17">
+    <link rel="stylesheet" href="static/desktop-concept3.css?v=17">
 </head>
 <body class="layout-split" data-i18n-title="title.home">
     <header class="header">
         <div class="wrap header-inner">
             <a href="./" class="brand">
                 <span class="brand-name">Kupuj<span class="brand-accent">PL</span></span>
-                <span class="brand-sub">Gry</span>
+                <span class="brand-sub">Games</span>
             </a>
+            <nav class="d3-nav" data-i18n-aria="nav.main" aria-label="Nawigacja główna">
+                <a href="./" class="d3-nav-link is-active" data-i18n="nav.games">Gry</a>
+                <a href="promocje" class="d3-nav-link" data-i18n="nav.promotions">Promocje</a>
+                <a href="blog" class="d3-nav-link" data-i18n="nav.news">Aktualności</a>
+                <a href="darmowe-gry" class="d3-nav-link" data-i18n="nav.free">Darmowe</a>
+                <a href="o-nas" class="d3-nav-link" data-i18n="nav.about">O nas</a>
+            </nav>
             <div class="search-wrap">
                 <input type="search" id="search-input" data-i18n-placeholder="search.placeholder" placeholder="Szukaj gier…" autocomplete="off">
             </div>
+            <nav class="d3-tools" data-i18n-aria="nav.account" aria-label="Konto">
+                <div class="d3-chrome-slots">
+                    <div class="d3-lang-slot" data-lang-switch-slot data-i18n-aria="nav.lang" aria-label="Język"></div>
+                    <div class="d3-region-slot" data-region-switch-slot data-i18n-aria="region.toggle_aria" aria-label="Region zakupów"></div>
+                </div>
+                <a href="panel" class="d3-tool" data-i18n-aria="nav.favorites_panel" aria-label="Ulubione / Panel">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z"></path></svg>
+                    <span data-i18n="nav.favorites">Ulubione</span>
+                </a>
+                <a href="panel" class="d3-tool" data-i18n-aria="panel.alerts" aria-label="Alerty cenowe">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 3.5 1.5 5 2 6H4c.5-1 2-2.5 2-6z"></path><path d="M10 19a2 2 0 0 0 4 0"></path></svg>
+                    <span data-i18n="nav.alerts">Alerty</span>
+                </a>
+                <a href="login" class="d3-tool" id="d3-tool-account" data-i18n-aria="nav.account" aria-label="Konto">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.5-3.5 4-5 8-5s6.5 1.5 8 5"></path></svg>
+                    <span>Konto</span>
+                </a>
+            </nav>
             <nav class="header-info" data-i18n-aria="nav.info" aria-label="Informacje">
                 <a href="o-nas" class="header-info-btn" data-i18n="nav.about">O nas</a>
                 <a href="blog" class="header-info-btn" data-i18n="nav.blog">Blog</a>
@@ -61,15 +88,59 @@
                 <a href="wsparcie" class="header-info-btn header-info-btn--donate" data-i18n="nav.support">☕ Wsparcie</a>
             </nav>
             <nav id="auth-nav" class="auth-nav"></nav>
+            <div class="m-header-actions">
+                <button type="button" class="m-icon-btn" id="m-search-btn" data-i18n-aria="nav.search_short" aria-label="Szukaj">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+                </button>
+                <button type="button" class="m-icon-btn" id="m-menu-btn" data-i18n-aria="nav.menu" aria-label="Menu" aria-expanded="false" aria-controls="m-drawer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+                </button>
+            </div>
         </div>
     </header>
+
+    <div id="m-drawer" class="m-drawer" hidden>
+        <button type="button" class="m-drawer-overlay" id="m-drawer-overlay" data-i18n-aria="nav.close_menu" aria-label="Zamknij menu"></button>
+        <div class="m-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="m-drawer-title">
+            <div class="m-drawer-head">
+                <strong id="m-drawer-title" data-i18n="nav.menu">Menu</strong>
+                <button type="button" class="m-icon-btn" id="m-drawer-close" data-i18n-aria="modal.close" aria-label="Zamknij">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+                </button>
+            </div>
+            <nav class="m-drawer-nav" data-i18n-aria="nav.mobile" aria-label="Nawigacja mobilna">
+                <a href="./" data-i18n="nav.home">Strona główna</a>
+                <a href="promocje" data-i18n="nav.promotions">Promocje</a>
+                <a href="panel" data-i18n="nav.favorites_panel">Ulubione / Panel</a>
+                <a href="darmowe-gry" data-i18n="nav.free_games">Darmowe gry</a>
+                <hr class="m-drawer-sep">
+                <a href="o-nas" data-i18n="nav.about">O nas</a>
+                <a href="blog" data-i18n="nav.blog">Blog</a>
+                <a href="regulamin" data-i18n="nav.regulamin">Regulamin</a>
+                <a href="polityka-prywatnosci" data-i18n="nav.privacy">Prywatność</a>
+                <a href="kontakt" data-i18n="nav.contact">Kontakt</a>
+                <a href="wsparcie" class="m-drawer-accent" data-i18n="nav.support">Wsparcie</a>
+            </nav>
+            <div class="m-drawer-prefs">
+                <div class="m-drawer-lang" data-lang-switch-slot>
+                    <p class="m-drawer-pref-label" data-i18n="nav.lang">Język</p>
+                </div>
+                <div class="m-drawer-region" data-region-switch-slot>
+                    <p class="m-drawer-pref-label" data-i18n="region.toggle_aria">Region zakupów</p>
+                </div>
+            </div>
+            <div class="m-drawer-auth" id="m-drawer-auth"></div>
+        </div>
+    </div>
 
     <div class="split-shell">
         <aside class="split-left" data-i18n-aria="cat.title" aria-label="Kategorie">
             <h2 class="split-left-title" data-i18n="cat.title">Kategorie</h2>
             <p id="catalog-stats" class="split-stats"></p>
             <nav id="categories-bar" class="split-cats">
-                <button type="button" class="cat active" data-slug="" data-i18n="cat.all">Wszystkie</button>
+                <button type="button" class="cat active" data-slug="" data-i18n="cat.all">Wszystkie gry</button>
+                <a href="promocje" class="cat cat-seo" data-i18n="cat.promotions">Promocje</a>
+                <a href="darmowe-gry" class="cat cat-seo" data-i18n="cat.free_games">Darmowe gry</a>
                 <a href="gry-pc-do-30-zl" class="cat cat-seo" data-i18n="cat.budget_30">Gry PC do 30 zł</a>
                 <a href="gry-z-polskim-dubbingiem" class="cat cat-seo" id="cat-seo-dubbing" data-i18n="cat.polish_dubbing">Gry z polskim dubbingiem</a>
             </nav>
@@ -87,46 +158,150 @@
         </aside>
 
         <div class="split-right" id="split-right">
-            <section id="home-spotlight" class="cp-home-spotlight" hidden aria-label="Polecane gry">
-                <header class="cp-home-spotlight-head">
-                    <p class="cp-kicker" data-i18n="spotlight.kicker">night city // twój wybór</p>
-                    <h2 class="cp-home-spotlight-title" data-i18n="spotlight.title">Polecane</h2>
-                </header>
-                <div id="home-spotlight-row" class="cp-home-spotlight-row"></div>
+            <h1 class="site-h1" data-i18n="hero.title">Porównywarka cen gier PC</h1>
+            <section id="d3-hero" class="d3-hero" hidden data-i18n-aria="d3.featured_list" aria-label="Polecane gry">
+                <div class="d3-hero-stage">
+                    <a class="d3-hero-main" id="d3-hero-main" href="./">
+                        <div class="d3-hero-media">
+                            <img id="d3-hero-img" src="" alt="" width="1600" height="600" decoding="async" fetchpriority="high">
+                        </div>
+                        <div class="d3-hero-overlay">
+                            <p class="d3-hero-label" data-i18n="d3.featured_label">Polecana gra</p>
+                            <h2 class="d3-hero-title" id="d3-hero-title">—</h2>
+                            <p class="d3-hero-sub" id="d3-hero-sub" hidden></p>
+                            <div class="d3-hero-tags" id="d3-hero-tags"></div>
+                            <div class="d3-hero-price" id="d3-hero-price"></div>
+                            <span class="d3-hero-cta" data-i18n="d3.compare">Porównaj ceny →</span>
+                        </div>
+                    </a>
+                    <button type="button" class="d3-hero-nav d3-hero-prev" id="d3-hero-prev" data-i18n-aria="d3.prev" aria-label="Poprzednia polecana" hidden>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+                    </button>
+                    <button type="button" class="d3-hero-nav d3-hero-next" id="d3-hero-next" data-i18n-aria="d3.next" aria-label="Następna polecana" hidden>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+                    </button>
+                    <div class="d3-hero-dots" id="d3-hero-dots" hidden></div>
+                </div>
+                <aside class="d3-hero-side" data-i18n-aria="d3.side_list" aria-label="Lista polecanych">
+                    <header class="d3-hero-side-head">
+                        <h2 data-i18n="d3.featured_list">Polecane gry</h2>
+                        <a href="./#catalog-section" id="d3-hero-side-all" data-i18n="d3.see_all">Zobacz wszystkie →</a>
+                    </header>
+                    <div class="d3-hero-side-list" id="d3-hero-side-list"></div>
+                </aside>
             </section>
 
-                        <section class="cp-home-hero" aria-label="KupujPL — porównywarka cen gier PC">
-                <div class="cp-home-hero-main">
-                    <p class="cp-kicker" data-i18n="hero.kicker">night city // najniższa cena</p>
-                    <p class="cp-hero-flavor" aria-hidden="true">
-                        <span data-i18n="hero.flavor">Wstań</span>
-                        <span data-i18n="hero.flavor_span">łowco okazji</span>
-                    </p>
-                    <h1 data-i18n="hero.title">Porównywarka cen gier PC</h1>
-                    <p class="cp-hero-lead" data-i18n="hero.lead">Znajdź najtańszą wersję gry w 10 sklepach.</p>
-                    <p class="cp-hero-shops" data-i18n="hero.shops">Steam · GOG · Epic · Kinguin · G2A · Fanatical · CDKeys i więcej.</p>
-                    <div class="cp-hero-actions">
-                        <button type="button" id="hero-search-btn" class="cp-btn" data-i18n="hero.search">🔎 Szukaj gry</button>
-                        <a href="register" class="cp-btn cp-btn-ghost" data-i18n="hero.alert_cta">Ustaw alert</a>
-                    </div>
-                    <p class="cp-hero-alert" data-i18n="hero.alert">🔔 Ustaw alert i dowiedz się, gdy cena spadnie.</p>
+            <nav id="d3-cats" class="d3-cats" data-i18n-aria="cat.title" aria-label="Kategorie" hidden></nav>
+
+            <section id="d3-discover" class="d3-discover" data-i18n-aria="d3.discover_aria" aria-label="Szybkie odkrywanie" hidden>
+                <a class="d3-discover-card d3-discover-promo" href="promocje">
+                    <span class="d3-discover-icon" aria-hidden="true">%</span>
+                    <span class="d3-discover-copy">
+                        <strong data-i18n="d3.discover_deals">Najlepsze promocje</strong>
+                        <span data-i18n="d3.discover_deals_sub">Aktualne okazje w sklepach</span>
+                    </span>
+                    <span class="d3-discover-arrow" aria-hidden="true">→</span>
+                </a>
+                <button type="button" class="d3-discover-card d3-discover-new" data-d3-sort="release">
+                    <span class="d3-discover-icon" aria-hidden="true">★</span>
+                    <span class="d3-discover-copy">
+                        <strong data-i18n="d3.discover_new">Nowości</strong>
+                        <span data-i18n="d3.discover_new_sub">Najnowsze tytuły w katalogu</span>
+                    </span>
+                    <span class="d3-discover-arrow" aria-hidden="true">→</span>
+                </button>
+                <button type="button" class="d3-discover-card d3-discover-best" data-d3-sort="rating">
+                    <span class="d3-discover-icon" aria-hidden="true">🏆</span>
+                    <span class="d3-discover-copy">
+                        <strong data-i18n="d3.discover_best">Bestsellery</strong>
+                        <span data-i18n="d3.discover_best_sub">Najwyżej oceniane gry</span>
+                    </span>
+                    <span class="d3-discover-arrow" aria-hidden="true">→</span>
+                </button>
+                <a class="d3-discover-card d3-discover-budget" href="gry-pc-do-30-zl">
+                    <span class="d3-discover-icon" aria-hidden="true">zł</span>
+                    <span class="d3-discover-copy">
+                        <strong data-i18n="d3.discover_budget">Gry do 30 zł</strong>
+                        <span data-i18n="d3.discover_budget_sub">Budżetowe okazje PC</span>
+                    </span>
+                    <span class="d3-discover-arrow" aria-hidden="true">→</span>
+                </a>
+            </section>
+
+            <!-- Mobile-only legacy home (server strips this template for desktop UA). -->
+            <div id="mobile-home-mount"></div>
+            <template id="tpl-mobile-home-legacy">
+            <div class="cp-home-top">
+            <section class="cp-home-hero" aria-label="KupujPL — porównywarka cen gier PC">
+                <div class="m-hero-art" id="m-hero-art" aria-hidden="true" hidden>
+                    <img id="m-hero-art-img" src="" alt="" width="800" height="500" decoding="async" fetchpriority="high">
                 </div>
-                <div class="cp-feature-card">
+                <div class="cp-home-hero-main">
+                    <p class="m-hero-marketing" data-i18n-html="m.hero.marketing">Porównuj ceny<br>gier PC<br><span class="m-hero-accent">i graj więcej!</span></p>
+                    <p class="cp-hero-lead" data-i18n-html="m.hero.lead">Te same gry. Lepsze ceny.<br>Wszystkie sklepy w jednym miejscu.</p>
+                    <form class="m-hero-search" id="m-hero-search" role="search" action="./" method="get">
+                        <input type="search" id="hero-search-input" name="q" data-i18n-placeholder="hero.search_ph" placeholder="Szukaj gry, np. Baldur's Gate 3, EA FC 25…" autocomplete="off" enterkeyhint="search">
+                        <button type="submit" data-i18n="hero.search_go">Szukaj →</button>
+                    </form>
+                </div>
+            </section>
+
+            <div class="cp-feature-card is-empty" id="m-featured-host">
+                <p class="m-featured-kicker" id="m-featured-kicker" hidden data-i18n="featured.polecane">🔥 Polecane</p>
+                <div class="m-featured-track" id="m-featured-mount"></div>
+                <div class="m-featured-dots" id="m-featured-dots" hidden></div>
+                <div class="cp-feature-fallback" id="m-featured-fallback">
                     <p class="cp-kicker" data-i18n="hero.deal_kicker">polecana okazja</p>
                     <h2 data-i18n="hero.deal_title">Cyber Okazje</h2>
                     <p class="cp-feature-price" data-i18n="hero.deal_live">na żywo</p>
-                    <span data-i18n="hero.deal_meta">10 sklepów // 5000+ gier</span>
+                    <span id="m-deal-meta">__STORE_COUNT_LABEL__ // __GAME_COUNT_LABEL__</span>
                 </div>
+            </div>
+            </div>
+            <label class="catalog-sort" id="mobile-catalog-sort">
+                <span data-i18n="sort.label">Sortuj</span>
+                <select id="sort-select" class="catalog-sort-select">
+                    <option value="" data-i18n="sort.relevance">Domyślnie</option>
+                    <option value="price_asc" data-i18n="sort.price_asc">Cena: rosnąco</option>
+                    <option value="price_desc" data-i18n="sort.price_desc">Cena: malejąco</option>
+                    <option value="rating" data-i18n="sort.rating">Najwyżej oceniane</option>
+                    <option value="release" data-i18n="sort.release">Najnowsze</option>
+                    <option value="title" data-i18n="sort.title">Nazwa: A–Z</option>
+                </select>
+            </label>
+            </template>
+
+            <div class="d3-mid" id="d3-mid">
+            <section id="home-news" class="home-news" aria-labelledby="home-news-title" hidden>
+                <header class="home-news-head">
+                    <h2 id="home-news-title" data-i18n="home.news_title">Aktualności i promocje</h2>
+                    <a href="blog" class="home-news-all" data-i18n="home.news_all">Zobacz wszystkie →</a>
+                </header>
+                <div id="home-news-list" class="home-news-list"></div>
             </section>
 
-            <section class="cp-panel-promo" aria-labelledby="cp-panel-promo-title">
+            <section class="cp-panel-promo" id="cp-panel-promo" aria-labelledby="cp-panel-promo-title">
                 <div class="cp-panel-promo-inner">
                     <div class="cp-panel-promo-copy">
                         <p class="cp-kicker" data-i18n="promo.kicker">night city // twój stash</p>
                         <h2 id="cp-panel-promo-title" data-i18n="promo.title">Panel łowcy okazji</h2>
                         <p class="cp-panel-promo-lead" data-i18n="promo.lead">Załóż darmowe konto i korzystaj z narzędzi, których nie ma zwykły gość — wszystko w jednym miejscu, bez sprzedawania gier.</p>
+                        <div class="m-promo-chips" id="m-promo-chips" aria-label="Skróty panelu">
+                            <a class="m-promo-chip" href="panel">
+                                <strong id="m-promo-tracked">—</strong>
+                                <span data-i18n="panel.watchlist">Śledzone gry</span>
+                            </a>
+                            <a class="m-promo-chip" href="panel">
+                                <strong id="m-promo-alerts">—</strong>
+                                <span data-i18n="panel.alerts">Alerty cenowe</span>
+                            </a>
+                            <a class="m-promo-chip" href="panel">
+                                <strong>↗</strong>
+                                <span data-i18n="promo.f6">Historia cen</span>
+                            </a>
+                        </div>
                         <ul class="cp-panel-promo-list">
-                            <li><strong data-i18n="promo.f1">Śledzone gry</strong> — <span data-i18n="promo.f1d">zapisuj tytuły i wracaj do najlepszych cen w 10 sklepach.</span></li>
+                            <li><strong data-i18n="promo.f1">Śledzone gry</strong> — <span data-i18n="promo.f1d">zapisuj tytuły i wracaj do najlepszych cen w śledzonych sklepach.</span></li>
                             <li><strong data-i18n="promo.f2">Alerty cenowe</strong> — <span data-i18n="promo.f2d">e-mail, Telegram lub powiadomienia push (PWA), gdy cena spada.</span></li>
                             <li><strong data-i18n="promo.f3">Import Steam Wishlist</strong> — <span data-i18n="promo.f3d">jednym kliknięciem dodaj publiczną listę życzeń do śledzenia.</span></li>
                             <li><strong data-i18n="promo.f4">Odświeżanie cen</strong> — <span data-i18n="promo.f4d">wymuś skan ulubionych gier bez czekania na cykl Tier A.</span></li>
@@ -135,16 +310,16 @@
                         </ul>
                         <div class="cp-panel-promo-actions">
                             <a href="panel" class="cp-btn" data-i18n="promo.open">Otwórz panel</a>
-                            <a href="register" class="cp-btn cp-btn-red" data-i18n="promo.signup">Załóż konto</a>
+                            <a href="register" class="cp-btn cp-btn-red" id="d3-promo-signup" data-i18n="promo.signup">Załóż darmowe konto →</a>
                             <a href="login" class="cp-btn cp-btn-ghost" data-i18n="promo.have_account">Mam konto</a>
                         </div>
                     </div>
-                    <aside class="cp-panel-promo-card" aria-hidden="true">
-                        <p class="cp-kicker" data-i18n="promo.kicker">stash preview</p>
+                    <aside class="cp-panel-promo-card" aria-hidden="true" hidden>
+                        <p class="cp-kicker">stash preview</p>
                         <h3 data-i18n="promo.preview">Twój panel</h3>
                         <ul class="cp-panel-promo-mini">
-                            <li data-i18n="promo.preview1">◉ 12 śledzonych</li>
-                            <li data-i18n="promo.preview2">⚡ 5 alertów ON</li>
+                            <li data-i18n="promo.preview1">◉ panel okazji</li>
+                            <li data-i18n="promo.preview2">⚡ alerty cenowe</li>
                             <li>⬇ Wishlist Steam</li>
                             <li>🔔 Push / TG / mail</li>
                         </ul>
@@ -159,16 +334,11 @@
                 <section id="feed-giveaways" class="home-feed-block" hidden></section>
                 <section id="feed-freebies" class="home-feed-block" hidden></section>
             </section>
-            <section id="home-news" class="home-news" aria-labelledby="home-news-title" hidden>
-                <header class="home-news-head">
-                    <h2 id="home-news-title">Aktualności i promocje</h2>
-                    <a href="blog" class="home-news-all">Wszystkie →</a>
-                </header>
-                <div id="home-news-list" class="home-news-list"></div>
-            </section>
+
             <section id="home-sections" class="sections">
                 <div class="loading-spinner"></div>
             </section>
+            </div>
 
             <section id="catalog-section" class="catalog" hidden>
                 <header class="catalog-head">
@@ -176,17 +346,14 @@
                         <h2 id="games-heading" data-i18n="catalog.all_games">Wszystkie gry</h2>
                         <p id="games-subtitle" data-i18n="catalog.full">Pełny katalog</p>
                     </div>
-                    <label class="catalog-sort">
-                        <span data-i18n="sort.label">Sortuj</span>
-                        <select id="sort-select" class="catalog-sort-select">
-                            <option value="" data-i18n="sort.relevance">Domyślnie</option>
-                            <option value="price_asc" data-i18n="sort.price_asc">Cena: rosnąco</option>
-                            <option value="price_desc" data-i18n="sort.price_desc">Cena: malejąco</option>
-                            <option value="rating" data-i18n="sort.rating">Najwyżej oceniane</option>
-                            <option value="release" data-i18n="sort.release">Najnowsze</option>
-                            <option value="title" data-i18n="sort.title">Nazwa: A–Z</option>
-                        </select>
-                    </label>
+                    <div class="m-sort-tabs d3-sort-tabs" id="m-sort-tabs" role="tablist" data-i18n-aria="sort.aria" aria-label="Sortowanie katalogu">
+                        <button type="button" role="tab" aria-selected="true" data-sort="rating" data-i18n="sort.bestsellers">Bestsellery</button>
+                        <button type="button" role="tab" aria-selected="false" data-sort="release" data-i18n="sort.release">Najnowsze</button>
+                        <button type="button" role="tab" aria-selected="false" data-sort="price_asc" data-i18n="sort.price_asc_short">Cena rosnąco</button>
+                        <button type="button" role="tab" aria-selected="false" data-sort="price_desc" data-i18n="sort.price_desc_short">Cena malejąco</button>
+                        <button type="button" role="tab" aria-selected="false" data-sort="" data-i18n="sort.relevance">Domyślnie</button>
+                    </div>
+                    <div id="catalog-sort-slot"></div>
                 </header>
                 <div id="games-grid" class="grid">
                     <div class="loading-spinner"></div>
@@ -255,7 +422,7 @@
                             <span class="offers-scan-icon" aria-hidden="true">💰</span>
                         </div>
                         <p class="offers-scan-label" data-i18n="modal.scan_label">Trwa skan cen w sklepach</p>
-                        <p class="offers-scan-info" data-i18n="modal.scan_info">Skanujemy na żywo 10 sklepów (Steam, GOG, Epic, keyshopy…). Najpierw widzisz zapisane ceny, potem zapisujemy świeże wyniki na serwerze — kolejni użytkownicy zobaczą je bez czekania.</p>
+                        <p class="offers-scan-info" data-i18n="modal.scan_info">Skanujemy na żywo sklepy (Steam, GOG, Epic, keyshopy…). Najpierw widzisz zapisane ceny, potem zapisujemy świeże wyniki na serwerze — kolejni użytkownicy zobaczą je bez czekania.</p>
                         <p class="offers-scan-countdown" id="offers-scan-countdown" aria-live="polite"></p>
                         <div id="offers-scan-shops" class="offers-scan-shops"></div>
                     </div>
@@ -265,13 +432,36 @@
         </div>
     </div>
 
+    <nav class="m-bottom-nav" data-i18n-aria="nav.bottom" aria-label="Nawigacja dolna">
+        <a href="./" data-mnav="home" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"></path></svg>
+            <span data-i18n="nav.home_short">Start</span>
+        </a>
+        <button type="button" data-mnav="search" id="m-nav-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+            <span data-i18n="nav.search_short">Szukaj</span>
+        </button>
+        <a href="panel" data-mnav="favorites">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z"></path></svg>
+            <span data-i18n="nav.favorites">Ulubione</span>
+        </a>
+        <a href="promocje" data-mnav="deals">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16M12 4v16"></path><circle cx="12" cy="12" r="9"></circle></svg>
+            <span data-i18n="nav.promotions">Promocje</span>
+        </a>
+        <button type="button" data-mnav="more" id="m-nav-more">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="18" cy="12" r="1.5"></circle></svg>
+            <span data-i18n="nav.more">Więcej</span>
+        </button>
+    </nav>
+
     <footer class="footer">
         <div class="wrap footer-inner">
             <nav class="footer-nav" data-i18n-aria="nav.legal" aria-label="Informacje prawne">
-                <a href="darmowe-gry" class="footer-btn">Darmowe gry</a>
+                <a href="darmowe-gry" class="footer-btn" data-i18n="cat.free_games">Darmowe gry</a>
                 <a href="gry-pc-do-30-zl" class="footer-btn" data-i18n="cat.budget_30">Gry PC do 30 zł</a>
                 <a href="gry-z-polskim-dubbingiem" class="footer-btn" id="footer-seo-dubbing" data-i18n="cat.polish_dubbing">Gry z polskim dubbingiem</a>
-                <a href="promocje" class="footer-btn">Promocje</a>
+                <a href="promocje" class="footer-btn" data-i18n="cat.promotions">Promocje</a>
                 <a href="o-nas" class="footer-btn" data-i18n="nav.about">O nas</a>
                 <a href="blog" class="footer-btn" data-i18n="nav.blog">Blog</a>
                 <a href="regulamin" class="footer-btn" data-i18n="nav.regulamin">Regulamin</a>
@@ -284,15 +474,14 @@
         </div>
     </footer>
 
-    <script src="static/i18n.js?v=26"></script>
-    <script src="static/theme.js?v=2"></script>
-    <script src="static/matrix-rain.js?v=3" defer></script>
-    <script src="static/region.js?v=5"></script>
+    <script src="static/i18n.js?v=33"></script>
+    <script src="static/theme.js?v=4"></script>
+    <script src="static/region.js?v=6"></script>
     <script src="static/cookie-consent.js?v=1"></script>
     <script src="static/site-chat.js?v=3" defer></script>
-    <script src="static/core-bundle.js?v=8"></script>
+    <script src="static/core-bundle.js?v=10"></script>
     <script src="static/push-client.js?v=1"></script>
-    <script src="static/app.js?v=81"></script>
+    <script src="static/app.js?v=93"></script>
     <script>
         if (window.KupujPLPush && typeof isLoggedIn === 'function' && isLoggedIn()) {
             KupujPLPush.registerServiceWorker().catch(function () {});

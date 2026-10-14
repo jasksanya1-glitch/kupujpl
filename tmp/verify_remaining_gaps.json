@@ -1,0 +1,390 @@
+{
+  "baseline": {
+    "home": {
+      "status": 200,
+      "h1": [
+        "Porównywarka cen gier PC"
+      ],
+      "ssr_cards": 18,
+      "h2_before_cards": true,
+      "placeholders_left": false
+    },
+    "deal_meta": "10 sklepów // 4959 gier",
+    "privacy": {
+      "status": 200,
+      "hash_wording": true,
+      "zaszyfrowanej": false
+    },
+    "bcrypt_ok": true,
+    "catalog": {
+      "stores_total": 10,
+      "games_total": 4959,
+      "format_store_count": "10 sklepów",
+      "format_in_stores": "w 10 sklepach"
+    }
+  },
+  "hardcodes": {
+    "live_app_hits": [],
+    "legacy_static_on_server": false,
+    "legacy_static_marked": false,
+    "non_live_left_unchanged": [
+      "backend/static/index.html (UNUSED LEGACY; not on server)",
+      "app/static/design-samples/*",
+      "discord-bot / audit sandbox (out of live app/)"
+    ]
+  },
+  "seo": {
+    "robots_chrome": {
+      "status": 200,
+      "ct": "text/plain; charset=utf-8",
+      "has_allow_games": true,
+      "snippet": "User-agent: *\nAllow: /\nAllow: /games/\nAllow: /games/gra/\nDisallow: /panel\nDisallow: /panel3\nDisallow: /api/\nDisallow: /games/panel\nDisallow: /games/panel3\nDisallow: /games/api/\nSitemap: https://kupujpl.pl/games/sitemap.xml\n"
+    },
+    "robots_curl": {
+      "status": 403,
+      "body": "blocked"
+    },
+    "validate_sitemaps": "robots.txt: 200 ct='text/plain; charset=utf-8' ok=True\nsitemap sitemap.xml: 200 ct='application/xml; charset=utf-8' ok=True\n  urls=5\nsitemap sitemap-games.xml: 200 ct='application/xml; charset=utf-8' ok=True\n  urls=9678\nsitemap sitemap-categories.xml: 200 ct='application/xml; charset=utf-8' ok=True\n  urls=96\nsitemap sitemap-deals.xml: 200 ct='application/xml; charset=utf-8' ok=True\n  urls=20\nsitemap sitemap-blog.xml: 200 ct='application/xml; charset=utf-8' ok=True\n  urls=6\nchecking sample=20 of unique_leaf=9800\nsample_stats {'200': 20, '3xx': 0, '404': 0, 'other': 0, 'noindex': 0, 'canon_mismatch': 0}\n",
+    "indexability": {
+      "/games/": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/promocje": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/promocje",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/regulamin": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/regulamin",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/polityka-prywatnosci": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/polityka-prywatnosci",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/blog": {
+        "status": 200,
+        "robots": "index, follow, max-image-preview:large",
+        "canonical": "https://kupujpl.pl/games/blog",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/blog/jak-kupowac-gry-taniej": {
+        "status": 200,
+        "robots": "index, follow, max-image-preview:large",
+        "canonical": "https://kupujpl.pl/games/blog/jak-kupowac-gry-taniej",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/blog/czy-klucze-steam-sa-bezpieczne": {
+        "status": 404,
+        "robots": null,
+        "canonical": null,
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/gra/frostpunk-2": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/gra/frostpunk-2",
+        "xrobots": null,
+        "lowPrice": [
+          "48.03"
+        ],
+        "noindex": false
+      },
+      "/games/gra/elden-ring": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/gra/elden-ring",
+        "xrobots": null,
+        "lowPrice": [
+          "199.15"
+        ],
+        "noindex": false
+      },
+      "/games/gra/black-myth-wukong-2358720": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/gra/black-myth-wukong-2358720",
+        "xrobots": null,
+        "lowPrice": [
+          "154.24"
+        ],
+        "noindex": false
+      },
+      "/games/gra/12-is-better-than-6-410110": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/gra/12-is-better-than-6-410110",
+        "xrobots": null,
+        "lowPrice": [
+          "1.00"
+        ],
+        "noindex": false
+      },
+      "/games/gra/crazy-machines-3-351920": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/gra/crazy-machines-3-351920",
+        "xrobots": null,
+        "lowPrice": [
+          "1.05"
+        ],
+        "noindex": false
+      },
+      "/games/kategoria/akcja": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/kategoria/akcja",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/kategoria/rpg": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/kategoria/rpg",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/kategoria/strategia": {
+        "status": 404,
+        "robots": null,
+        "canonical": null,
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/kategoria/przygodowe": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/kategoria/przygodowe",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      },
+      "/games/kategoria/symulacje": {
+        "status": 200,
+        "robots": "index, follow",
+        "canonical": "https://kupujpl.pl/games/kategoria/symulacje",
+        "xrobots": null,
+        "lowPrice": [],
+        "noindex": false
+      }
+    }
+  },
+  "prices": {
+    "named": [
+      {
+        "slug": "frostpunk-2",
+        "canonical": 48.03,
+        "shop": "Instant Gaming",
+        "schema": 48.03,
+        "promo": 48.03,
+        "ok": true
+      },
+      {
+        "slug": "black-myth-wukong-2358720",
+        "canonical": 154.24,
+        "shop": "Instant Gaming",
+        "schema": 154.24,
+        "promo": 154.24,
+        "ok": true
+      },
+      {
+        "slug": "elden-ring",
+        "canonical": 199.15,
+        "shop": "G2A",
+        "schema": 199.15,
+        "promo": 199.15,
+        "ok": true
+      },
+      {
+        "slug": "12-is-better-than-6-410110",
+        "canonical": 1.0,
+        "shop": "Kinguin",
+        "schema": 1.0,
+        "promo": null,
+        "ok": true
+      },
+      {
+        "slug": "crazy-machines-3-351920",
+        "canonical": 1.05,
+        "shop": "Gamivo",
+        "schema": 1.05,
+        "promo": null,
+        "ok": true
+      }
+    ],
+    "named_ok": 5,
+    "random_checked": 20,
+    "random_mismatches": []
+  },
+  "taxonomy": {
+    "frostpunk-2": {
+      "api": {
+        "Instant Gaming": {
+          "trust_label": "Autoryzowany",
+          "store_class": "AUTHORIZED_RESELLER"
+        },
+        "G2A": {
+          "trust_label": "Marketplace",
+          "store_class": "MARKETPLACE"
+        },
+        "Steam": {
+          "trust_label": "Oficjalny",
+          "store_class": "OFFICIAL_STORE"
+        },
+        "Fanatical": {
+          "trust_label": "Autoryzowany",
+          "store_class": "AUTHORIZED_RESELLER"
+        }
+      },
+      "html_badges": {
+        "Instant Gaming": "Autoryzowany",
+        "Fanatical": "Autoryzowany",
+        "Steam": "Oficjalny",
+        "G2A": "Marketplace"
+      }
+    },
+    "elden-ring": {
+      "api": {
+        "G2A": {
+          "trust_label": "Marketplace",
+          "store_class": "MARKETPLACE"
+        },
+        "Instant Gaming": {
+          "trust_label": "Autoryzowany",
+          "store_class": "AUTHORIZED_RESELLER"
+        },
+        "Fanatical": {
+          "trust_label": "Autoryzowany",
+          "store_class": "AUTHORIZED_RESELLER"
+        },
+        "Steam": {
+          "trust_label": "Oficjalny",
+          "store_class": "OFFICIAL_STORE"
+        }
+      },
+      "html_badges": {
+        "Instant Gaming": "Autoryzowany",
+        "Fanatical": "Autoryzowany",
+        "Steam": "Oficjalny",
+        "G2A": "Marketplace"
+      }
+    },
+    "black-myth-wukong-2358720": {
+      "api": {
+        "Instant Gaming": {
+          "trust_label": "Autoryzowany",
+          "store_class": "AUTHORIZED_RESELLER"
+        },
+        "G2A": {
+          "trust_label": "Marketplace",
+          "store_class": "MARKETPLACE"
+        },
+        "Steam": {
+          "trust_label": "Oficjalny",
+          "store_class": "OFFICIAL_STORE"
+        }
+      },
+      "html_badges": {
+        "Instant Gaming": "Autoryzowany",
+        "Steam": "Oficjalny",
+        "G2A": "Marketplace"
+      }
+    },
+    "module": {
+      "Steam": {
+        "class": "OFFICIAL_STORE",
+        "label": "Oficjalny"
+      },
+      "GOG": {
+        "class": "OFFICIAL_STORE",
+        "label": "Oficjalny"
+      },
+      "Epic Games": {
+        "class": "OFFICIAL_STORE",
+        "label": "Oficjalny"
+      },
+      "Fanatical": {
+        "class": "AUTHORIZED_RESELLER",
+        "label": "Autoryzowany"
+      },
+      "Green Man Gaming": {
+        "class": "AUTHORIZED_RESELLER",
+        "label": "Autoryzowany"
+      },
+      "Humble": {
+        "class": "AUTHORIZED_RESELLER",
+        "label": "Autoryzowany"
+      },
+      "Instant Gaming": {
+        "class": "AUTHORIZED_RESELLER",
+        "label": "Autoryzowany"
+      },
+      "Gamivo": {
+        "class": "MARKETPLACE",
+        "label": "Marketplace"
+      },
+      "Kinguin": {
+        "class": "MARKETPLACE",
+        "label": "Marketplace"
+      },
+      "G2A": {
+        "class": "MARKETPLACE",
+        "label": "Marketplace"
+      },
+      "Eneba": {
+        "class": "MARKETPLACE",
+        "label": "Marketplace"
+      },
+      "CDKeys": {
+        "class": "MARKETPLACE",
+        "label": "Marketplace"
+      }
+    },
+    "modal_uses_store_class": true,
+    "panel_uses_trust": true,
+    "game_page_uses_trust": true,
+    "consistency_asserts_ok": true
+  },
+  "smoke": {
+    "desktop": {
+      "status": 200,
+      "h1_count": 1,
+      "h2_before_cards": true,
+      "ssr_cards": 18,
+      "has_d3": true
+    },
+    "mobile": {
+      "status": 200,
+      "h1_count": 1,
+      "h2_before_cards": true,
+      "ssr_cards": 18,
+      "deal_meta": "10 sklepów // 4959 gier",
+      "no_5000_plus": true
+    }
+  }
+}

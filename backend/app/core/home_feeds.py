@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.core.game_offer_selection import best_offers_map, display_shops_for_region
 from app.models.models import Game, Offer, PriceSnapshot
 from app.parsers.shop_scan_config import get_display_shops
 
@@ -17,12 +18,14 @@ _APPDETAILS_TTL_SEC = 3600.0
 
 
 def _display_shops() -> list[str]:
-    return list(get_display_shops())
+    # PL-facing shops for feed membership (exclude Steam US junk lows).
+    return sorted(display_shops_for_region("pl")) or list(get_display_shops())
 
 
 def games_at_historical_low(db: Session, *, limit: int = 16) -> list[Game]:
-    """Games whose current best price matches all-time low."""
+    """Games whose canonical (quality) best price matches all-time low."""
     display = _display_shops()
+    # Oversample via raw min, then keep only quality-best == historical min.
     best_subq = (
         db.query(
             Offer.game_id.label("gid"),
@@ -36,20 +39,33 @@ def games_at_historical_low(db: Session, *, limit: int = 16) -> list[Game]:
         .group_by(Offer.game_id)
         .subquery()
     )
-    rows = (
+    candidates = (
         db.query(Game)
         .join(best_subq, best_subq.c.gid == Game.id)
         .filter(
             Game.lowest_ever_pln.isnot(None),
             Game.is_free.is_(False),
-            best_subq.c.best <= Game.lowest_ever_pln + PRICE_EPSILON,
             best_subq.c.best > 0,
         )
         .order_by(Game.steam_review_count.desc(), best_subq.c.best.asc())
-        .limit(limit)
+        .limit(max(limit * 8, 64))
         .all()
     )
-    return rows
+    if not candidates:
+        return []
+    quality = best_offers_map(
+        db, [g.id for g in candidates], region="pl", games={g.id: g for g in candidates}
+    )
+    out: list[Game] = []
+    for game in candidates:
+        best = quality.get(game.id)
+        if not best or game.lowest_ever_pln is None:
+            continue
+        if float(best.price_pln) <= float(game.lowest_ever_pln) + PRICE_EPSILON:
+            out.append(game)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def games_new_deals(db: Session, *, limit: int = 16, hours: int = 48) -> list[tuple[Game, datetime]]:

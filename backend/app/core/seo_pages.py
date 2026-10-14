@@ -922,7 +922,18 @@ def game_landing_html(
     if offers:
         rows = ""
         for o in offers:
-            trust = html.escape(o.trust_label or ("Oficjalny" if o.is_official else "Marketplace"))
+            sc = getattr(o, "store_class", None) or ""
+            if o.trust_label:
+                trust_fallback = o.trust_label
+            elif sc == "OFFICIAL_STORE" or o.is_official:
+                trust_fallback = "Oficjalny"
+            elif sc == "AUTHORIZED_RESELLER":
+                trust_fallback = "Autoryzowany"
+            elif sc == "MARKETPLACE":
+                trust_fallback = "Marketplace"
+            else:
+                trust_fallback = "Sklep"
+            trust = html.escape(trust_fallback)
             refund = ""
             note = getattr(o, "refund_note_pl", None) or ""
             if note:
@@ -1058,7 +1069,8 @@ def _site_skin_assets() -> str:
     """Full KupujPL chrome (style.css + theme) for SEO collection pages."""
     return f"""
 <link rel="icon" href="{SITE_ORIGIN}/static/favicon.png?v=1" type="image/png">
-<link rel="stylesheet" href="{SITE_ORIGIN}/static/style.css?v=91">
+<link rel="stylesheet" href="{SITE_ORIGIN}/static/style.css?v=92">
+<link rel="stylesheet" href="{SITE_ORIGIN}/static/mobile-concept4.css?v=9">
 <script>
 (function(){{try{{var k=localStorage.getItem('kupujpl-theme');
 document.documentElement.dataset.theme=(!k||['night','ice','void','matrix'].indexOf(k)<0)?'night':k;
@@ -1342,7 +1354,7 @@ def deals_landing_html(
             f"Promocje na gry PC{cheap_bit} — porównaj przecenione tytuły w polskich sklepach.",
             160,
         )
-        lead = "Aktualne promocje na gry PC z porównaniem cen w 10 sklepach."
+        lead = "Aktualne promocje na gry PC z porównaniem cen w sklepach oficjalnych i marketplace'ach."
         faqs = [
             (
                 "Czy KupujPL sprzedaje gry?",

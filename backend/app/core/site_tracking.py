@@ -570,7 +570,17 @@ def _is_public_seo_path(path: str) -> bool:
         return True
     if path.startswith("/sitemap") or path == "/robots.txt":
         return True
-    if path in {"/redakcja", "/feed.xml", "/o-nas", "/kontakt", "/wsparcie"}:
+    if path in {
+        "/redakcja",
+        "/feed.xml",
+        "/o-nas",
+        "/kontakt",
+        "/wsparcie",
+        "/regulamin",
+        "/polityka-prywatnosci",
+        "/legal-en",
+        "/legal",
+    }:
         return True
     if path.startswith("/og/"):
         return True

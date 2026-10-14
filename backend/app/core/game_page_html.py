@@ -7,6 +7,11 @@ from datetime import date, timedelta
 
 from app.core.seo_pages import price_history_svg
 from app.core.site_config import SITE_ORIGIN
+from app.core.store_classification import (
+    StoreClass,
+    classify_store,
+    store_class_label_short_pl,
+)
 from app.core.worth_buy import compute_worth_buy, worth_buy_html
 from app.schemas.schemas import OfferResponse
 
@@ -109,14 +114,25 @@ def game_interactive_html(
     offer_list = list(offers or [])
     offer_rows = ""
     for o in offer_list:
-        trust_key = "card.official" if o.is_official else "card.marketplace"
-        trust_fallback = "Oficjalny" if o.is_official else "Marketplace"
+        store_class = classify_store(o.shop_name)
+        if store_class is StoreClass.OFFICIAL_STORE:
+            trust_key = "card.official"
+            kind = "official"
+        elif store_class is StoreClass.AUTHORIZED_RESELLER:
+            trust_key = "card.authorized"
+            kind = "authorized"
+        elif store_class is StoreClass.MARKETPLACE:
+            trust_key = "card.marketplace"
+            kind = "keyshop"
+        else:
+            trust_key = "card.store"
+            kind = "other"
+        trust_fallback = store_class_label_short_pl(store_class)
         go = f"{SITE_ORIGIN}/api/go/{o.id}"
-        kind = "official" if o.is_official else "keyshop"
         offer_rows += (
-            f'<div class="offer-row" data-shop-kind="{kind}">'
+            f'<div class="offer-row" data-shop-kind="{kind}" data-store-class="{store_class.value}">'
             f'<div class="offer-shop"><strong>{html.escape(o.shop_name)}</strong>'
-            f'<span class="badge" data-i18n="{trust_key}">{trust_fallback}</span></div>'
+            f'<span class="badge" data-i18n="{trust_key}">{html.escape(trust_fallback)}</span></div>'
             f'<div class="offer-price">{o.price_pln:.2f} zł</div>'
             f'<a class="btn-buy" href="{html.escape(go)}" rel="noopener noreferrer sponsored" '
             f'target="_blank" data-i18n="offer.buy">Kup</a>'
@@ -375,7 +391,8 @@ def game_interactive_html(
   <link rel="icon" href="static/favicon.png?v=1" type="image/png">
   <link rel="shortcut icon" href="static/favicon.ico?v=1">
   <link rel="icon" href="static/favicon.ico?v=1" sizes="any">
-  <link rel="stylesheet" href="static/style.css?v=91">
+  <link rel="stylesheet" href="static/style.css?v=92">
+  <link rel="stylesheet" href="static/mobile-concept4.css?v=9">
   <style>
     .game-page{{padding:8px 14px 48px;max-width:1100px!important;margin:0 auto!important;width:100%;box-sizing:border-box}}
     .game-breadcrumb{{font-size:12px;margin:0 0 6px;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}

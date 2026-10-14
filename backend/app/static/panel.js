@@ -801,7 +801,14 @@ document.addEventListener('DOMContentLoaded', () => {
             row.className = 'offer-row' + (offer.price_pln === bestPrice ? ' cheapest' : '');
             row.innerHTML = `
                 <div><span class="offer-shop shop-${shopClass}">${escapeHtml(offer.shop_name)}</span>
-                <span class="offer-type">${offer.is_official ? 'Oficjalny sklep' : 'Marketplace kluczy'}</span></div>
+                <span class="offer-type">${escapeHtml(
+                    offer.trust_label
+                    || (String(offer.store_class || '').toUpperCase() === 'OFFICIAL_STORE' || offer.is_official
+                        ? 'Oficjalny sklep'
+                        : String(offer.store_class || '').toUpperCase() === 'AUTHORIZED_RESELLER'
+                            ? 'Autoryzowany sprzedawca'
+                            : 'Marketplace')
+                )}</span></div>
                 <span class="offer-price">${Number(offer.price_pln).toFixed(2)} zł</span>
                 <a href="${offer.affiliate_url}" target="_blank" rel="noopener" class="btn-buy">Kup</a>
             `;

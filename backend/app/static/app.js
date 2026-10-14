@@ -34,6 +34,23 @@ document.addEventListener('DOMContentLoaded', () => {
         return label;
     }
 
+    /** Mount mobile-only legacy home if the server left <template> (JS fallback). */
+    function mountMobileHomeLegacy() {
+        const tpl = document.getElementById('tpl-mobile-home-legacy');
+        const mount = document.getElementById('mobile-home-mount');
+        if (!tpl || !mount) return;
+        const frag = tpl.content.cloneNode(true);
+        const sortLabel = frag.querySelector('#mobile-catalog-sort');
+        const sortSlot = document.getElementById('catalog-sort-slot');
+        if (sortLabel && sortSlot && !sortSlot.querySelector('#sort-select')) {
+            sortSlot.appendChild(sortLabel);
+        }
+        mount.appendChild(frag);
+        mount.hidden = false;
+        tpl.remove();
+    }
+    mountMobileHomeLegacy();
+
     const gamesGrid = document.getElementById('games-grid');
     const searchInput = document.getElementById('search-input');
 
@@ -71,8 +88,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const catalogSection = document.getElementById('catalog-section');
     const heroSection = document.getElementById('hero-section');
     const homeHero = document.querySelector('.cp-home-hero');
+    const homeTop = document.querySelector('.cp-home-top');
     const homePromo = document.querySelector('.cp-panel-promo');
+    const homeNews = document.getElementById('home-news');
+    const featuredHost = document.getElementById('m-featured-host');
     const splitRight = document.getElementById('split-right');
+    const d3Hero = document.getElementById('d3-hero');
+    const d3Discover = document.getElementById('d3-discover');
+    const d3Cats = document.getElementById('d3-cats');
+    let d3HeroGames = [];
+    let d3HeroIndex = 0;
+    let d3HeroBound = false;
     const heroGamesCount = document.getElementById('hero-games-count');
     const heroCatsCount = document.getElementById('hero-cats-count');
     const offersScan = document.getElementById('offers-scan');
@@ -288,21 +314,111 @@ document.addEventListener('DOMContentLoaded', () => {
         history.replaceState(slug ? { gra: slug } : null, '', url.pathname + url.search + url.hash);
     }
 
+    function isDesktopViewport() {
+        return window.matchMedia('(min-width: 1024px)').matches;
+    }
+
+    function syncDesktopAccountChrome() {
+        const loggedIn = typeof isLoggedIn === 'function' && isLoggedIn();
+        document.body.classList.toggle('d3-logged-in', !!loggedIn);
+        const account = document.getElementById('d3-tool-account');
+        if (account) {
+            account.href = loggedIn ? 'panel' : 'login';
+            const label = account.querySelector('span');
+            if (label) label.textContent = loggedIn ? tt('nav.panel') : tt('nav.account');
+            account.setAttribute('aria-label', loggedIn ? tt('nav.account_panel') : tt('nav.account'));
+        }
+    }
+
+    function syncDesktopCats() {
+        if (!d3Cats || !categoriesBar) return;
+        d3Cats.innerHTML = '';
+        categoriesBar.querySelectorAll('.cat').forEach((el) => {
+            d3Cats.appendChild(el.cloneNode(true));
+        });
+    }
+
+    function syncActiveCats(slug) {
+        const activeSlug = slug == null ? '' : String(slug);
+        [categoriesBar, d3Cats].forEach((host) => {
+            if (!host) return;
+            host.querySelectorAll('.cat').forEach((el) => {
+                const elSlug = el.dataset.slug == null ? '' : String(el.dataset.slug);
+                const isLink = el.tagName === 'A';
+                el.classList.toggle('active', !isLink && elSlug === activeSlug);
+            });
+        });
+    }
+
+    function syncHeroTitleMode() {
+        // Single site H1 (.site-h1); mobile marketing copy is a separate <p>, never an H1.
+        if (heroSearchBtn) heroSearchBtn.hidden = true;
+        const promoCard = document.querySelector('.cp-panel-promo-card');
+        if (promoCard) promoCard.hidden = true;
+    }
+
+    function syncSortTabs(val) {
+        const sortVal = val == null ? currentSort : String(val);
+        document.querySelectorAll('#m-sort-tabs button[data-sort]').forEach((btn) => {
+            btn.setAttribute('aria-selected', (btn.dataset.sort || '') === sortVal ? 'true' : 'false');
+        });
+        if (sortSelect && sortSelect.value !== sortVal) sortSelect.value = sortVal;
+    }
+
+    function applySortValue(sort, { fetch = true } = {}) {
+        currentSort = sort == null ? '' : String(sort);
+        syncSortTabs(currentSort);
+        if (!fetch) return;
+        if (currentQuery || currentCategory) {
+            fetchGames(1, false);
+        } else {
+            showAllGamesCatalog();
+        }
+    }
+
     function setBrowseMode(mode) {
         const isHome = mode === 'home';
+        const mobile = window.matchMedia('(max-width: 767px)').matches;
+        const desktop = isDesktopViewport();
         if (homeSpotlight) {
-            homeSpotlight.hidden = isHome ? homeSpotlightRow?.childElementCount === 0 : true;
+            // Mobile: Polecane merges into featured card.
+            // Desktop Concept #3: cinematic hero replaces the old spotlight strip.
+            homeSpotlight.hidden = mobile || desktop || (isHome ? homeSpotlightRow?.childElementCount === 0 : true);
         }
-        if (homeHero) homeHero.hidden = !isHome;
+        if (homeTop) {
+            homeTop.hidden = !isHome || desktop;
+            homeTop.setAttribute('aria-hidden', homeTop.hidden ? 'true' : 'false');
+        }
+        if (homeHero) homeHero.hidden = !isHome || desktop;
         if (homePromo) homePromo.hidden = !isHome;
-        if (homeFeeds) homeFeeds.hidden = !isHome;
-        if (homeSections) homeSections.hidden = !isHome;
+        if (homeNews) {
+            if (!isHome) {
+                homeNews.hidden = true;
+            } else {
+                const list = document.getElementById('home-news-list');
+                homeNews.hidden = !(list && list.childElementCount > 0);
+            }
+        }
+        if (homeFeeds) homeFeeds.hidden = !isHome || mobile || desktop;
+        if (homeSections) homeSections.hidden = !isHome || mobile || desktop;
         if (heroSection) heroSection.hidden = true;
-        if (catalogSection) catalogSection.hidden = isHome;
+        if (d3Hero) {
+            d3Hero.hidden = !(desktop && isHome && d3Hero.dataset.hasGames === '1');
+        }
+        if (d3Cats) d3Cats.hidden = !(desktop && isHome);
+        if (d3Discover) d3Discover.hidden = !(desktop && isHome);
+        // Mobile + desktop homepage show the real catalogue ("Wszystkie gry").
+        if (catalogSection) {
+            catalogSection.hidden = (mobile || desktop) ? false : isHome;
+        }
         if (splitRight) {
             splitRight.classList.toggle('split-right--catalog', !isHome);
+            splitRight.classList.toggle('split-right--mobile-home', mobile && isHome);
+            splitRight.classList.toggle('split-right--desktop-home', desktop && isHome);
             if (!isHome) splitRight.scrollTop = 0;
         }
+        syncHeroTitleMode();
+        syncDesktopAccountChrome();
     }
 
     function updateCatalogSubtitle() {
@@ -328,10 +444,13 @@ document.addEventListener('DOMContentLoaded', () => {
         currentCategory = '';
         currentQuery = '';
         searchInput.value = '';
+        const heroInput = document.getElementById('hero-search-input');
+        if (heroInput) heroInput.value = '';
         setBrowseMode('home');
-        categoriesBar.querySelectorAll('.cat').forEach(el => {
-            el.classList.toggle('active', el.dataset.slug === '');
-        });
+        syncActiveCats('');
+        if (window.matchMedia('(max-width: 767px)').matches || isDesktopViewport()) {
+            fetchGames(1, false);
+        }
         trackPageView('/view/home');
     }
 
@@ -347,9 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showCatalogView();
         gamesHeading.textContent = tt('catalog.all_games');
         updateCatalogSubtitle();
-        categoriesBar.querySelectorAll('.cat').forEach(el => {
-            el.classList.toggle('active', el.dataset.slug === '');
-        });
+        syncActiveCats('');
         trackPageView('/view/catalog');
         fetchGames(1, false);
     }
@@ -454,12 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     sortSelect?.addEventListener('change', (e) => {
-        currentSort = e.target.value || '';
-        if (currentQuery || currentCategory) {
-            fetchGames(1, false);
-        } else {
-            showAllGamesCatalog();
-        }
+        applySortValue(e.target.value || '');
     });
 
     closeModal?.addEventListener('click', closeModalFn);
@@ -477,21 +589,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(api('articles/latest?limit=6'));
             if (!res.ok) return;
             const data = await res.json();
-            const items = data.items || [];
+            const items = (data.items || []).slice(0, 4);
             if (!items.length) {
                 host.hidden = true;
                 list.innerHTML = '';
                 return;
             }
             host.hidden = false;
-            list.innerHTML = items.map((it) => `
-                <a class="home-news-card" href="${escapeHtml(it.url || ('blog/' + it.slug))}">
-                    <span class="home-news-card-type">${escapeHtml(it.article_type || 'news')}</span>
+            const typeLabel = (raw) => {
+                const key = String(raw || 'news').toLowerCase();
+                if (key === 'deal' || key === 'price_drop' || key === 'promocje') return 'PROMOCJE';
+                if (key === 'guide' || key === 'poradnik') return 'PORADNIK';
+                if (key === 'release' || key === 'free_game') return 'NOWOŚCI';
+                if (key === 'news') return 'NOWOŚCI';
+                return String(raw || 'NOWOŚCI').toUpperCase();
+            };
+            list.innerHTML = items.map((it) => {
+                const href = escapeHtml(it.url || ('blog/' + it.slug));
+                const thumb = it.featured_image
+                    ? `<span class="home-news-card-thumb"><img src="${escapeHtml(it.featured_image)}" alt="" loading="lazy" width="320" height="180"></span>`
+                    : '';
+                return `
+                <a class="home-news-card" href="${href}">
+                    ${thumb}
+                    <span class="home-news-card-type">${escapeHtml(typeLabel(it.article_type))}</span>
                     <strong>${escapeHtml(it.title)}</strong>
                     <span class="home-news-card-date">${escapeHtml(it.date || '')}</span>
                     <span class="home-news-card-ex">${escapeHtml(it.excerpt || '')}</span>
-                </a>
-            `).join('');
+                </a>`;
+            }).join('');
         } catch (e) {
             console.warn('home news', e);
         }
@@ -503,10 +629,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error('home failed');
             const data = await res.json();
             try { renderHomeSpotlight(data.spotlight || []); } catch (e) { console.warn(e); }
+            try {
+                // Desktop hero/side panel must use the same manual Polecane list (spotlight order).
+                const spotlightGames = Array.isArray(data.spotlight)
+                    ? data.spotlight.filter((game) => game && game.slug)
+                    : [];
+                renderDesktopHero(spotlightGames.length ? spotlightGames : pickFeaturedDealGames(data));
+            } catch (e) { console.warn(e); }
+            try { renderFeaturedDeals(data); } catch (e) { console.warn(e); }
             try { renderDealFeeds(data); } catch (e) { console.warn(e); }
             try { renderHomeSections(data.sections || []); } catch (e) { console.warn(e); }
             try { loadWishlistDeals(); } catch (e) { console.warn(e); }
             try { loadHomeNews(); } catch (e) { console.warn(e); }
+            try { refreshMobilePromoCounts(); } catch (e) { console.warn(e); }
+            if (!currentCategory && !currentQuery) {
+                setBrowseMode('home');
+            }
+            const bootCatalog = (
+                (window.matchMedia('(max-width: 767px)').matches || isDesktopViewport())
+                && !currentCategory
+                && !currentQuery
+            );
+            if (bootCatalog) {
+                try {
+                    if (!document.body.dataset.sortBoot) {
+                        document.body.dataset.sortBoot = '1';
+                        applySortValue('rating', { fetch: false });
+                    }
+                    fetchGames(1, false);
+                } catch (e) { console.warn(e); }
+            }
             trackPageView('/view/home');
         } catch (e) {
             console.warn('home sections', e);
@@ -645,6 +797,181 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function pickFeaturedDealGames(data) {
+        // Priority 1: owner-curated Polecane (home_curation.json → API spotlight), keep order.
+        const spotlight = Array.isArray(data?.spotlight)
+            ? data.spotlight.filter((game) => game && game.slug)
+            : [];
+        if (spotlight.length) return spotlight;
+
+        // Priority 2: fallback only when Polecane is empty.
+        const ranked = [];
+        const seen = new Set();
+        const push = (game) => {
+            if (!game?.slug || seen.has(game.slug) || game.best_price_pln == null) return;
+            seen.add(game.slug);
+            ranked.push(game);
+        };
+        const deals = Array.isArray(data?.new_deals) ? [...data.new_deals] : [];
+        deals.sort((a, b) => Number(b.savings_pct || 0) - Number(a.savings_pct || 0));
+        deals.forEach(push);
+        (data?.historical_lows || []).forEach(push);
+        return ranked.slice(0, 5);
+    }
+
+    function featuredImageFor(game) {
+        if (typeof featuredCoverInfo === 'function') return featuredCoverInfo(game);
+        const src = typeof gameCoverSrc === 'function' ? gameCoverSrc(game) : (game?.cover_image || '');
+        return { src, isPortrait: false, chain: [src].filter(Boolean) };
+    }
+
+    function setMobileHeroArt(game) {
+        const art = document.getElementById('m-hero-art');
+        const img = document.getElementById('m-hero-art-img');
+        if (!art || !img) return;
+        if (!game) {
+            art.hidden = true;
+            img.removeAttribute('src');
+            return;
+        }
+        const info = featuredImageFor(game);
+        img.src = info.src;
+        img.alt = '';
+        img.loading = 'eager';
+        img.fetchPriority = 'high';
+        art.hidden = false;
+        bindCoverFallback(img, game, { preferWide: true });
+    }
+
+    function buildFeaturedSlideHtml(game, index) {
+        const info = featuredImageFor(game);
+        const gameUrl = `gra/${encodeURIComponent(game.slug)}`;
+        const hasPrice = game.best_price_pln != null;
+        const hasSteam = hasPrice
+            && game.steam_price_pln != null
+            && Number(game.steam_price_pln) > Number(game.best_price_pln) + 0.01;
+        const pct = game.savings_pct != null ? Number(game.savings_pct) : null;
+        const shop = game.best_shop_name ? `<span>${escapeHtml(game.best_shop_name)}</span>` : '';
+        const platform = `<span>${escapeHtml((game.platform || 'pc').toUpperCase())}</span>`;
+        const badge = (pct != null && pct > 0)
+            ? `<span class="m-featured-badge">−${Math.round(pct)}%</span>`
+            : (game.at_historical_low || game.lowest_ever_label)
+                ? `<span class="m-featured-badge">HISTORYCZNE MIN.</span>`
+                : '';
+        const mediaClass = info.isPortrait
+            ? 'm-featured-media m-featured-media--portrait'
+            : 'm-featured-media';
+        const eager = index === 0;
+        const priceBlock = hasPrice
+            ? `<div class="m-featured-price">
+                    ${pct != null && pct > 0 ? `<span class="m-featured-discount">-${Math.round(pct)}%</span>` : ''}
+                    ${hasSteam ? `<span class="m-featured-old">${formatPln(game.steam_price_pln)}</span>` : ''}
+                    <span class="m-featured-now">${formatPln(game.best_price_pln, { html: true })}</span>
+               </div>`
+            : `<div class="m-featured-price"><span class="m-featured-now">${tt('card.check_price')}</span></div>`;
+        return `
+            <a class="m-featured" href="${gameUrl}" data-slug="${escapeHtml(game.slug)}" data-index="${index}">
+                <div class="${mediaClass}">
+                    ${badge}
+                    <img src="${escapeHtml(info.src)}"
+                         alt="${escapeHtml(game.title)}"
+                         width="640" height="360"
+                         loading="${eager ? 'eager' : 'lazy'}"
+                         decoding="async"
+                         ${eager ? 'fetchpriority="high"' : ''}
+                         data-featured-img="${index}">
+                </div>
+                <div class="m-featured-body">
+                    <h2 class="m-featured-title">${escapeHtml(game.title)}</h2>
+                    <div class="m-featured-meta">${platform}${shop}</div>
+                    ${priceBlock}
+                    <span class="m-featured-cta">${escapeHtml(tt('d3.compare'))}</span>
+                </div>
+            </a>`;
+    }
+
+    function renderFeaturedDeals(data) {
+        const host = document.getElementById('m-featured-host');
+        const mount = document.getElementById('m-featured-mount');
+        const dots = document.getElementById('m-featured-dots');
+        const kicker = document.getElementById('m-featured-kicker');
+        if (!host || !mount) return;
+        const games = pickFeaturedDealGames(data);
+        const fromSpotlight = Array.isArray(data?.spotlight) && data.spotlight.length > 0;
+        if (!games.length) {
+            host.classList.add('is-empty');
+            mount.innerHTML = '';
+            setMobileHeroArt(null);
+            if (kicker) kicker.hidden = true;
+            if (dots) {
+                dots.hidden = true;
+                dots.innerHTML = '';
+            }
+            return;
+        }
+        host.classList.remove('is-empty');
+        if (kicker) {
+            kicker.hidden = false;
+            kicker.textContent = fromSpotlight ? tt('featured.polecane') : tt('featured.picked');
+        }
+
+        // Render first slide immediately, then remaining slides — never Promise.all on images.
+        setMobileHeroArt(games[0]);
+        mount.innerHTML = games.map((game, index) => buildFeaturedSlideHtml(game, index)).join('');
+        mount.querySelectorAll('img[data-featured-img]').forEach((img) => {
+            const idx = Number(img.dataset.featuredImg || 0);
+            const game = games[idx];
+            if (game) bindCoverFallback(img, game, { preferWide: true });
+            const media = img.closest('.m-featured-media--portrait');
+            if (media && img.src) media.style.setProperty('--image', `url("${img.src}")`);
+        });
+
+        const syncDots = (index) => {
+            if (!dots) return;
+            dots.querySelectorAll('button').forEach((btn, i) => {
+                btn.setAttribute('aria-current', i === index ? 'true' : 'false');
+            });
+        };
+
+        const scrollToIndex = (index) => {
+            const slide = mount.querySelector(`.m-featured[data-index="${index}"]`);
+            if (!slide) return;
+            mount.scrollTo({ left: slide.offsetLeft, behavior: 'smooth' });
+            setMobileHeroArt(games[index]);
+            syncDots(index);
+        };
+
+        if (dots) {
+            if (games.length > 1) {
+                dots.hidden = false;
+                dots.innerHTML = games.map((_, i) => (
+                    `<button type="button" aria-label="${escapeHtml(tt('d3.featured_n', { n: i + 1 }))}" aria-current="${i === 0 ? 'true' : 'false'}"></button>`
+                )).join('');
+                dots.querySelectorAll('button').forEach((btn, i) => {
+                    btn.addEventListener('click', () => scrollToIndex(i));
+                });
+            } else {
+                dots.hidden = true;
+                dots.innerHTML = '';
+            }
+        }
+
+        if (!host.dataset.featuredBound) {
+            host.dataset.featuredBound = '1';
+            let scrollTimer = 0;
+            mount.addEventListener('scroll', () => {
+                window.clearTimeout(scrollTimer);
+                scrollTimer = window.setTimeout(() => {
+                    const width = mount.clientWidth || 1;
+                    const index = Math.round(mount.scrollLeft / width);
+                    const clamped = Math.max(0, Math.min(games.length - 1, index));
+                    setMobileHeroArt(games[clamped]);
+                    syncDots(clamped);
+                }, 60);
+            }, { passive: true });
+        }
+    }
+
     function renderHomeSpotlight(games) {
         if (!homeSpotlight || !homeSpotlightRow) return;
         if (!games.length) {
@@ -677,6 +1004,190 @@ document.addEventListener('DOMContentLoaded', () => {
             const img = tile.querySelector('img');
             if (img && game) bindCoverFallback(img, game);
         });
+    }
+
+    function paintDesktopHeroSlide() {
+        if (!d3Hero || !d3HeroGames.length) return;
+        const game = d3HeroGames[d3HeroIndex];
+        if (!game) return;
+        const main = document.getElementById('d3-hero-main');
+        const img = document.getElementById('d3-hero-img');
+        const title = document.getElementById('d3-hero-title');
+        const sub = document.getElementById('d3-hero-sub');
+        const tags = document.getElementById('d3-hero-tags');
+        const price = document.getElementById('d3-hero-price');
+        const gameUrl = `gra/${encodeURIComponent(game.slug)}`;
+        if (main) main.href = gameUrl;
+        if (title) title.textContent = game.title || '—';
+        if (sub) {
+            const desc = (game.description || '').trim();
+            if (desc) {
+                sub.hidden = false;
+                sub.textContent = desc.length > 140 ? `${desc.slice(0, 137)}…` : desc;
+            } else {
+                sub.hidden = true;
+                sub.textContent = '';
+            }
+        }
+        if (tags) {
+            const bits = [];
+            bits.push(`<span class="d3-hero-tag">${escapeHtml((game.platform || 'pc').toUpperCase())}</span>`);
+            if (game.best_shop_name) {
+                bits.push(`<span class="d3-hero-tag">${escapeHtml(game.best_shop_name)}</span>`);
+            }
+            if (game.rating != null && Number(game.rating) > 0) {
+                bits.push(`<span class="d3-hero-tag">★ ${Number(game.rating).toFixed(1)}</span>`);
+            }
+            tags.innerHTML = bits.join('');
+        }
+        if (price) {
+            const hasPrice = game.best_price_pln != null;
+            const pct = game.savings_pct != null ? Number(game.savings_pct) : null;
+            const hasSteam = hasPrice
+                && game.steam_price_pln != null
+                && Number(game.steam_price_pln) > Number(game.best_price_pln) + 0.01
+                && pct != null
+                && pct > 0;
+            if (!hasPrice) {
+                price.innerHTML = `<span class="d3-hero-now">${tt('card.check_price')}</span>`;
+            } else {
+                price.innerHTML = `
+                    ${pct != null && pct > 0 ? `<span class="d3-hero-discount">-${Math.round(pct)}%</span>` : ''}
+                    ${hasSteam ? `<span class="d3-hero-old">${formatPln(game.steam_price_pln)}</span>` : ''}
+                    <span class="d3-hero-now">${formatPln(game.best_price_pln, { html: true })}</span>
+                    <span class="d3-hero-best">${escapeHtml(game.best_shop_name ? tt('d3.best_price_shop', { shop: game.best_shop_name }) : tt('d3.best_price'))}</span>
+                `;
+            }
+        }
+        if (img) {
+            const info = featuredImageFor(game);
+            const media = img.closest('.d3-hero-media');
+            img.alt = game.title || '';
+            img.loading = 'eager';
+            img.fetchPriority = d3HeroIndex === 0 ? 'high' : 'auto';
+            img.src = info.src;
+            if (media && info.src) {
+                media.style.setProperty('--d3-hero-bg', `url("${String(info.src).replace(/"/g, '\\"')}")`);
+            }
+            bindCoverFallback(img, game, { preferWide: true });
+            // Keep blurred backdrop in sync when fallback chain advances.
+            img.onload = () => {
+                const host = img.closest('.d3-hero-media');
+                const src = img.currentSrc || img.src;
+                if (host && src) host.style.setProperty('--d3-hero-bg', `url("${src.replace(/"/g, '\\"')}")`);
+            };
+        }
+        const dots = document.getElementById('d3-hero-dots');
+        if (dots) {
+            dots.querySelectorAll('button').forEach((btn, i) => {
+                btn.setAttribute('aria-current', i === d3HeroIndex ? 'true' : 'false');
+            });
+        }
+        const sideList = document.getElementById('d3-hero-side-list');
+        if (sideList) {
+            sideList.querySelectorAll('.d3-side-row').forEach((row) => {
+                row.classList.toggle('is-active', row.dataset.slug === game.slug);
+            });
+        }
+    }
+
+    function renderDesktopHero(games) {
+        if (!d3Hero) return;
+        d3HeroGames = (games || []).filter((g) => g && g.slug);
+        const prev = document.getElementById('d3-hero-prev');
+        const next = document.getElementById('d3-hero-next');
+        const dots = document.getElementById('d3-hero-dots');
+        const sideList = document.getElementById('d3-hero-side-list');
+        if (!d3HeroGames.length) {
+            d3Hero.hidden = true;
+            delete d3Hero.dataset.hasGames;
+            if (sideList) sideList.innerHTML = '';
+            if (dots) {
+                dots.hidden = true;
+                dots.innerHTML = '';
+            }
+            if (prev) prev.hidden = true;
+            if (next) next.hidden = true;
+            return;
+        }
+        d3Hero.dataset.hasGames = '1';
+        d3HeroIndex = 0;
+        const sideGames = d3HeroGames.slice(1, 5);
+        if (sideList) {
+            sideList.innerHTML = sideGames.map((game) => {
+                // Side thumbs are landscape — use header/capsule, not portrait library art.
+                const coverSrc = gameCoverSrc(game);
+                const gameUrl = `gra/${encodeURIComponent(game.slug)}`;
+                const pct = game.savings_pct != null ? Number(game.savings_pct) : null;
+                const priceHtml = game.best_price_pln != null
+                    ? formatPln(game.best_price_pln, { html: true })
+                    : tt('card.check_price');
+                return `<a class="d3-side-row" href="${gameUrl}" data-slug="${escapeHtml(game.slug)}">
+                    <span class="d3-side-cover"><img src="${escapeHtml(coverSrc)}" alt="" width="88" height="42" loading="eager" decoding="async"></span>
+                    <span class="d3-side-meta">
+                        <span class="d3-side-title">${escapeHtml(game.title)}</span>
+                        ${pct != null && pct > 0 ? `<span class="d3-side-discount">-${Math.round(pct)}%</span>` : ''}
+                        <span class="d3-side-price">${priceHtml}</span>
+                    </span>
+                    <span class="d3-side-chevron" aria-hidden="true">›</span>
+                </a>`;
+            }).join('');
+            sideList.querySelectorAll('img').forEach((img, i) => {
+                const game = sideGames[i];
+                if (game) bindCoverFallback(img, game);
+            });
+            sideList.querySelectorAll('.d3-side-row').forEach((row) => {
+                row.addEventListener('click', (ev) => {
+                    const idx = d3HeroGames.findIndex((g) => g.slug === row.dataset.slug);
+                    if (idx < 0) return;
+                    // Keep navigation; also sync hero when middle-click / modifier not used.
+                    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button === 1) return;
+                    d3HeroIndex = idx;
+                    paintDesktopHeroSlide();
+                });
+            });
+        }
+        const multi = d3HeroGames.length > 1;
+        if (prev) prev.hidden = !multi;
+        if (next) next.hidden = !multi;
+        if (dots) {
+            if (multi) {
+                dots.hidden = false;
+                dots.innerHTML = d3HeroGames.map((_, i) => (
+                    `<button type="button" aria-label="${escapeHtml(tt('d3.featured_n', { n: i + 1 }))}" aria-current="${i === 0 ? 'true' : 'false'}"></button>`
+                )).join('');
+                dots.querySelectorAll('button').forEach((btn, i) => {
+                    btn.addEventListener('click', () => {
+                        d3HeroIndex = i;
+                        paintDesktopHeroSlide();
+                    });
+                });
+            } else {
+                dots.hidden = true;
+                dots.innerHTML = '';
+            }
+        }
+        if (!d3HeroBound) {
+            d3HeroBound = true;
+            prev?.addEventListener('click', () => {
+                if (!d3HeroGames.length) return;
+                d3HeroIndex = (d3HeroIndex - 1 + d3HeroGames.length) % d3HeroGames.length;
+                paintDesktopHeroSlide();
+            });
+            next?.addEventListener('click', () => {
+                if (!d3HeroGames.length) return;
+                d3HeroIndex = (d3HeroIndex + 1) % d3HeroGames.length;
+                paintDesktopHeroSlide();
+            });
+            document.getElementById('d3-hero-side-all')?.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+        paintDesktopHeroSlide();
+        if (isDesktopViewport() && !currentCategory && !currentQuery) {
+            d3Hero.hidden = false;
+        }
     }
 
     function renderHomeSections(sections) {
@@ -740,6 +1251,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const priceHtml = hasPrice
             ? `<span class="card-price">${formatPln(game.best_price_pln, { html: true })}</span>`
             : `<span class="card-price empty">${tt('card.check_price')}</span>`;
+        const oldPriceHtml = (
+            hasPrice
+            && game.steam_price_pln != null
+            && Number(game.steam_price_pln) > Number(game.best_price_pln) + 0.01
+            && Number(game.savings_pct || 0) > 0
+        )
+            ? `<span class="card-old-price">${formatPln(game.steam_price_pln)}</span>`
+            : '';
         const tagHtml = hasPrice && game.best_price_is_official
             ? `<span class="card-tag">${tt('card.official')}</span>`
             : '';
@@ -758,12 +1277,40 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<span class="card-free-badge">${tt('badge.free') || 'ZA DARMO'}</span>`
             : '';
         const watched = watchedSlugs.has(game.slug);
+        const discountPct = game.savings_pct != null ? Number(game.savings_pct) : null;
+        const coverBadge = (discountPct != null && discountPct > 0)
+            ? `<span class="d3-card-badge">-${Math.round(discountPct)}%</span>`
+            : '';
 
         const coverSrc = gameCoverSrc(game);
         const gameUrl = `gra/${encodeURIComponent(game.slug)}`;
+        const platform = escapeHtml((game.platform || 'pc').toUpperCase());
+        const ratingHtml = (game.rating != null && Number(game.rating) > 0)
+            ? `<span class="card-rating">★ ${Number(game.rating).toFixed(1)}</span>`
+            : '';
+        const bestShop = game.best_shop_name ? escapeHtml(game.best_shop_name) : '';
+        const shopRows = hasPrice ? `
+            <div class="card-shops" aria-label="${escapeHtml(tt('card.compare_aria'))}">
+                <div class="card-shop-row is-best">
+                    <span class="card-shop-name">${bestShop || escapeHtml(tt('card.lowest'))}${bestShop ? ` <em>${escapeHtml(tt('card.lowest_price'))}</em>` : ''}</span>
+                    <span class="card-shop-price">${formatPln(game.best_price_pln, { html: true })}</span>
+                    <a class="card-shop-go" href="${gameUrl}">${escapeHtml(tt('d3.compare'))}</a>
+                </div>
+                ${
+                    game.steam_price_pln != null
+                    && Number(game.steam_price_pln) > Number(game.best_price_pln) + 0.01
+                        ? `<div class="card-shop-row">
+                            <span class="card-shop-name">Steam</span>
+                            <span class="card-shop-price">${formatPln(game.steam_price_pln, { html: true })}</span>
+                            <a class="card-shop-go" href="${gameUrl}">${escapeHtml(tt('card.view_offer'))}</a>
+                           </div>`
+                        : ''
+                }
+            </div>` : '';
         card.innerHTML = `
             ${rank ? `<span class="card-rank ${rankClass(rank)}">${rank}</span>` : ''}
             <div class="card-cover">
+                ${coverBadge}
                 <a class="card-cover-link" href="${gameUrl}" aria-label="${escapeHtml(game.title)} — ${tt('card.compare_prices')}">
                     <img src="${coverSrc}" alt="${escapeHtml(game.title)}" loading="lazy" decoding="async" width="460" height="215">
                 </a>
@@ -771,15 +1318,23 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="card-body">
                 <h3 class="card-title"><a class="card-title-link" href="${gameUrl}">${escapeHtml(game.title)}</a></h3>
+                <div class="card-meta-row">
+                    <span class="card-platform">${platform}</span>
+                    ${ratingHtml}
+                </div>
                 <div class="card-foot">
                     <span class="card-from">${tt('card.from')}</span>
-                    ${priceHtml}
                     ${savingsHtml}
+                    ${priceHtml}
+                    ${oldPriceHtml}
                     ${historyLabel}
                     ${dealAge}
                     ${freeBadge}
                     ${tagHtml}
                 </div>
+                ${shopRows}
+                ${bestShop ? `<span class="d3-card-shop">${escapeHtml(tt('d3.best_price_shop', { shop: game.best_shop_name }))}</span>` : ''}
+                <a class="d3-card-cta" href="${gameUrl}" aria-label="${escapeHtml(tt('d3.compare'))}">→</a>
             </div>
         `;
         const img = card.querySelector('img');
@@ -814,20 +1369,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         try {
             const res = await fetch(api('categories?kind=genre'));
-            if (!res.ok) return;
-            const cats = await res.json();
-            const curatedSlugs = new Set(CURATED_CATEGORIES.map(c => c.slug));
-            cats.filter(c => c.game_count > 0 && !curatedSlugs.has(c.slug)).forEach(cat => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'cat';
-                btn.dataset.slug = cat.slug;
-                btn.textContent = cat.name;
-                btn.addEventListener('click', () => selectCategory(cat.slug, cat.name, true));
-                categoriesBar.appendChild(btn);
-            });
+            if (res.ok) {
+                const cats = await res.json();
+                const curatedSlugs = new Set(CURATED_CATEGORIES.map(c => c.slug));
+                cats.filter(c => c.game_count > 0 && !curatedSlugs.has(c.slug)).forEach(cat => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'cat';
+                    btn.dataset.slug = cat.slug;
+                    btn.textContent = cat.name;
+                    btn.addEventListener('click', () => selectCategory(cat.slug, cat.name, true));
+                    categoriesBar.appendChild(btn);
+                });
+            }
+            syncDesktopCats();
         } catch (e) {
             console.warn('categories', e);
+            syncDesktopCats();
         }
     }
 
@@ -838,6 +1396,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const s = await res.json();
             catalogStats.textContent = tt('catalog.games_count', { n: formatCount(s.games_total) });
             if (heroGamesCount) heroGamesCount.textContent = formatNum(s.games_total);
+            const dealMeta = document.getElementById('m-deal-meta');
+            if (dealMeta) {
+                const shops = Number(s.stores_total)
+                    || (Array.isArray(s.display_shops) ? s.display_shops.length : 0)
+                    || ACTIVE_SHOPS.length
+                    || 0;
+                const gamesN = Number(s.games_total) || 0;
+                if (shops > 0) {
+                    const shopsLabel = (shops === 1) ? `${shops} sklep`
+                        : (shops % 10 >= 2 && shops % 10 <= 4 && (shops % 100 < 10 || shops % 100 >= 20))
+                            ? `${shops} sklepy`
+                            : `${shops} sklepów`;
+                    const gamesLabel = formatCount(gamesN) + (gamesN === 1 ? ' gra' : ' gier');
+                    dealMeta.textContent = tt('hero.deal_meta', {
+                        shops_label: shopsLabel,
+                        games_label: gamesLabel,
+                        shops,
+                        n: formatCount(gamesN),
+                    });
+                }
+            }
         } catch (e) {
             console.warn(e);
         }
@@ -857,9 +1436,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gamesHeading.textContent = name;
         updateCatalogSubtitle();
         scrollToCatalog();
-        categoriesBar.querySelectorAll('.cat').forEach(el => {
-            el.classList.toggle('active', el.dataset.slug === slug);
-        });
+        syncActiveCats(slug);
         trackPageView(`/kategoria/${encodeURIComponent(slug)}`);
         fetchGames(1, false);
     }
@@ -1554,12 +2131,30 @@ document.addEventListener('DOMContentLoaded', () => {
             row.style.setProperty('--enter-i', rowIndex);
             row.style.animationDelay = `${rowIndex * 50}ms`;
             rowIndex += 1;
-            const isOfficial = Boolean(offer.is_official) || offer.trust_tier === 'A' && /oficjaln/i.test(offer.trust_label || '');
-            const badgeClass = offer.is_official ? 'offer-badge--official' : `offer-badge--tier-${(offer.trust_tier || 'c').toLowerCase()}`;
-            const typeLabel = offer.is_official ? tt('offer.official') : tt('offer.marketplace');
+            const storeClass = String(offer.store_class || '').toUpperCase();
+            const isOfficial = storeClass === 'OFFICIAL_STORE'
+                || Boolean(offer.is_official)
+                || (offer.trust_tier === 'A' && /oficjaln/i.test(offer.trust_label || ''));
+            const isAuthorized = storeClass === 'AUTHORIZED_RESELLER'
+                || /autoryzowan/i.test(offer.trust_label || '');
+            const badgeClass = isOfficial
+                ? 'offer-badge--official'
+                : isAuthorized
+                    ? 'offer-badge--authorized'
+                    : `offer-badge--tier-${(offer.trust_tier || 'c').toLowerCase()}`;
+            const typeLabel = offer.trust_label
+                || (isOfficial
+                    ? tt('offer.official')
+                    : isAuthorized
+                        ? tt('offer.authorized')
+                        : tt('offer.marketplace'));
             const noteText = offer.trust_note
                 ? offer.trust_note
-                : (offer.is_official ? tt('offer.official_note') : tt('offer.marketplace_note'));
+                : (isOfficial
+                    ? tt('offer.official_note')
+                    : isAuthorized
+                        ? tt('offer.authorized_note')
+                        : tt('offer.marketplace_note'));
             const infoBadge = noteText
                 ? ` <span class="offer-info" tabindex="0" role="button" aria-label="${escapeHtml(noteText)}" title="${escapeHtml(noteText)}">i</span>`
                 : '';
@@ -1584,12 +2179,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const priceHtml = hasDiscount
                 ? `<span class="offer-price"><span class="offer-price-old">${formatPln(orig)}</span> ${formatPln(offer.price_pln, { html: true })}</span>`
                 : `<span class="offer-price">${formatPln(offer.price_pln, { html: true })}</span>`;
+            const bestBadge = isCheapest
+                ? '<span class="offer-best-badge">NAJNIŻSZA CENA</span>'
+                : '';
             row.innerHTML = `
                 <div class="offer-row-main">
                     <span class="offer-shop shop-${shopClass}">${offer.shop_name}${blik}</span>
                     <span class="offer-type"><span class="offer-badge ${badgeClass}">${typeLabel}</span>${infoBadge}${warnBadge}${regionBadge}${refundHtml}</span>
                 </div>
                 ${priceHtml}
+                ${bestBadge}
                 <a href="${offerGoUrl(offer)}" target="_blank" rel="noopener noreferrer nofollow sponsored" class="btn-buy${isCheapest ? ' btn-buy--best' : ''}">${buyLabel}</a>
             `;
             attachOfferBuyTracking(row.querySelector('.btn-buy'), offer);
@@ -1618,11 +2217,201 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !modal.hidden) closeModalFn();
+        if (e.key === 'Escape') closeMobileDrawer();
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
-            searchInput.focus();
+            focusMobileSearch();
         }
     });
+
+    function isMobileViewport() {
+        return window.matchMedia('(max-width: 767px)').matches;
+    }
+
+    function focusMobileSearch() {
+        const heroInput = document.getElementById('hero-search-input');
+        const target = (isMobileViewport() && heroInput) ? heroInput : searchInput;
+        if (!target) return;
+        try {
+            target.focus({ preventScroll: false });
+        } catch (_) {
+            target.focus();
+        }
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof target.select === 'function') target.select();
+    }
+
+    function openMobileDrawer() {
+        const drawer = document.getElementById('m-drawer');
+        const btn = document.getElementById('m-menu-btn');
+        if (!drawer) return;
+        drawer.hidden = false;
+        document.body.classList.add('mmenu-open');
+        if (btn) btn.setAttribute('aria-expanded', 'true');
+        syncMobileDrawerAuth();
+        document.getElementById('m-drawer-close')?.focus();
+    }
+
+    function closeMobileDrawer() {
+        const drawer = document.getElementById('m-drawer');
+        const btn = document.getElementById('m-menu-btn');
+        if (!drawer || drawer.hidden) return;
+        drawer.hidden = true;
+        document.body.classList.remove('mmenu-open');
+        if (btn) {
+            btn.setAttribute('aria-expanded', 'false');
+            btn.focus();
+        }
+    }
+
+    function syncMobileDrawerAuth() {
+        const host = document.getElementById('m-drawer-auth');
+        if (!host) return;
+        if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+            document.body.classList.add('is-logged-in');
+            host.innerHTML = `
+                <a class="m-btn-primary" href="panel">Mój panel</a>
+                <button type="button" class="m-btn-ghost" id="m-drawer-logout">Wyloguj</button>
+            `;
+            host.querySelector('#m-drawer-logout')?.addEventListener('click', () => {
+                document.getElementById('btn-logout')?.click();
+                closeMobileDrawer();
+            });
+        } else {
+            document.body.classList.remove('is-logged-in');
+            host.innerHTML = `
+                <a class="m-btn-primary" href="register">Załóż darmowe konto</a>
+                <a class="m-btn-ghost" href="login">Zaloguj się</a>
+            `;
+        }
+    }
+
+    async function refreshMobilePromoCounts() {
+        const trackedEl = document.getElementById('m-promo-tracked');
+        const alertsEl = document.getElementById('m-promo-alerts');
+        if (!trackedEl || !alertsEl) return;
+        if (typeof isLoggedIn !== 'function' || !isLoggedIn()) {
+            document.body.classList.remove('is-logged-in');
+            trackedEl.textContent = '—';
+            alertsEl.textContent = '—';
+            return;
+        }
+        document.body.classList.add('is-logged-in');
+        try {
+            const res = await authFetch('favorites');
+            if (!res?.ok) return;
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : (data.items || data.favorites || []);
+            trackedEl.textContent = String(list.length);
+            const alertsOn = list.filter((g) => g && g.alert_enabled).length;
+            alertsEl.textContent = String(alertsOn);
+        } catch (_) {
+            trackedEl.textContent = String(watchedSlugs?.size || '—');
+            alertsEl.textContent = '—';
+        }
+    }
+
+    function initMobileChrome() {
+        document.getElementById('m-menu-btn')?.addEventListener('click', openMobileDrawer);
+        document.getElementById('m-drawer-close')?.addEventListener('click', closeMobileDrawer);
+        document.getElementById('m-drawer-overlay')?.addEventListener('click', closeMobileDrawer);
+        document.getElementById('m-search-btn')?.addEventListener('click', () => {
+            closeMobileDrawer();
+            focusMobileSearch();
+        });
+        document.getElementById('m-nav-search')?.addEventListener('click', focusMobileSearch);
+        document.getElementById('m-nav-more')?.addEventListener('click', openMobileDrawer);
+
+        const heroForm = document.getElementById('m-hero-search');
+        const heroInput = document.getElementById('hero-search-input');
+        if (heroForm && heroInput && searchInput) {
+            heroInput.addEventListener('input', () => {
+                searchInput.value = heroInput.value;
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            heroForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const q = heroInput.value.trim();
+                searchInput.value = q;
+                if (q) runSearch(q);
+                else showHomeView();
+            });
+            searchInput.addEventListener('input', () => {
+                if (heroInput.value !== searchInput.value) heroInput.value = searchInput.value;
+            });
+        }
+
+        const sortTabs = document.getElementById('m-sort-tabs');
+        if (sortTabs && !sortTabs.dataset.bound) {
+            sortTabs.dataset.bound = '1';
+            sortTabs.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-sort]');
+                if (!btn) return;
+                applySortValue(btn.dataset.sort || '');
+            });
+            syncSortTabs(currentSort);
+        }
+
+        if (d3Cats && !d3Cats.dataset.bound) {
+            d3Cats.dataset.bound = '1';
+            d3Cats.addEventListener('click', (e) => {
+                const cat = e.target.closest('.cat');
+                if (!cat || cat.tagName === 'A') return;
+                e.preventDefault();
+                const slug = cat.dataset.slug || '';
+                selectCategory(slug, cat.textContent.trim(), true);
+            });
+        }
+
+        if (d3Discover && !d3Discover.dataset.bound) {
+            d3Discover.dataset.bound = '1';
+            d3Discover.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-d3-sort]');
+                if (!btn) return;
+                e.preventDefault();
+                const sort = btn.getAttribute('data-d3-sort') || '';
+                currentCategory = '';
+                currentCategoryName = '';
+                currentQuery = '';
+                if (searchInput) searchInput.value = '';
+                showCatalogView();
+                gamesHeading.textContent = tt('catalog.all_games');
+                updateCatalogSubtitle();
+                syncActiveCats('');
+                applySortValue(sort);
+                document.getElementById('catalog-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+
+        syncHeroTitleMode();
+        syncDesktopAccountChrome();
+        syncMobileDrawerAuth();
+        document.addEventListener('langchange', () => {
+            syncMobileDrawerAuth();
+            refreshMobilePromoCounts();
+            syncDesktopAccountChrome();
+            syncHeroTitleMode();
+        });
+        const authNav = document.getElementById('auth-nav');
+        if (authNav && typeof MutationObserver !== 'undefined') {
+            new MutationObserver(() => {
+                syncMobileDrawerAuth();
+                refreshMobilePromoCounts();
+                syncDesktopAccountChrome();
+            }).observe(authNav, { childList: true, subtree: true });
+        }
+
+        let d3ResizeTimer = 0;
+        window.addEventListener('resize', () => {
+            window.clearTimeout(d3ResizeTimer);
+            d3ResizeTimer = window.setTimeout(() => {
+                if (!currentCategory && !currentQuery) setBrowseMode('home');
+                else setBrowseMode('catalog');
+            }, 120);
+        });
+    }
+
+    initMobileChrome();
 
     loadCategories();
     loadCatalogStats();
@@ -1641,6 +2430,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('langchange', () => {
         if (window.I18n) I18n.applyPage();
+        syncDesktopAccountChrome();
+        syncDesktopCats();
         const allCat = categoriesBar?.querySelector('.cat[data-slug=""]');
         if (allCat) allCat.textContent = tt('cat.all');
         if (!currentCategory && !currentQuery) gamesHeading.textContent = tt('catalog.all_games');
@@ -1650,8 +2441,10 @@ document.addEventListener('DOMContentLoaded', () => {
             updateWatchButton(btn, watchedSlugs.has(slug));
         });
         if (btnAlert && isLoggedIn() && isFavorited) updateAlertButton(alertEnabled);
+        if (d3HeroGames.length) paintDesktopHeroSlide();
         // Refresh home cards when language/region USD display may change
         if (!currentCategory && !currentQuery) loadHomeSections();
+        else if (currentCategory || currentQuery) fetchGames(1, false);
     });
 
     document.addEventListener('regionready', () => {

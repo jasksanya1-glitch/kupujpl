@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.game_catalog_filter import exclude_hidden_games_query
+from app.core.game_offer_selection import best_offers_map, steam_offers_map
 from app.core.site_config import SITE_ORIGIN
 from app.models.models import Category, Game, Offer, game_categories
 from app.schemas.schemas import GameListResponse
@@ -162,49 +163,6 @@ def is_indexable_count(n: int) -> bool:
     return n >= MIN_SEO_GAMES
 
 
-def _best_offers_map(db: Session, game_ids: list[int]) -> dict[int, Offer]:
-    if not game_ids:
-        return {}
-    offers = (
-        db.query(Offer)
-        .filter(
-            Offer.game_id.in_(game_ids),
-            Offer.in_stock.is_(True),
-            Offer.price_pln.isnot(None),
-            Offer.price_pln > 0,
-        )
-        .all()
-    )
-    best: dict[int, Offer] = {}
-    for offer in offers:
-        prev = best.get(offer.game_id)
-        if prev is None or offer.price_pln < prev.price_pln:
-            best[offer.game_id] = offer
-    return best
-
-
-def _steam_offers_map(db: Session, game_ids: list[int]) -> dict[int, Offer]:
-    if not game_ids:
-        return {}
-    offers = (
-        db.query(Offer)
-        .filter(
-            Offer.game_id.in_(game_ids),
-            Offer.shop_name == "Steam",
-            Offer.in_stock.is_(True),
-            Offer.price_pln.isnot(None),
-            Offer.price_pln > 0,
-        )
-        .all()
-    )
-    out: dict[int, Offer] = {}
-    for offer in offers:
-        prev = out.get(offer.game_id)
-        if prev is None or offer.price_pln < prev.price_pln:
-            out[offer.game_id] = offer
-    return out
-
-
 def _savings_pct(best: Offer | None, steam: Offer | None) -> int | None:
     if not best or not steam or not best.price_pln or not steam.price_pln:
         return None
@@ -307,8 +265,12 @@ def collect_landing_items(
         return []
 
     gids = [g.id for g in games]
-    best_map = _best_offers_map(db, gids)
-    steam_map = _steam_offers_map(db, gids)
+    games_by_id = {g.id: g for g in games}
+    # Canonical quality path — same rules as /gra/{slug} and /api/games.
+    # Budget SQL above may oversample via raw min; displayed price/membership
+    # always use eligible best (reject marketplace outliers like Neo Cab 0.37).
+    best_map = best_offers_map(db, gids, region="pl", games=games_by_id)
+    steam_map = steam_offers_map(db, gids, shop_name="Steam")
     items: list[GameListResponse] = []
 
     for game in games:
@@ -331,6 +293,14 @@ def collect_landing_items(
         if kind == "discount" and landing.min_savings_pct:
             if (pct or 0) < landing.min_savings_pct:
                 continue
+            # Extreme discounts need a real Steam reference and positive current.
+            if landing.min_savings_pct >= 90:
+                if not steam or not best:
+                    continue
+                if float(best.price_pln or 0) <= 0 or float(steam.price_pln or 0) <= 0:
+                    continue
+                if float(best.price_pln) >= float(steam.price_pln):
+                    continue
         if kind == "promocje" and (pct or 0) < 5:
             continue
         if kind == "okazje" and (pct or 0) < 10:

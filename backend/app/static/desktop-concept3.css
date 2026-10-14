@@ -1,0 +1,1384 @@
+/* KupujPL Games — Desktop Concept #3 (min-width: 1024px only) */
+
+.d3-nav,
+.d3-tools,
+.d3-hero,
+.d3-cats,
+.d3-discover,
+.d3-card-cta,
+.d3-card-badge,
+.d3-card-shop,
+.d3-hero-side,
+.d3-hero-nav,
+.d3-hero-dots,
+.site-h1 {
+    display: none !important;
+}
+
+/* SSR homepage seed cards (replaced by JS hydration; keep crawlable). */
+.ssr-home-games {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 0 0 24px;
+}
+.ssr-game-card {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+}
+.ssr-card-cover img {
+    width: 100%;
+    aspect-ratio: 460 / 215;
+    object-fit: cover;
+    display: block;
+    border-radius: 8px;
+}
+.ssr-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 8px;
+}
+.ssr-card-shop {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+.home-news-item {
+    display: block;
+    padding: 8px 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+@media (min-width: 1024px) {
+    :root {
+        --d3-bg: #050A10;
+        --d3-surface: #0A1520;
+        --d3-surface-2: #0C1824;
+        --d3-surface-3: #101D29;
+        --d3-border: rgba(255, 255, 255, 0.08);
+        --d3-blue: #168CFF;
+        --d3-blue-2: #2A9EFF;
+        --d3-text: #F2F6FA;
+        --d3-muted: rgba(242, 246, 250, 0.62);
+        --d3-red: #E5484D;
+        --d3-green: #2FBF71;
+        --d3-max: 1480px;
+        --d3-pad: 32px;
+        --d3-radius: 12px;
+        --d3-gap: 14px;
+        --d3-section: 28px;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) {
+        background: var(--d3-bg);
+        color: var(--d3-text);
+        /* Old split layout locked body scroll (height:100vh + overflow:hidden).
+           Concept #3 is a long page — restore document scrolling. */
+        height: auto;
+        min-height: 100vh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .header {
+        background: rgba(5, 10, 16, 0.92);
+        border-bottom: 1px solid var(--d3-border);
+        backdrop-filter: blur(10px);
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        flex-shrink: 0;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .header-inner {
+        max-width: var(--d3-max);
+        margin: 0 auto;
+        padding: 0 var(--d3-pad);
+        min-height: 68px;
+        height: 68px;
+        display: grid;
+        grid-template-columns: auto auto minmax(280px, 1fr) auto;
+        align-items: center;
+        gap: 18px;
+    }
+
+    /* Reset cyberpunk brand chrome from style.css (clip-path was cutting the wordmark). */
+    body.layout-split:not(.game-page-body):not(.seo-collection) .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 0;
+        padding: 0;
+        background: transparent;
+        color: var(--d3-text);
+        clip-path: none;
+        overflow: visible;
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .brand::after {
+        content: none !important;
+        display: none !important;
+        animation: none !important;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .brand-name {
+        font-size: 1.2rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+        color: var(--d3-text);
+        white-space: nowrap;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .brand-accent {
+        color: var(--d3-blue-2);
+        font-weight: 800;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .brand-sub {
+        display: inline;
+        margin: 0;
+        padding: 0;
+        color: var(--d3-blue-2);
+        background: transparent;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        clip-path: none;
+        white-space: nowrap;
+    }
+
+    .d3-nav {
+        display: flex !important;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: nowrap;
+    }
+
+    .d3-nav-link {
+        color: var(--d3-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 8px 10px;
+        border-radius: 8px;
+        white-space: nowrap;
+        transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .d3-nav-link:hover,
+    .d3-nav-link.is-active {
+        color: #fff;
+        background: rgba(22, 140, 255, 0.12);
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .search-wrap {
+        width: 100%;
+        max-width: 560px;
+        justify-self: center;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .search-wrap input {
+        width: 100%;
+        height: 42px;
+        border-radius: 10px;
+        border: 1px solid var(--d3-border);
+        background: var(--d3-surface-2);
+        color: var(--d3-text);
+        padding: 0 42px 0 14px;
+        font-size: 0.95rem;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .search-wrap input:focus {
+        outline: 2px solid rgba(22, 140, 255, 0.45);
+        border-color: var(--d3-blue);
+    }
+
+    .d3-tools {
+        display: flex !important;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Lang/region live in header tools — hide bulky header fallbacks */
+    body.layout-split:not(.game-page-body):not(.seo-collection) .theme-switch-wrap,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .theme-switch-wrap--header,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .lang-switch--header,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .region-switch--header {
+        display: none !important;
+    }
+
+    .d3-chrome-slots {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-right: 4px;
+        padding-right: 10px;
+        border-right: 1px solid var(--d3-border);
+    }
+
+    .d3-lang-slot,
+    .d3-region-slot {
+        display: flex;
+        align-items: center;
+    }
+
+    .d3-lang-slot .lang-switch,
+    .d3-region-slot .region-switch {
+        display: flex;
+        gap: 2px;
+        padding: 2px;
+        border: 1px solid var(--d3-border);
+        background: var(--d3-surface-2);
+        clip-path: none;
+        border-radius: 8px;
+        box-shadow: none;
+    }
+
+    .d3-lang-slot .lang-btn,
+    .d3-region-slot .region-btn {
+        min-width: 36px;
+        min-height: 30px;
+        padding: 4px 8px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        color: var(--d3-muted);
+        clip-path: none;
+        border-radius: 6px;
+        border: 0;
+        background: transparent;
+    }
+
+    .d3-lang-slot .lang-btn:hover,
+    .d3-region-slot .region-btn:hover {
+        color: #fff;
+        background: rgba(22, 140, 255, 0.14);
+        border-color: transparent;
+    }
+
+    .d3-lang-slot .lang-btn.active,
+    .d3-region-slot .region-btn.active {
+        color: #fff;
+        background: var(--d3-blue);
+        border-color: transparent;
+        box-shadow: none;
+    }
+
+    .d3-tool {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--d3-muted);
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 8px 10px;
+        border-radius: 8px;
+        white-space: nowrap;
+    }
+
+    .d3-tool svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .d3-tool:hover {
+        color: #fff;
+        background: rgba(22, 140, 255, 0.12);
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .header-info,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .auth-nav,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .m-header-actions {
+        display: none !important;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .split-shell {
+        display: block;
+        flex: none;
+        min-height: 0;
+        height: auto;
+        overflow: visible;
+        max-width: var(--d3-max);
+        margin: 0 auto;
+        padding: 18px var(--d3-pad) 48px;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .split-left {
+        display: none !important;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .split-right {
+        width: 100%;
+        max-width: none;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--d3-section);
+        overflow: visible;
+        height: auto;
+        min-height: 0;
+    }
+
+    /* —— Hero —— */
+    .d3-hero:not([hidden]) {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 14px;
+        align-items: stretch;
+    }
+
+    .d3-hero-stage {
+        position: relative;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid var(--d3-border);
+        background: #050a10;
+        min-height: 300px;
+        /* Match Steam library_hero (1920×620) so art is not force-cropped. */
+        aspect-ratio: 1920 / 620;
+    }
+
+    .d3-hero-main {
+        display: block;
+        position: absolute;
+        inset: 0;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .d3-hero-media {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: #050a10;
+    }
+
+    /* Blurred fill behind the real art when using object-fit: contain */
+    .d3-hero-media::before {
+        content: "";
+        position: absolute;
+        inset: -24px;
+        background-image: var(--d3-hero-bg, none);
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+        filter: blur(28px) saturate(1.15);
+        transform: scale(1.06);
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .d3-hero-media img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center right;
+        image-rendering: auto;
+        z-index: 1;
+    }
+
+    .d3-hero-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 28px 32px 30px;
+        background:
+            linear-gradient(90deg, rgba(5, 10, 16, 0.82) 0%, rgba(5, 10, 16, 0.42) 38%, rgba(5, 10, 16, 0.08) 68%, transparent 100%),
+            linear-gradient(0deg, rgba(5, 10, 16, 0.72) 0%, rgba(5, 10, 16, 0.12) 50%, rgba(5, 10, 16, 0.18) 100%);
+    }
+
+    .d3-hero-label {
+        margin: 0 0 8px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--d3-blue);
+    }
+
+    .d3-hero-title {
+        margin: 0;
+        font-size: clamp(2rem, 3.4vw, 3.6rem);
+        line-height: 1.05;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        max-width: 16ch;
+        text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+    }
+
+    .d3-hero-sub {
+        margin: 10px 0 0;
+        font-size: 1.1rem;
+        color: rgba(242, 246, 250, 0.82);
+        max-width: 42ch;
+    }
+
+    .d3-hero-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 14px;
+    }
+
+    .d3-hero-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--d3-border);
+        background: rgba(10, 21, 32, 0.55);
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--d3-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .d3-hero-price {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 10px 12px;
+        margin-top: 16px;
+    }
+
+    .d3-hero-discount {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 6px;
+        background: var(--d3-red);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 800;
+    }
+
+    .d3-hero-old {
+        color: var(--d3-muted);
+        text-decoration: line-through;
+        font-size: 0.95rem;
+    }
+
+    .d3-hero-now {
+        font-size: clamp(1.5rem, 2.2vw, 2.2rem);
+        font-weight: 800;
+        color: #fff;
+        line-height: 1;
+    }
+
+    .d3-hero-best {
+        width: 100%;
+        margin-top: -2px;
+        font-size: 0.78rem;
+        color: var(--d3-muted);
+    }
+
+    .d3-hero-cta {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 16px;
+        width: fit-content;
+        padding: 12px 18px;
+        border-radius: 10px;
+        background: var(--d3-blue);
+        color: #fff;
+        font-weight: 800;
+        font-size: 0.95rem;
+        box-shadow: 0 8px 24px rgba(22, 140, 255, 0.28);
+    }
+
+    .d3-hero-main:hover .d3-hero-cta {
+        background: var(--d3-blue-2);
+    }
+
+    .d3-hero-nav {
+        display: inline-flex !important;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        border: 1px solid var(--d3-border);
+        background: rgba(5, 10, 16, 0.55);
+        color: #fff;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 2;
+    }
+
+    .d3-hero-nav svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+    }
+
+    .d3-hero-prev { left: 12px; }
+    .d3-hero-next { right: 12px; }
+
+    .d3-hero-nav:hover {
+        background: rgba(22, 140, 255, 0.35);
+        border-color: var(--d3-blue);
+    }
+
+    .d3-hero-dots:not([hidden]) {
+        display: flex !important;
+        position: absolute;
+        left: 50%;
+        bottom: 12px;
+        transform: translateX(-50%);
+        gap: 6px;
+        z-index: 2;
+    }
+
+    .d3-hero-dots button {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        border: 0;
+        padding: 0;
+        background: rgba(255, 255, 255, 0.35);
+        cursor: pointer;
+    }
+
+    .d3-hero-dots button[aria-current="true"] {
+        width: 18px;
+        background: var(--d3-blue);
+    }
+
+    .d3-hero-side {
+        display: flex !important;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+        border-radius: 14px;
+        border: 1px solid var(--d3-border);
+        background: var(--d3-surface);
+        min-height: 100%;
+    }
+
+    .d3-hero-side-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .d3-hero-side-head h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .d3-hero-side-head a {
+        color: var(--d3-blue-2);
+        text-decoration: none;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .d3-hero-side-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1;
+    }
+
+    .d3-side-row {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr) 14px;
+        gap: 10px;
+        align-items: center;
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: var(--d3-surface-2);
+        color: inherit;
+        text-decoration: none;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .d3-side-row:hover,
+    .d3-side-row.is-active {
+        border-color: rgba(22, 140, 255, 0.35);
+        background: rgba(22, 140, 255, 0.08);
+    }
+
+    /* Landscape frame matches Steam header art (≈460×215), not a portrait crop. */
+    .d3-side-cover {
+        width: 88px;
+        height: 42px;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #071018;
+        flex-shrink: 0;
+    }
+
+    .d3-side-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center center;
+        display: block;
+    }
+
+    .d3-side-meta {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .d3-side-title {
+        font-size: 0.86rem;
+        font-weight: 700;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .d3-side-discount {
+        color: var(--d3-red);
+        font-size: 0.75rem;
+        font-weight: 800;
+    }
+
+    .d3-side-price {
+        font-size: 0.92rem;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    .d3-side-chevron {
+        color: var(--d3-muted);
+        font-size: 1.1rem;
+    }
+
+    /* —— Category row —— */
+    .d3-cats:not([hidden]) {
+        display: flex !important;
+        gap: 8px;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        padding-bottom: 2px;
+    }
+
+    .d3-cats .cat {
+        flex: 0 0 auto;
+        border: 1px solid var(--d3-border);
+        background: var(--d3-surface);
+        color: var(--d3-muted);
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .d3-cats .cat::before,
+    .d3-cats .cat::after {
+        display: none !important;
+        content: none !important;
+    }
+
+    .d3-cats .cat:hover {
+        color: #fff;
+        border-color: rgba(22, 140, 255, 0.35);
+    }
+
+    .d3-cats .cat.active {
+        background: rgba(22, 140, 255, 0.18);
+        border-color: var(--d3-blue);
+        color: #fff;
+    }
+
+    .d3-cats .cat-seo[href="promocje"],
+    .d3-cats a.cat[href="promocje"] {
+        color: #ffb4b8;
+        border-color: rgba(229, 72, 77, 0.35);
+    }
+
+    .d3-cats .cat-seo[href="darmowe-gry"],
+    .d3-cats a.cat[href="darmowe-gry"] {
+        color: #9be7bd;
+        border-color: rgba(47, 191, 113, 0.35);
+    }
+
+    .d3-cats .cat-seo[href="gry-pc-do-30-zl"],
+    .d3-cats a.cat[href="gry-pc-do-30-zl"] {
+        color: #ffe08a;
+        border-color: rgba(255, 196, 70, 0.35);
+    }
+
+    /* —— Discover blocks —— */
+    .d3-discover:not([hidden]) {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--d3-gap);
+    }
+
+    .d3-discover-card {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr) 18px;
+        align-items: center;
+        gap: 12px;
+        min-height: 88px;
+        padding: 16px 18px;
+        border-radius: 12px;
+        border: 1px solid var(--d3-border);
+        text-decoration: none;
+        color: inherit;
+        background: linear-gradient(135deg, #0c1a28, #0a1520);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .d3-discover-card:hover {
+        transform: translateY(-1px);
+        border-color: rgba(22, 140, 255, 0.35);
+    }
+
+    .d3-discover-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .d3-discover-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+    }
+
+    .d3-discover-copy strong {
+        font-size: 0.98rem;
+        font-weight: 800;
+    }
+
+    .d3-discover-copy span {
+        font-size: 0.8rem;
+        color: var(--d3-muted);
+    }
+
+    .d3-discover-arrow {
+        color: var(--d3-muted);
+        font-size: 1.2rem;
+    }
+
+    .d3-discover-promo {
+        background: linear-gradient(135deg, #0b2a4d, #0a1520 70%);
+    }
+
+    .d3-discover-promo .d3-discover-icon {
+        background: rgba(22, 140, 255, 0.22);
+        color: var(--d3-blue-2);
+    }
+
+    .d3-discover-new .d3-discover-icon {
+        background: rgba(229, 72, 77, 0.18);
+        color: #ff8b90;
+    }
+
+    .d3-discover-best .d3-discover-icon {
+        background: rgba(255, 196, 70, 0.16);
+        color: #ffd36a;
+    }
+
+    .d3-discover-budget {
+        background: linear-gradient(135deg, #0d2a1c, #0a1520 70%);
+    }
+
+    .d3-discover-budget .d3-discover-icon {
+        background: rgba(47, 191, 113, 0.18);
+        color: #7ee0a8;
+    }
+
+    /* —— News + panel —— */
+    .d3-mid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
+        gap: 16px;
+        align-items: start;
+    }
+
+    .d3-mid .home-feeds,
+    .d3-mid .sections,
+    .d3-mid #home-sections {
+        display: none !important;
+    }
+
+    .d3-mid .home-news {
+        grid-column: 1;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        border: 0;
+    }
+
+    .d3-mid .home-news-head {
+        margin-bottom: 12px;
+    }
+
+    .d3-mid .home-news-head h2 {
+        font-size: 1.25rem;
+        font-weight: 800;
+    }
+
+    .d3-mid .home-news-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .d3-mid .home-news-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 0;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--d3-border);
+        background: var(--d3-surface);
+        color: inherit;
+        text-decoration: none;
+        min-height: 100%;
+    }
+
+    .d3-mid .home-news-card-thumb {
+        display: block;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        background: #071018;
+    }
+
+    .d3-mid .home-news-card-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .d3-mid .home-news-card-type,
+    .d3-mid .home-news-card strong,
+    .d3-mid .home-news-card-date,
+    .d3-mid .home-news-card-ex {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .d3-mid .home-news-card-type {
+        margin-top: 10px;
+        width: fit-content;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: rgba(22, 140, 255, 0.16);
+        color: var(--d3-blue-2);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+    }
+
+    .d3-mid .home-news-card strong {
+        font-size: 0.95rem;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .d3-mid .home-news-card-date {
+        font-size: 0.75rem;
+        color: var(--d3-muted);
+        padding-bottom: 4px;
+    }
+
+    .d3-mid .home-news-card-ex {
+        font-size: 0.8rem;
+        color: var(--d3-muted);
+        padding-bottom: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .d3-mid .cp-panel-promo {
+        grid-column: 2;
+        margin: 0;
+        border-radius: 14px;
+        border: 1px solid var(--d3-border);
+        background:
+            linear-gradient(160deg, rgba(10, 21, 32, 0.94), rgba(8, 16, 24, 0.96)),
+            var(--d3-surface-3);
+        overflow: hidden;
+        min-height: 100%;
+    }
+
+    .d3-mid .cp-panel-promo-inner {
+        display: block;
+        padding: 20px 18px 18px;
+    }
+
+    .d3-mid .cp-panel-promo-card,
+    .d3-mid .m-promo-chips,
+    .d3-mid .cp-kicker {
+        display: none !important;
+    }
+
+    .d3-mid .cp-panel-promo-copy h2 {
+        margin: 0 0 8px;
+        font-size: 1.25rem;
+        font-weight: 800;
+    }
+
+    .d3-mid .cp-panel-promo-lead {
+        margin: 0 0 14px;
+        color: var(--d3-muted);
+        font-size: 0.88rem;
+        line-height: 1.45;
+    }
+
+    .d3-mid .cp-panel-promo-list {
+        list-style: none;
+        margin: 0 0 18px;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .d3-mid .cp-panel-promo-list li {
+        position: relative;
+        padding: 10px 12px 10px 34px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--d3-border);
+        font-size: 0.84rem;
+        color: var(--d3-muted);
+    }
+
+    .d3-mid .cp-panel-promo-list li::before {
+        content: "✓";
+        position: absolute;
+        left: 12px;
+        top: 10px;
+        color: var(--d3-blue-2);
+        font-weight: 800;
+    }
+
+    .d3-mid .cp-panel-promo-list li strong {
+        color: #fff;
+    }
+
+    .d3-mid .cp-panel-promo-list li span {
+        display: none;
+    }
+
+    .d3-mid .cp-panel-promo-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .d3-mid .cp-panel-promo-actions .cp-btn {
+        justify-content: center;
+        text-align: center;
+        border-radius: 10px;
+        background: var(--d3-blue);
+        border: 0;
+        color: #fff;
+        font-weight: 800;
+    }
+
+    .d3-mid .cp-panel-promo-actions .cp-btn-ghost,
+    .d3-mid .cp-panel-promo-actions .cp-btn-red {
+        display: none;
+    }
+
+    body.d3-logged-in .d3-mid .cp-panel-promo-actions .cp-btn[href="panel"] {
+        display: inline-flex;
+    }
+
+    body.d3-logged-in .d3-mid #d3-promo-signup {
+        display: none !important;
+    }
+
+    body:not(.d3-logged-in) .d3-mid .cp-panel-promo-actions .cp-btn[href="panel"] {
+        display: none;
+    }
+
+    body:not(.d3-logged-in) .d3-mid #d3-promo-signup {
+        display: inline-flex !important;
+        background: var(--d3-blue);
+    }
+
+    /* Single site H1 (SEO) — visually hidden; mobile marketing is a separate <p> */
+    .site-h1 {
+        display: block !important;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    /* Legacy mobile modules are omitted from desktop HTML; keep defensive hide */
+    body.layout-split:not(.game-page-body):not(.seo-collection) .cp-home-top,
+    body.layout-split:not(.game-page-body):not(.seo-collection) #mobile-home-mount,
+    body.layout-split:not(.game-page-body):not(.seo-collection) #catalog-sort-slot,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .cp-panel-promo-card,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .cp-panel-promo-mini {
+        display: none !important;
+    }
+
+    /* Never load decorative witcher hero asset on desktop */
+    body.layout-split:not(.game-page-body):not(.seo-collection) img[src*="hero-witcher"],
+    body.layout-split:not(.game-page-body):not(.seo-collection) [style*="hero-witcher"] {
+        display: none !important;
+    }
+
+    /* —— Catalog —— */
+    body.layout-split:not(.game-page-body):not(.seo-collection) .catalog {
+        margin-top: 4px;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .catalog-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 16px;
+        margin-bottom: 14px;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .catalog-head-text h2 {
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 800;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) #games-subtitle {
+        display: none;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .catalog-sort {
+        display: none !important;
+    }
+
+    .d3-sort-tabs {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-left: auto;
+    }
+
+    .d3-sort-tabs button {
+        border: 1px solid var(--d3-border);
+        background: var(--d3-surface);
+        color: var(--d3-muted);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .d3-sort-tabs button[aria-selected="true"] {
+        background: rgba(22, 140, 255, 0.18);
+        border-color: var(--d3-blue);
+        color: #fff;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) #games-grid.grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .game-card,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .game-card.game-card-row {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        margin: 0;
+        padding: 0;
+        border-radius: 13px;
+        overflow: hidden;
+        border: 1px solid var(--d3-border);
+        background: var(--d3-surface);
+        min-width: 0;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-rank {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 2;
+    }
+
+    /* Steam headers are landscape (~460×215). Portrait 2:3 was cropping them badly. */
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-cover {
+        width: 100%;
+        aspect-ratio: 460 / 215;
+        margin: 0;
+        border-radius: 0;
+        overflow: hidden;
+        background: #071018;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-cover-link,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-cover img {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-cover img {
+        object-fit: cover;
+        object-position: center center;
+        aspect-ratio: auto;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .btn-watch-card {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 2;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        padding: 0;
+        font-size: 0;
+        border: 1px solid var(--d3-border);
+        background: rgba(5, 10, 16, 0.62);
+        color: #fff;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .btn-watch-card::before {
+        content: "♡";
+        font-size: 15px;
+        line-height: 34px;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .btn-watch-card.active::before {
+        content: "♥";
+        color: #ff6b81;
+    }
+
+    .d3-card-badge {
+        display: inline-flex;
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 2;
+        padding: 3px 7px;
+        border-radius: 6px;
+        background: var(--d3-red);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 800;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-savings,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-history-label,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .hist-low-badge {
+        display: none !important;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px 11px 12px;
+        flex: 1;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-title {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 800;
+        line-height: 1.25;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-title-link {
+        color: inherit;
+        text-decoration: none;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-platform,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-rating {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 999px;
+        border: 1px solid var(--d3-border);
+        color: var(--d3-muted);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-foot {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px 8px;
+        margin-top: auto;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-from,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-deal-age,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-tag,
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-shops {
+        display: none !important;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-old-price {
+        order: 1;
+        font-size: 0.78rem;
+        color: var(--d3-muted);
+        text-decoration: line-through;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .card-price {
+        order: 2;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .d3-card-shop {
+        display: block;
+        margin-top: 2px;
+        font-size: 0.72rem;
+        color: var(--d3-muted);
+    }
+
+    .d3-card-cta {
+        display: inline-flex !important;
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        align-items: center;
+        justify-content: center;
+        background: var(--d3-blue);
+        color: #fff;
+        text-decoration: none;
+        font-size: 0.95rem;
+        font-weight: 800;
+        box-shadow: 0 6px 16px rgba(22, 140, 255, 0.28);
+    }
+
+    .d3-card-cta:hover {
+        background: var(--d3-blue-2);
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .catalog-foot {
+        margin-top: 18px;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .cp-faq {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--d3-border);
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .m-bottom-nav {
+        display: none !important;
+    }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+    :root { --d3-pad: 24px; }
+
+    .d3-hero:not([hidden]) {
+        grid-template-columns: minmax(0, 1fr) 260px;
+    }
+
+    .d3-discover:not([hidden]) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .d3-mid {
+        grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.95fr);
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) #games-grid.grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .d3-nav-link span,
+    .d3-tool span {
+        display: none;
+    }
+}
+
+@media (min-width: 1280px) {
+    body.layout-split:not(.game-page-body):not(.seo-collection) #games-grid.grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .d3-hero:not([hidden]) {
+        grid-template-columns: minmax(0, 1fr) 320px;
+    }
+}
+
+@media (min-width: 1024px) and (max-width: 1180px) {
+    .d3-nav {
+        display: none !important;
+    }
+
+    body.layout-split:not(.game-page-body):not(.seo-collection) .header-inner {
+        grid-template-columns: auto minmax(240px, 1fr) auto;
+    }
+}

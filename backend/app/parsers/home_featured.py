@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import Session
 
 from app.models.models import Game, Offer
@@ -16,6 +15,7 @@ from app.core.game_catalog_filter import (
     is_hidden_from_steam_list,
     min_reviews_for_list_slug,
 )
+from app.core.game_offer_selection import best_offers_map
 from app.parsers.steam_catalog import upsert_game_stub
 from app.parsers.steam_lists import (
     fetch_genre_topsellers,
@@ -144,24 +144,8 @@ def _upsert_section_games(db: Session, items: list[dict[str, Any]]) -> None:
 
 
 def _best_offer_for_games(db: Session, game_ids: list[int]) -> dict[int, Offer]:
-    if not game_ids:
-        return {}
-    mins = (
-        db.query(Offer.game_id, func.min(Offer.price_pln).label("min_price"))
-        .filter(Offer.game_id.in_(game_ids), Offer.in_stock == True)
-        .group_by(Offer.game_id)
-        .all()
-    )
-    if not mins:
-        return {}
-    clauses = [and_(Offer.game_id == gid, Offer.price_pln == min_p) for gid, min_p in mins]
-    offers = db.query(Offer).filter(or_(*clauses)).all()
-    best: dict[int, Offer] = {}
-    for offer in offers:
-        prev = best.get(offer.game_id)
-        if prev is None or offer.price_pln < prev.price_pln:
-            best[offer.game_id] = offer
-    return best
+    """Canonical quality best — same rules as /gra/{slug} and API listings."""
+    return best_offers_map(db, game_ids, region="pl")
 
 
 def _enrich_cache_items(db: Session, items: list[dict[str, Any]]) -> list[dict[str, Any]]:

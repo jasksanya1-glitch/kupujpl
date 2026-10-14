@@ -1,0 +1,203 @@
+{
+  "pages": {
+    "/games/regulamin": {
+      "chrome": 200,
+      "googlebot": 200,
+      "googlebot_mobile": 200,
+      "curl": 403
+    },
+    "/games/polityka-prywatnosci": {
+      "chrome": 200,
+      "googlebot": 200,
+      "googlebot_mobile": 200,
+      "curl": 403
+    },
+    "/games/o-nas": {
+      "chrome": 200,
+      "googlebot": 200,
+      "googlebot_mobile": 200,
+      "curl": 403
+    },
+    "/games/kontakt": {
+      "chrome": 200,
+      "googlebot": 200,
+      "googlebot_mobile": 200,
+      "curl": 403
+    },
+    "/games/legal": {
+      "chrome": 200,
+      "googlebot": 200,
+      "googlebot_mobile": 200,
+      "curl": 403
+    },
+    "/games/blog": {
+      "chrome": 200,
+      "googlebot": 200,
+      "googlebot_mobile": 200,
+      "curl": 403
+    },
+    "/games/promocje": {
+      "chrome": 200,
+      "googlebot": 200,
+      "googlebot_mobile": 200,
+      "curl": 403
+    }
+  },
+  "promocje": {
+    "frostpunk-2": {
+      "label": "Frostpunk 2",
+      "on_promocje": true,
+      "promo_prices_near": [],
+      "game_status": 200,
+      "game_price": "48.03",
+      "legacy_bad": false
+    },
+    "last-epoch": {
+      "label": "Last Epoch",
+      "on_promocje": false,
+      "promo_prices_near": [],
+      "game_status": 200,
+      "game_price": "111.99",
+      "legacy_bad": false
+    },
+    "black-myth-wukong-2358720": {
+      "label": "Black Myth",
+      "on_promocje": true,
+      "promo_prices_near": [],
+      "game_status": 200,
+      "game_price": "154.24",
+      "legacy_bad": false
+    },
+    "elden-ring": {
+      "label": "Elden Ring",
+      "on_promocje": true,
+      "promo_prices_near": [],
+      "game_status": 200,
+      "game_price": "199.15",
+      "legacy_bad": false
+    }
+  },
+  "home": {
+    "status": 200,
+    "h1": [
+      "Porównywarka cen gier PC"
+    ],
+    "ssr_games": 18,
+    "ssr_news": 4,
+    "placeholder_left": false,
+    "d3_hero_title": true,
+    "d3_side": 4,
+    "sort_pills": 0,
+    "search_inputs": 4
+  },
+  "api": {
+    "catalog_status": {
+      "phase": "done",
+      "source": "auto",
+      "discovered": 86512,
+      "stubs": 86983,
+      "enriched": 45004,
+      "skipped": 369124,
+      "errors": 7,
+      "stub_cursor": 86512,
+      "updated_at": "2026-06-05T19:28:17.823324+00:00",
+      "remaining": 0,
+      "games_total": 4959,
+      "games_in_db": 10480,
+      "games_enriched": 10480,
+      "categories_total": 98,
+      "stores_total": 10,
+      "display_shops": [
+        "CDKeys",
+        "Eneba",
+        "Epic Games",
+        "Fanatical",
+        "G2A",
+        "GOG",
+        "Gamivo",
+        "Instant Gaming",
+        "Kinguin",
+        "Steam"
+      ],
+      "display_shops_all": [
+        "Steam",
+        "GOG",
+        "Epic Games",
+        "Instant Gaming",
+        "Eneba",
+        "Kinguin",
+        "CDKeys",
+        "G2A",
+        "Gamivo",
+        "Fanatical",
+        "Steam US"
+      ],
+      "stores_with_offers": 12,
+      "offers_by_shop": {
+        "CDKeys": 2277,
+        "EA App": 2,
+        "Epic Games": 2668,
+        "Fanatical": 1970,
+        "G2A": 8693,
+        "GOG": 2671,
+        "Gamivo": 4208,
+        "Instant Gaming": 2086,
+        "Kinguin": 5173,
+        "PlayStation Store": 1,
+        "Steam": 10199,
+        "Steam US": 1014
+      },
+      "offer_scheduler": {
+        "running": false,
+        "interval_sec": 3600,
+        "batch_size": 80,
+        "parallel_workers": 3,
+        "game_delay_sec": 0.8,
+        "fast_refresh": false,
+        "games_per_day_estimate": 1920,
+        "cooldown_hours": 24.0,
+        "last_cycle_at": "2026-06-17T03:21:57.949538",
+        "last_cycle": {
+          "started_at": "2026-06-17T03:19:22.694869",
+          "games_processed": 11,
+          "games_refreshed": 11,
+          "errors": 0,
+          "parallel_workers": 3,
+          "games_selected": 11,
+          "offers_by_shop": {
+            "CDKeys": 1927,
+            "EA App": 2,
+            "Epic Games": 2153,
+            "G2A": 4,
+            "GOG": 1876,
+            "Gamivo": 104,
+            "Instant Gaming": 1911,
+            "Kinguin": 3270,
+            "Steam": 7153
+          },
+          "finished_at": "2026-06-17T03:21:57.949538",
+          "duration_sec": 155.3
+        },
+        "cycles_total": 1968,
+        "shop_batch_at": "2026-06-17T03:23:43.199760",
+        "shop_batch_shop": "Epic Games",
+        "shop_batch_result": {
+          "shop": "Epic Games",
+          "added": 0,
+          "updated": 5,
+          "skipped": 115
+        },
+        "shop_rotation": 882,
+        "last_error": "QueuePool limit of size 5 overflow 10 reached, connection timed out, timeout 30.00 (Background on this error at: https://sqlalche.me/e/20/3o7r)",
+        "last_error_at": "2026-06-16T10:28:39.412788"
+      }
+    }
+  },
+  "robots": {
+    "status": 403,
+    "ct": null,
+    "has_games": false,
+    "snippet": "b'blocked'"
+  },
+  "audit_tail": "usage: audit_catalog_data.py [-h] [--sample SAMPLE] [--budget-landing]\n                             [--no-budget-landing] [--repair-rollups]\n                             [--repair-limit REPAIR_LIMIT] [--json]\naudit_catalog_data.py: error: unrecognized arguments: --limit 200\n"
+}

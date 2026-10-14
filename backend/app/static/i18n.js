@@ -18,35 +18,65 @@
             'nav.regulamin': 'Regulamin', 'nav.privacy': 'Prywatność', 'nav.contact': 'Kontakt', 'nav.support': '☕ Wsparcie',
             'nav.login': 'Zaloguj', 'nav.register': '🔔 Powiadom mnie, gdy cena spadnie', 'nav.register_short': '🔔 Alert cenowy', 'nav.panel': 'Panel', 'nav.logout': 'Wyloguj',
             'nav.info': 'Informacje', 'nav.legal': 'Informacje prawne',
+            'nav.games': 'Gry', 'nav.promotions': 'Promocje', 'nav.news': 'Aktualności', 'nav.free': 'Darmowe',
+            'nav.favorites': 'Ulubione', 'nav.alerts': 'Alerty', 'nav.account': 'Konto',
+            'nav.account_panel': 'Panel konta',
+            'nav.home': 'Strona główna', 'nav.home_short': 'Start', 'nav.search_short': 'Szukaj', 'nav.more': 'Więcej',
+            'nav.favorites_panel': 'Ulubione / Panel', 'nav.menu': 'Menu', 'nav.lang': 'Język',
+            'nav.free_games': 'Darmowe gry', 'nav.bottom': 'Nawigacja dolna',
+            'nav.main': 'Nawigacja główna', 'nav.mobile': 'Nawigacja mobilna', 'nav.close_menu': 'Zamknij menu',
             'search.placeholder': 'Szukaj gier…',
             'banner.dev': 'Projekt w fazie rozwoju. Zauważyłeś błąd? {link} — bardzo prosimy, szybko go naprawimy.',
             'banner.dev_link': 'Napisz do nas',
-            'cat.title': 'Kategorie', 'cat.all': 'Wszystkie', 'cat.new_games': 'Nowe gry', 'cat.top_sales': 'Top sprzedaż',
+            'cat.title': 'Kategorie', 'cat.all': 'Wszystkie gry', 'cat.new_games': 'Nowe gry', 'cat.top_sales': 'Top sprzedaż',
             'cat.budget_30': 'Gry PC do 30 zł', 'cat.polish_dubbing': 'Gry z polskim dubbingiem',
+            'cat.promotions': 'Promocje', 'cat.free_games': 'Darmowe gry',
+            'd3.featured_label': 'Polecana gra', 'd3.featured_list': 'Polecane gry',
+            'd3.see_all': 'Zobacz wszystkie →', 'd3.compare': 'Porównaj ceny →',
+            'd3.best_price': 'Najlepsza cena', 'd3.best_price_shop': 'Najlepsza cena · {shop}',
+            'd3.prev': 'Poprzednia polecana', 'd3.next': 'Następna polecana',
+            'd3.side_list': 'Lista polecanych', 'd3.discover_aria': 'Szybkie odkrywanie',
+            'd3.featured_n': 'Polecane {n}',
+            'd3.discover_deals': 'Najlepsze promocje', 'd3.discover_deals_sub': 'Aktualne okazje w sklepach',
+            'd3.discover_new': 'Nowości', 'd3.discover_new_sub': 'Najnowsze tytuły w katalogu',
+            'd3.discover_best': 'Bestsellery', 'd3.discover_best_sub': 'Najwyżej oceniane gry',
+            'd3.discover_budget': 'Gry do 30 zł', 'd3.discover_budget_sub': 'Budżetowe okazje PC',
+            'home.news_title': 'Aktualności i promocje', 'home.news_all': 'Zobacz wszystkie →',
+            'sort.bestsellers': 'Bestsellery',
+            'sort.price_asc_short': 'Cena rosnąco', 'sort.price_desc_short': 'Cena malejąco',
+            'sort.aria': 'Sortowanie katalogu',
+            'card.view_offer': 'Zobacz ofertę',
+            'card.lowest': 'Najniższa', 'card.lowest_price': 'NAJNIŻSZA CENA',
+            'card.compare_aria': 'Porównanie cen',
+            'featured.polecane': '🔥 Polecane', 'featured.picked': '🔥 Wybrane okazje',
+            'hero.search_go': 'Szukaj →',
+            'hero.search_ph': 'Szukaj gry, np. Baldur\'s Gate 3, EA FC 25…',
+            'm.hero.marketing': 'Porównuj ceny<br>gier PC<br><span class="m-hero-accent">i graj więcej!</span>',
+            'm.hero.lead': 'Te same gry. Lepsze ceny.<br>Wszystkie sklepy w jednym miejscu.',
             'hero.not_shop': 'To nie sklep internetowy', 'hero.compare': 'Porównywarka cen gier PC',
             'hero.kicker': 'night city // najniższa cena',
             'hero.flavor': 'Wstań', 'hero.flavor_span': 'łowco okazji',
             'hero.title': 'Porównywarka cen gier PC',
-            'hero.lead': 'Znajdź najtańszą wersję gry w 10 sklepach.',
+            'hero.lead': 'Znajdź najtańszą wersję gry w porównaniu sklepów.',
             'hero.shops': 'Steam · GOG · Epic · Kinguin · G2A · Fanatical · CDKeys i więcej.',
             'hero.search': '🔎 Szukaj gry', 'hero.alert_cta': 'Ustaw alert',
             'hero.alert': '🔔 Ustaw alert i dowiedz się, gdy cena spadnie.',
             'hero.scan': 'Skanuj ceny', 'hero.report': 'Zgłoś błąd',
             'hero.deal_kicker': 'polecana okazja', 'hero.deal_title': 'Cyber Okazje', 'hero.deal_live': 'na żywo',
-            'hero.deal_meta': '10 sklepów // 5000+ gier',
+            'hero.deal_meta': '{shops_label} // {games_label}',
             'promo.about_kicker': 'night city // kim jesteśmy', 'promo.about_title': 'Poznaj KupujPL',
             'promo.about_lead': 'Chcesz wiedzieć, kim jesteśmy i jak działa porównywarka? Przeczytaj o nas — przycisk „O nas" znajdziesz na górze strony.',
             'promo.about_cta': 'Przeczytaj o nas',
             'promo.kicker': 'night city // twój stash', 'promo.title': 'Panel łowcy okazji',
             'promo.lead': 'Załóż darmowe konto i korzystaj z narzędzi, których nie ma zwykły gość — wszystko w jednym miejscu, bez sprzedawania gier.',
-            'promo.f1': 'Śledzone gry', 'promo.f1d': 'zapisuj tytuły i wracaj do najlepszych cen w 10 sklepach.',
+            'promo.f1': 'Śledzone gry', 'promo.f1d': 'zapisuj tytuły i wracaj do najlepszych cen w śledzonych sklepach.',
             'promo.f2': 'Alerty cenowe', 'promo.f2d': 'e-mail, Telegram lub powiadomienia push (PWA), gdy cena spada.',
             'promo.f3': 'Import Steam Wishlist', 'promo.f3d': 'jednym kliknięciem dodaj publiczną listę życzeń do śledzenia.',
             'promo.f4': 'Odświeżanie cen', 'promo.f4d': 'wymuś skan ulubionych gier bez czekania na cykl Tier A.',
             'promo.f5': 'Oszczędności vs Steam', 'promo.f5d': 'na karcie widać, ile taniej niż w Steamie.',
             'promo.f6': 'Historia cen', 'promo.f6d': 'przy grze sprawdzisz trend i najniższą cenę z ostatnich dni.',
             'promo.open': 'Otwórz panel', 'promo.signup': 'Utwórz darmowe konto', 'promo.have_account': 'Mam konto',
-            'promo.preview': 'Twój panel', 'promo.preview1': '◉ 12 śledzonych', 'promo.preview2': '⚡ 5 alertów ON',
+            'promo.preview': 'Twój panel', 'promo.preview1': '◉ panel okazji', 'promo.preview2': '⚡ alerty cenowe',
             'catalog.all_games': 'Wszystkie gry', 'catalog.full': 'Pełny katalog', 'catalog.load_more': 'Załaduj więcej',
             'catalog.loading': 'Ładowanie...', 'catalog.page': 'Strona {page} / {pages} · {total} gier',
             'catalog.games_count': '{n} gier', 'catalog.results': 'Wyniki: „{q}"',
@@ -54,6 +84,7 @@
             'sort.label': 'Sortuj', 'sort.relevance': 'Domyślnie', 'sort.price_asc': 'Cena: rosnąco',
             'sort.price_desc': 'Cena: malejąco', 'sort.rating': 'Najwyżej oceniane', 'sort.release': 'Najnowsze', 'sort.title': 'Nazwa: A–Z',
             'card.from': 'Od', 'card.check_price': 'Sprawdź cenę', 'card.official': 'Oficjalny',
+            'card.authorized': 'Autoryzowany', 'card.store': 'Sklep',
             'card.watch': 'Śledź', 'card.watching': 'Śledzisz', 'card.compare_prices': 'porównaj ceny',
             'modal.close': 'Zamknij', 'modal.prices': 'Ceny w sklepach', 'modal.refresh': 'Odśwież ceny',
             'modal.game_desc': 'Opis gry',
@@ -62,11 +93,12 @@
             'modal.error': 'Błąd', 'modal.error_load': 'Nie udało się załadować szczegółów gry.',
             'modal.no_offers': 'Brak dostępnych ofert w sklepach.', 'modal.offers_error': 'Wystąpił błąd podczas ładowania ofert.',
             'modal.scan_label': 'Trwa skan cen w sklepach',
-            'modal.scan_info': 'Skanujemy na żywo 10 sklepów (Steam, GOG, Epic, keyshopy…). Najpierw widzisz zapisane ceny, potem zapisujemy świeże wyniki.',
+            'modal.scan_info': 'Skanujemy na żywo sklepy (Steam, GOG, Epic, keyshopy…). Najpierw widzisz zapisane ceny, potem zapisujemy świeże wyniki.',
             'modal.scan_finishing': 'Kończymy skan… jeszcze chwilę.',
             'modal.scan_eta': 'Szacowany czas do końca skanu: ok. {s} s',
             'offer.buy': 'Kup', 'offer.buy_cheapest': 'Kup najtaniej — {price}',
-            'offer.official': 'Oficjalny sklep', 'offer.marketplace': 'Marketplace kluczy',
+            'offer.official': 'Oficjalny sklep', 'offer.authorized': 'Autoryzowany sprzedawca',
+            'offer.marketplace': 'Marketplace kluczy',
             'offer.refund': 'Zwroty', 'offer.check': 'Sprawdź ofertę',
             'offer.refund_toggle_hint': 'Kliknij — przeczytaj, co ten sklep obiecuje przy zwrotach',
             'offer.refund_shop_link': 'Regulamin sklepu',
@@ -76,6 +108,7 @@
             'offer.affiliate_note': 'Część linków to linki partnerskie — cena dla Ciebie się nie zmienia.',
             'offer.stale': 'Ceny mogą być nieaktualne — użyj „Odśwież oferty”',
             'offer.official_note': 'Oficjalny sklep — kupujesz bezpośrednio, pełne wsparcie i zwroty.',
+            'offer.authorized_note': 'Autoryzowany sprzedawca — sprawdź region klucza i warunki zwrotu przed zakupem.',
             'offer.marketplace_note': 'Marketplace kluczy — sprawdź ocenę sprzedawcy, region klucza i politykę zwrotów przed zakupem.',
             'offer.low_conf_note': 'Nie mamy pewności, że to dokładnie ta gra/edycja — zweryfikuj na stronie sklepu.',
             'card.vs_steam': '−{pct}% vs Steam',
@@ -207,35 +240,65 @@
             'nav.regulamin': 'Правила', 'nav.privacy': 'Конфіденційність', 'nav.contact': 'Контакт', 'nav.support': '☕ Підтримка',
             'nav.login': 'Увійти', 'nav.register': '🔔 Повідом мене, коли ціна впаде', 'nav.register_short': '🔔 Ціновий алерт', 'nav.panel': 'Панель', 'nav.logout': 'Вийти',
             'nav.info': 'Інформація', 'nav.legal': 'Правова інформація',
+            'nav.games': 'Ігри', 'nav.promotions': 'Промоції', 'nav.news': 'Новини', 'nav.free': 'Безкоштовні',
+            'nav.favorites': 'Улюблені', 'nav.alerts': 'Алерти', 'nav.account': 'Акаунт',
+            'nav.account_panel': 'Панель акаунту',
+            'nav.home': 'Головна', 'nav.home_short': 'Старт', 'nav.search_short': 'Пошук', 'nav.more': 'Більше',
+            'nav.favorites_panel': 'Улюблені / Панель', 'nav.menu': 'Меню', 'nav.lang': 'Мова',
+            'nav.free_games': 'Безкоштовні ігри', 'nav.bottom': 'Нижня навігація',
+            'nav.main': 'Головна навігація', 'nav.mobile': 'Мобільна навігація', 'nav.close_menu': 'Закрити меню',
             'search.placeholder': 'Пошук ігор…',
             'banner.dev': 'Проєкт у розробці. Помітили помилку? {link} — швидко виправимо.',
             'banner.dev_link': 'Напишіть нам',
-            'cat.title': 'Категорії', 'cat.all': 'Усі', 'cat.new_games': 'Нові ігри', 'cat.top_sales': 'Топ продажів',
-            'cat.budget_30': 'Gry PC do 30 zł', 'cat.polish_dubbing': 'Ігри з польським дубляжем',
+            'cat.title': 'Категорії', 'cat.all': 'Усі ігри', 'cat.new_games': 'Нові ігри', 'cat.top_sales': 'Топ продажів',
+            'cat.budget_30': 'Ігри PC до 30 zł', 'cat.polish_dubbing': 'Ігри з польським дубляжем',
+            'cat.promotions': 'Промоції', 'cat.free_games': 'Безкоштовні ігри',
+            'd3.featured_label': 'Рекомендована гра', 'd3.featured_list': 'Рекомендовані ігри',
+            'd3.see_all': 'Дивитись усі →', 'd3.compare': 'Порівняти ціни →',
+            'd3.best_price': 'Найкраща ціна', 'd3.best_price_shop': 'Найкраща ціна · {shop}',
+            'd3.prev': 'Попередня рекомендована', 'd3.next': 'Наступна рекомендована',
+            'd3.side_list': 'Список рекомендованих', 'd3.discover_aria': 'Швидке відкриття',
+            'd3.featured_n': 'Рекомендовані {n}',
+            'd3.discover_deals': 'Найкращі промоції', 'd3.discover_deals_sub': 'Актуальні знижки в магазинах',
+            'd3.discover_new': 'Новинки', 'd3.discover_new_sub': 'Найновіші ігри в каталозі',
+            'd3.discover_best': 'Бестселери', 'd3.discover_best_sub': 'Ігри з найвищим рейтингом',
+            'd3.discover_budget': 'Ігри до 30 zł', 'd3.discover_budget_sub': 'Бюджетні пропозиції PC',
+            'home.news_title': 'Новини та промоції', 'home.news_all': 'Дивитись усі →',
+            'sort.bestsellers': 'Бестселери',
+            'sort.price_asc_short': 'Ціна зростання', 'sort.price_desc_short': 'Ціна спадання',
+            'sort.aria': 'Сортування каталогу',
+            'card.view_offer': 'Дивитись пропозицію',
+            'card.lowest': 'Найнижча', 'card.lowest_price': 'НАЙНИЖЧА ЦІНА',
+            'card.compare_aria': 'Порівняння цін',
+            'featured.polecane': '🔥 Рекомендовані', 'featured.picked': '🔥 Обрані знижки',
+            'hero.search_go': 'Шукати →',
+            'hero.search_ph': 'Шукати гру, напр. Baldur\'s Gate 3, EA FC 25…',
+            'm.hero.marketing': 'Порівнюй ціни<br>ігор PC<br><span class="m-hero-accent">і грай більше!</span>',
+            'm.hero.lead': 'Ті самі ігри. Кращі ціни.<br>Усі магазини в одному місці.',
             'hero.not_shop': 'Це не інтернет-магазин', 'hero.compare': 'Порівняння цін на ігри для ПК',
             'hero.kicker': 'night city // найнижча ціна',
             'hero.flavor': 'Вставай', 'hero.flavor_span': 'мисливцю на знижки',
             'hero.title': 'Порівняння цін на ігри для ПК',
-            'hero.lead': 'Знайди найдешевшу версію гри в 10 магазинах.',
+            'hero.lead': 'Знайди найдешевшу версію гри серед порівнюваних магазинів.',
             'hero.shops': 'Steam · GOG · Epic · Kinguin · G2A · Fanatical · CDKeys та інші.',
             'hero.search': '🔎 Шукати гру', 'hero.alert_cta': 'Увімкнути алерт',
             'hero.alert': '🔔 Увімкни алерт і дізнайся, коли ціна впаде.',
             'hero.scan': 'Сканувати ціни', 'hero.report': 'Повідомити про помилку',
             'hero.deal_kicker': 'рекомендована знижка', 'hero.deal_title': 'Cyber Знижки', 'hero.deal_live': 'наживо',
-            'hero.deal_meta': '10 магазинів // 5000+ ігор',
+            'hero.deal_meta': '{shops_label} // {games_label}',
             'promo.about_kicker': 'night city // хто ми', 'promo.about_title': 'Дізнайся про KupujPL',
             'promo.about_lead': 'Хочеш знати, хто ми і як працює порівнювач цін? Прочитай про нас — кнопку «Про нас» знайдеш угорі сторінки.',
             'promo.about_cta': 'Прочитати про нас',
             'promo.kicker': 'night city // твій stash', 'promo.title': 'Панель мисливця на знижки',
             'promo.lead': 'Створи безкоштовний акаунт і користуйся інструментами, яких немає у гостя — усе в одному місці, без продажу ігор.',
-            'promo.f1': 'Відстежувані ігри', 'promo.f1d': 'зберігай назви та повертайся до найкращих цін у 10 магазинах.',
+            'promo.f1': 'Відстежувані ігри', 'promo.f1d': 'зберігай назви та повертайся до найкращих цін у відстежуваних магазинах.',
             'promo.f2': 'Цінові алерти', 'promo.f2d': 'e-mail, Telegram або push (PWA), коли ціна падає.',
             'promo.f3': 'Імпорт Steam Wishlist', 'promo.f3d': 'одним кліком додай публічний список бажань.',
             'promo.f4': 'Оновлення цін', 'promo.f4d': 'примусовий скан улюблених без очікування циклу Tier A.',
             'promo.f5': 'Економія vs Steam', 'promo.f5d': 'на картці видно, скільки дешевше ніж у Steam.',
             'promo.f6': 'Історія цін', 'promo.f6d': 'переглядай тренд і найнижчу ціну за останні дні.',
             'promo.open': 'Відкрити панель', 'promo.signup': 'Створити безкоштовний акаунт', 'promo.have_account': 'Маю акаунт',
-            'promo.preview': 'Твоя панель', 'promo.preview1': '◉ 12 відстежуваних', 'promo.preview2': '⚡ 5 алертів ON',
+            'promo.preview': 'Твоя панель', 'promo.preview1': '◉ панель знижок', 'promo.preview2': '⚡ цінові алерти',
             'catalog.all_games': 'Усі ігри', 'catalog.full': 'Повний каталог', 'catalog.load_more': 'Завантажити ще',
             'catalog.loading': 'Завантаження...', 'catalog.page': 'Сторінка {page} / {pages} · {total} ігор',
             'catalog.games_count': '{n} ігор', 'catalog.results': 'Результати: „{q}"',
@@ -243,6 +306,7 @@
             'sort.label': 'Сортувати', 'sort.relevance': 'За замовчуванням', 'sort.price_asc': 'Ціна: зростання',
             'sort.price_desc': 'Ціна: спадання', 'sort.rating': 'Найвищий рейтинг', 'sort.release': 'Найновіші', 'sort.title': 'Назва: А–Я',
             'card.from': 'Від', 'card.check_price': 'Перевірити ціну', 'card.official': 'Офіційний',
+            'card.authorized': 'Авторизований', 'card.store': 'Магазин',
             'card.watch': 'Стежити', 'card.watching': 'Стежите', 'card.compare_prices': 'порівняти ціни',
             'modal.close': 'Закрити', 'modal.prices': 'Ціни в магазинах', 'modal.refresh': 'Оновити ціни',
             'modal.game_desc': 'Опис гри',
@@ -251,11 +315,12 @@
             'modal.error': 'Помилка', 'modal.error_load': 'Не вдалося завантажити деталі гри.',
             'modal.no_offers': 'Немає доступних пропозицій у магазинах.', 'modal.offers_error': 'Помилка завантаження пропозицій.',
             'modal.scan_label': 'Триває сканування цін у магазинах',
-            'modal.scan_info': 'Скануємо наживо 10 магазинів (Steam, GOG, Epic, keyshop…). Спочатку бачите збережені ціни, потім оновлюємо.',
+            'modal.scan_info': 'Скануємо наживо магазини (Steam, GOG, Epic, keyshop…). Спочатку бачите збережені ціни, потім оновлюємо.',
             'modal.scan_finishing': 'Завершуємо скан… ще трохи.',
             'modal.scan_eta': 'Орієнтовний час до кінця скану: ~{s} с',
             'offer.buy': 'Купити', 'offer.buy_cheapest': 'Купити найдешевше — {price}',
-            'offer.official': 'Офіційний магазин', 'offer.marketplace': 'Маркетплейс ключів',
+            'offer.official': 'Офіційний магазин', 'offer.authorized': 'Авторизований продавець',
+            'offer.marketplace': 'Маркетплейс ключів',
             'offer.refund': 'Повернення', 'offer.check': 'Перевірити пропозицію',
             'offer.refund_toggle_hint': 'Натисни — прочитай, що магазин обіцяє з поверненням',
             'offer.refund_shop_link': 'Правила магазину',
@@ -265,6 +330,7 @@
             'offer.affiliate_note': 'Частина посилань — партнерські. Ціна для вас не змінюється.',
             'offer.stale': 'Ціни можуть бути застарілими — натисніть «Оновити пропозиції»',
             'offer.official_note': 'Офіційний магазин — купуєте напряму, повна підтримка та повернення.',
+            'offer.authorized_note': 'Авторизований продавець — перевірте регіон ключа й умови повернення перед покупкою.',
             'offer.marketplace_note': 'Маркетплейс ключів — перевірте рейтинг продавця, регіон ключа й політику повернення перед покупкою.',
             'offer.low_conf_note': 'Ми не впевнені, що це саме ця гра/видання — перевірте на сторінці магазину.',
             'card.vs_steam': '−{pct}% vs Steam',
@@ -396,35 +462,65 @@
             'nav.regulamin': 'Terms', 'nav.privacy': 'Privacy', 'nav.contact': 'Contact', 'nav.support': '☕ Support',
             'nav.login': 'Log in', 'nav.register': '🔔 Notify me when the price drops', 'nav.register_short': '🔔 Price alert', 'nav.panel': 'Dashboard', 'nav.logout': 'Log out',
             'nav.info': 'Info', 'nav.legal': 'Legal',
+            'nav.games': 'Games', 'nav.promotions': 'Deals', 'nav.news': 'News', 'nav.free': 'Free',
+            'nav.favorites': 'Favorites', 'nav.alerts': 'Alerts', 'nav.account': 'Account',
+            'nav.account_panel': 'Account dashboard',
+            'nav.home': 'Home', 'nav.home_short': 'Home', 'nav.search_short': 'Search', 'nav.more': 'More',
+            'nav.favorites_panel': 'Favorites / Dashboard', 'nav.menu': 'Menu', 'nav.lang': 'Language',
+            'nav.free_games': 'Free games', 'nav.bottom': 'Bottom navigation',
+            'nav.main': 'Main navigation', 'nav.mobile': 'Mobile navigation', 'nav.close_menu': 'Close menu',
             'search.placeholder': 'Search games…',
             'banner.dev': 'Project in development. Spotted a bug? {link} — we’ll fix it quickly.',
             'banner.dev_link': 'Contact us',
-            'cat.title': 'Categories', 'cat.all': 'All', 'cat.new_games': 'New games', 'cat.top_sales': 'Top sellers',
-            'cat.budget_30': 'Gry PC do 30 zł', 'cat.polish_dubbing': 'Games with Polish dubbing',
+            'cat.title': 'Categories', 'cat.all': 'All games', 'cat.new_games': 'New games', 'cat.top_sales': 'Top sellers',
+            'cat.budget_30': 'PC games under 30 PLN', 'cat.polish_dubbing': 'Games with Polish dubbing',
+            'cat.promotions': 'Deals', 'cat.free_games': 'Free games',
+            'd3.featured_label': 'Featured game', 'd3.featured_list': 'Featured games',
+            'd3.see_all': 'See all →', 'd3.compare': 'Compare prices →',
+            'd3.best_price': 'Best price', 'd3.best_price_shop': 'Best price · {shop}',
+            'd3.prev': 'Previous featured', 'd3.next': 'Next featured',
+            'd3.side_list': 'Featured list', 'd3.discover_aria': 'Quick discover',
+            'd3.featured_n': 'Featured {n}',
+            'd3.discover_deals': 'Best deals', 'd3.discover_deals_sub': 'Current store offers',
+            'd3.discover_new': 'New releases', 'd3.discover_new_sub': 'Newest titles in the catalogue',
+            'd3.discover_best': 'Bestsellers', 'd3.discover_best_sub': 'Highest-rated games',
+            'd3.discover_budget': 'Games under 30 PLN', 'd3.discover_budget_sub': 'Budget PC picks',
+            'home.news_title': 'News and deals', 'home.news_all': 'See all →',
+            'sort.bestsellers': 'Bestsellers',
+            'sort.price_asc_short': 'Price ascending', 'sort.price_desc_short': 'Price descending',
+            'sort.aria': 'Catalogue sorting',
+            'card.view_offer': 'View offer',
+            'card.lowest': 'Lowest', 'card.lowest_price': 'LOWEST PRICE',
+            'card.compare_aria': 'Price comparison',
+            'featured.polecane': '🔥 Featured', 'featured.picked': '🔥 Picked deals',
+            'hero.search_go': 'Search →',
+            'hero.search_ph': 'Search games, e.g. Baldur\'s Gate 3, EA FC 25…',
+            'm.hero.marketing': 'Compare PC<br>game prices<br><span class="m-hero-accent">and play more!</span>',
+            'm.hero.lead': 'Same games. Better prices.<br>All stores in one place.',
             'hero.not_shop': 'This is not an online store', 'hero.compare': 'PC game price comparison',
             'hero.kicker': 'night city // lowest price',
             'hero.flavor': 'Rise up', 'hero.flavor_span': 'deal hunter',
             'hero.title': 'PC game price comparison',
-            'hero.lead': 'Find the cheapest edition of a game across 10 stores.',
+            'hero.lead': 'Find the cheapest edition of a game across compared stores.',
             'hero.shops': 'Steam · GOG · Epic · Kinguin · G2A · Fanatical · CDKeys and more.',
             'hero.search': '🔎 Search games', 'hero.alert_cta': 'Set a price alert',
             'hero.alert': '🔔 Set an alert and get notified when the price drops.',
             'hero.scan': 'Scan prices', 'hero.report': 'Report a bug',
             'hero.deal_kicker': 'featured deal', 'hero.deal_title': 'Cyber Deals', 'hero.deal_live': 'live',
-            'hero.deal_meta': '10 stores // 5000+ games',
+            'hero.deal_meta': '{shops_label} // {games_label}',
             'promo.about_kicker': 'night city // who we are', 'promo.about_title': 'Get to know KupujPL',
             'promo.about_lead': 'Want to know who we are and how the price comparison works? Read about us — the “About” button is at the top of the page.',
             'promo.about_cta': 'Read about us',
             'promo.kicker': 'night city // your stash', 'promo.title': 'Deal hunter dashboard',
             'promo.lead': 'Create a free account and use tools guests don’t get — all in one place, without selling games.',
-            'promo.f1': 'Tracked games', 'promo.f1d': 'save titles and return to the best prices in 10 stores.',
+            'promo.f1': 'Tracked games', 'promo.f1d': 'save titles and return to the best prices in tracked stores.',
             'promo.f2': 'Price alerts', 'promo.f2d': 'email, Telegram or browser push (PWA) when the price drops.',
             'promo.f3': 'Steam Wishlist import', 'promo.f3d': 'add a public wishlist to tracking in one click.',
             'promo.f4': 'Price refresh', 'promo.f4d': 'force a scan of favourites without waiting for the Tier A cycle.',
             'promo.f5': 'Savings vs Steam', 'promo.f5d': 'see on each card how much cheaper than Steam.',
             'promo.f6': 'Price history', 'promo.f6d': 'check trends and the lowest price over recent days.',
             'promo.open': 'Open dashboard', 'promo.signup': 'Create a free account', 'promo.have_account': 'I have an account',
-            'promo.preview': 'Your dashboard', 'promo.preview1': '◉ 12 tracked', 'promo.preview2': '⚡ 5 alerts ON',
+            'promo.preview': 'Your dashboard', 'promo.preview1': '◉ deals panel', 'promo.preview2': '⚡ price alerts',
             'catalog.all_games': 'All games', 'catalog.full': 'Full catalogue', 'catalog.load_more': 'Load more',
             'catalog.loading': 'Loading...', 'catalog.page': 'Page {page} / {pages} · {total} games',
             'catalog.games_count': '{n} games', 'catalog.results': 'Results: „{q}"',
@@ -432,6 +528,7 @@
             'sort.label': 'Sort', 'sort.relevance': 'Default', 'sort.price_asc': 'Price: low to high',
             'sort.price_desc': 'Price: high to low', 'sort.rating': 'Top rated', 'sort.release': 'Newest', 'sort.title': 'Name: A–Z',
             'card.from': 'From', 'card.check_price': 'Check price', 'card.official': 'Official',
+            'card.authorized': 'Authorized', 'card.store': 'Store',
             'card.watch': 'Track', 'card.watching': 'Tracking', 'card.compare_prices': 'compare prices',
             'modal.close': 'Close', 'modal.prices': 'Store prices', 'modal.refresh': 'Refresh prices',
             'modal.game_desc': 'Game description',
@@ -440,11 +537,12 @@
             'modal.error': 'Error', 'modal.error_load': 'Could not load game details.',
             'modal.no_offers': 'No offers available in stores.', 'modal.offers_error': 'Error loading offers.',
             'modal.scan_label': 'Scanning store prices',
-            'modal.scan_info': 'Live scan across 10 stores (Steam, GOG, Epic, key shops…). Saved prices first, then fresh results.',
+            'modal.scan_info': 'Live scan across stores (Steam, GOG, Epic, key shops…). Saved prices first, then fresh results.',
             'modal.scan_finishing': 'Finishing scan… almost done.',
             'modal.scan_eta': 'Estimated time left: ~{s} s',
             'offer.buy': 'Buy', 'offer.buy_cheapest': 'Buy cheapest — {price}',
-            'offer.official': 'Official store', 'offer.marketplace': 'Key marketplace',
+            'offer.official': 'Official store', 'offer.authorized': 'Authorized reseller',
+            'offer.marketplace': 'Key marketplace',
             'offer.refund': 'Refunds', 'offer.check': 'Check offer',
             'offer.refund_toggle_hint': 'Click to read what this shop promises on refunds',
             'offer.refund_shop_link': 'Shop policy',
@@ -454,6 +552,7 @@
             'offer.affiliate_note': 'Some links are affiliate links — the price for you stays the same.',
             'offer.stale': 'Prices may be outdated — use “Refresh offers”',
             'offer.official_note': 'Official store — you buy directly, with full support and refunds.',
+            'offer.authorized_note': 'Authorized reseller — check the key region and refund terms before buying.',
             'offer.marketplace_note': 'Key marketplace — check the seller rating, key region and refund policy before buying.',
             'offer.low_conf_note': 'We are not fully sure this is the exact game/edition — verify on the store page.',
             'card.vs_steam': '−{pct}% vs Steam',
@@ -690,9 +789,27 @@
         }
     }
 
-    function mountLangSwitcher() {
+    function buildLangSwitch({ extraClass = '' } = {}) {
+        const nav = document.createElement('nav');
+        nav.className = ['lang-switch', extraClass].filter(Boolean).join(' ');
+        nav.setAttribute('aria-label', 'Language');
+        ['pl', 'uk', 'en'].forEach((code) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'lang-btn';
+            btn.dataset.lang = code;
+            btn.textContent = t('lang.' + code);
+            btn.addEventListener('click', () => setLang(code));
+            nav.appendChild(btn);
+        });
+        return nav;
+    }
+
+    function mountLangIntoHeader({ extraClass = '' } = {}) {
         document.querySelectorAll('.header-inner').forEach((inner) => {
-            if (inner.querySelector('.lang-switch')) return;
+            if (extraClass && inner.querySelector('.' + extraClass)) return;
+            if (!extraClass && inner.querySelector('.lang-switch')) return;
+
             const authNav = inner.querySelector('#auth-nav');
             let host = inner.querySelector('.header-actions');
             if (!host && authNav) {
@@ -703,18 +820,7 @@
             }
             if (!host) host = inner;
 
-            const nav = document.createElement('nav');
-            nav.className = 'lang-switch';
-            nav.setAttribute('aria-label', 'Language');
-            ['pl', 'uk', 'en'].forEach((code) => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'lang-btn';
-                btn.dataset.lang = code;
-                btn.textContent = t('lang.' + code);
-                btn.addEventListener('click', () => setLang(code));
-                nav.appendChild(btn);
-            });
+            const nav = buildLangSwitch({ extraClass });
             if (host.classList.contains('header-actions')) {
                 host.insertBefore(nav, host.firstChild);
             } else if (authNav) {
@@ -723,6 +829,20 @@
                 host.appendChild(nav);
             }
         });
+    }
+
+    function mountLangSwitcher() {
+        const slots = document.querySelectorAll('[data-lang-switch-slot]');
+        if (slots.length) {
+            slots.forEach((slot) => {
+                if (slot.querySelector('.lang-switch')) return;
+                slot.appendChild(buildLangSwitch());
+            });
+            // Tablet mid (768–1023): classic header still visible.
+            mountLangIntoHeader({ extraClass: 'lang-switch--header' });
+        } else {
+            mountLangIntoHeader();
+        }
     }
 
     function locale() {

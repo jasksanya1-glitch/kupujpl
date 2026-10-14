@@ -251,9 +251,13 @@ def toggle_scan_shop(shop_name: str, *, enabled: bool) -> dict:
     return save_disabled_scan_shops(current)
 
 
+# Extra shops shown in UI (US Steam) but never added to EXPECTED_SHOPS / scan routing.
+EXTRA_DISPLAY_SHOPS: tuple[str, ...] = ("Steam US",)
+
+
 def get_display_shops() -> tuple[str, ...]:
     """Shops whose offers are shown on the public site (independent of scan toggles)."""
-    return EXPECTED_SHOPS
+    return EXPECTED_SHOPS + EXTRA_DISPLAY_SHOPS
 
 
 def is_shop_displayed(shop_name: str) -> bool:

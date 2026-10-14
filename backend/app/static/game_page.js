@@ -83,10 +83,13 @@
     }
 
     function trustBadge(o) {
+        if (o.trust_label) return o.trust_label;
         if (o.is_official) return tt('card.official');
-        const m = String(o.trust_label || '').match(/tier\s*([A-C])/i);
-        if (m) return tt('offer.marketplace_tier', { tier: m[1].toUpperCase() });
-        return tt('card.marketplace');
+        const sc = String(o.store_class || '').toUpperCase();
+        if (sc === 'AUTHORIZED_RESELLER') return tt('card.authorized');
+        if (sc === 'MARKETPLACE') return tt('card.marketplace');
+        if (sc === 'OFFICIAL_STORE') return tt('card.official');
+        return tt('card.store');
     }
 
     function histLowText(apiLabel) {
@@ -211,7 +214,14 @@
         offersEl.innerHTML = list
             .map((o) => {
                 const trust = trustBadge(o);
-                const kind = o.is_official ? 'official' : 'keyshop';
+                const sc = String(o.store_class || '').toUpperCase();
+                const kind = (sc === 'OFFICIAL_STORE' || o.is_official)
+                    ? 'official'
+                    : sc === 'AUTHORIZED_RESELLER'
+                        ? 'authorized'
+                        : sc === 'MARKETPLACE'
+                            ? 'keyshop'
+                            : 'other';
                 const go = api(`go/${o.id}`);
                 const priceTxt = formatPrice(o.price_pln);
                 const regionBadge = activationBadge(o);
