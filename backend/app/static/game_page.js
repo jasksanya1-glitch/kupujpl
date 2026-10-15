@@ -203,10 +203,33 @@
         return name;
     }
 
-    function renderOffers(offers) {
+    function formatCheckedAt(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function renderOffers(offers, game) {
         if (!offersEl) return;
         lastOffers = offers;
-        const list = filterOffersForRegion(offers || []).filter((o) => o.in_stock && o.price_pln > 0);
+        let list = filterOffersForRegion(offers || []).filter((o) => o.in_stock && o.price_pln > 0);
+        if (game && game.is_free) {
+            list = filterOffersForRegion(offers || []).filter(
+                (o) => o.in_stock && (o.shop_name === 'Steam' || o.shop_name === 'Steam US')
+            );
+        }
+        const bestId = game && game.best_offer_id != null ? Number(game.best_offer_id) : null;
+        if (bestId != null) {
+            list = list.slice().sort((a, b) => {
+                if (Number(a.id) === bestId) return -1;
+                if (Number(b.id) === bestId) return 1;
+                return Number(a.price_pln) - Number(b.price_pln);
+            });
+        } else {
+            list = list.slice().sort((a, b) => Number(a.price_pln) - Number(b.price_pln));
+        }
         if (!list.length) {
             offersEl.innerHTML = `<p class="offers-empty" data-i18n="offer.empty">${escapeHtml(tt('offer.empty'))}</p>`;
             return;
@@ -228,10 +251,14 @@
                 const regionHtml = regionBadge
                     ? `<span class="badge badge-region">${escapeHtml(regionBadge)}</span>`
                     : '';
-                return `<div class="offer-row" data-shop-kind="${kind}">
+                const checked = formatCheckedAt(o.updated_at || o.updatedAt);
+                const checkedHtml = checked
+                    ? `<div class="offer-checked">Sprawdzono: ${escapeHtml(checked)}</div>`
+                    : '';
+                return `<div class="offer-row" data-shop-kind="${kind}" data-offer-id="${Number(o.id)}">
                     <div class="offer-shop"><strong>${escapeHtml(shopLabel(o.shop_name))}</strong>
                     <span class="badge">${escapeHtml(trust)}</span>${regionHtml}</div>
-                    <div class="offer-price">${priceTxt}</div>
+                    <div class="offer-price">${priceTxt}${checkedHtml}</div>
                     <a class="btn-buy" href="${escapeHtml(go)}" rel="noopener noreferrer sponsored" target="_blank">${escapeHtml(tt('offer.buy'))}</a>
                 </div>`;
             })
@@ -421,7 +448,7 @@
             coverEl.alt = game.title;
         }
         document.title = `${game.title}${tt('game.title_suffix')}`;
-        renderOffers(game.offers);
+        renderOffers(game.offers, game);
         updateHistBadge(game);
         updateWorthBuy(game);
         updateSavings(game);

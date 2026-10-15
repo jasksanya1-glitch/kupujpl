@@ -5,7 +5,7 @@ import html
 from dataclasses import dataclass
 from typing import Literal
 
-Tier = Literal["buy", "maybe", "wait"]
+Tier = Literal["buy", "maybe", "wait", "free"]
 
 
 @dataclass(frozen=True)
@@ -92,6 +92,10 @@ def _discount_component(savings_pct: int | None) -> float | None:
     return _clamp(savings_pct * 1.35)
 
 
+# Need enough confirmed observations before advertising "buy now".
+MIN_HISTORY_POINTS_FOR_BUY = 3
+
+
 def compute_worth_buy(
     *,
     current_price: float | None,
@@ -100,9 +104,31 @@ def compute_worth_buy(
     steam_price_pln: float | None = None,
     savings_pct: int | None = None,
     at_historical_low: bool = False,
+    is_free: bool = False,
+    history_points: int | None = None,
+    offer_verified: bool = True,
 ) -> WorthBuyResult | None:
+    # Permanent F2P base game: never recommend buying a paid keyshop copy.
+    if is_free:
+        return WorthBuyResult(
+            score=100,
+            tier="free",
+            label="DARMOWA GRA",
+            reason="To oficjalnie darmowa gra (Free-to-Play). Pobierz ją ze Steam — nie kupuj płatnych kopii bazowej gry.",
+            emoji="🟢",
+        )
+
     if current_price is None or current_price <= 0:
         return None
+
+    if not offer_verified:
+        return WorthBuyResult(
+            score=40,
+            tier="wait",
+            label="POCZEKAJ",
+            reason="Oferta nie jest wystarczająco zweryfikowana, by rekomendować zakup.",
+            emoji="🔴",
+        )
 
     parts: list[tuple[float, float]] = []  # (score, weight)
 
@@ -131,6 +157,11 @@ def compute_worth_buy(
     score = int(round(sum(s * w for s, w in parts) / total_w))
     score = int(_clamp(score))
 
+    # Thin / self-referential history must not inflate to KUP TERAZ.
+    thin_history = history_points is not None and history_points < MIN_HISTORY_POINTS_FOR_BUY
+    if thin_history and score >= 75:
+        score = min(score, 74)
+
     if score >= 75:
         tier: Tier = "buy"
         emoji = "🟢"
@@ -147,7 +178,9 @@ def compute_worth_buy(
         tier = "maybe"
         emoji = "🟡"
         label = "MOŻESZ POCZEKAĆ"
-        if avg_best_price_30d and current_price > avg_best_price_30d * 1.03:
+        if thin_history:
+            reason = "Za mało potwierdzonej historii cen, by rekomendować zakup teraz."
+        elif avg_best_price_30d and current_price > avg_best_price_30d * 1.03:
             reason = "Cena jest przeciętna — drożej niż średnia z 30 dni."
         elif savings_pct is not None and savings_pct < 15:
             reason = "Różnica vs Steam jest umiarkowana — warto obserwować."
@@ -174,15 +207,31 @@ def worth_buy_html(result: WorthBuyResult | None) -> str:
         "buy": "is-buy",
         "maybe": "is-maybe",
         "wait": "is-wait",
+        "free": "is-free",
     }[result.tier]
+    kicker = (
+        "Status gry"
+        if result.tier == "free"
+        else "Czy warto kupić?"
+    )
+    kicker_i18n = "game.free_title" if result.tier == "free" else "game.worth_title"
+    score_bits = ""
+    if result.tier != "free":
+        score_bits = (
+            f'<strong class="worth-buy-points">{result.score}/100</strong>'
+            f'<span class="worth-buy-label"> — {html.escape(result.label)}</span>'
+        )
+    else:
+        score_bits = (
+            f'<strong class="worth-buy-points">{html.escape(result.label)}</strong>'
+        )
     return (
         f'<div class="worth-buy {tier_class}" id="gp-worth-buy" '
         f'data-score="{result.score}" data-tier="{result.tier}">'
-        f'<p class="worth-buy-kicker" data-i18n="game.worth_title">Czy warto kupić?</p>'
+        f'<p class="worth-buy-kicker" data-i18n="{kicker_i18n}">{kicker}</p>'
         f'<p class="worth-buy-score">'
         f'<span class="worth-buy-emoji" aria-hidden="true">{result.emoji}</span> '
-        f'<strong class="worth-buy-points">{result.score}/100</strong>'
-        f'<span class="worth-buy-label"> — {html.escape(result.label)}</span>'
+        f"{score_bits}"
         f"</p>"
         f'<p class="worth-buy-reason">{html.escape(result.reason)}</p>'
         f"</div>"

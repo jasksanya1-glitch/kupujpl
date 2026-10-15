@@ -15,6 +15,7 @@ from app.core.game_offer_selection import (
     steam_shop_for_region,
 )
 from app.core.offer_quality import (
+    BEST_PRICE_MIN_CONFIDENCE,
     STEAM_PRICE_RATIO_FLOOR,
     is_peer_price_outlier,
     offer_eligible_for_best_price,
@@ -128,6 +129,41 @@ def record_offer_price_change(
         return
     if previous_price is not None and abs(previous_price - price_pln) < PRICE_EPSILON:
         return
+    game = db.query(Game).filter(Game.id == game_id).first()
+    # Permanent F2P base games must not accumulate paid-keyshop price history
+    # that later drives "KUP TERAZ" recommendations.
+    if game is not None and bool(getattr(game, "is_free", False)):
+        return
+
+    # Only verified / ID-backed / currently eligible offers feed history.
+    id_backed = shop_name in {"Steam", "Steam US", "PlayStation Store", "Xbox Store"}
+    offer_row = (
+        db.query(Offer)
+        .filter(
+            Offer.game_id == game_id,
+            Offer.shop_name == shop_name,
+            Offer.in_stock.is_(True),
+        )
+        .order_by(Offer.id.desc())
+        .first()
+    )
+    if not id_backed:
+        if offer_row is None:
+            return
+        conf = offer_row.match_confidence
+        if conf is None or float(conf) < BEST_PRICE_MIN_CONFIDENCE:
+            logger.debug(
+                "Skip unverified snapshot game=%s shop=%s conf=%s",
+                game_id,
+                shop_name,
+                conf,
+            )
+            return
+        peers_offers = _eligible_offers(db, game_id)
+        if offer_row.id not in {o.id for o in peers_offers}:
+            # Offer would not drive catalog best price — do not pollute history.
+            return
+
     peers = _eligible_offer_prices(db, game_id)
     steam = _steam_price_for_game(db, game_id)
     if not _snapshot_price_ok(
@@ -160,6 +196,11 @@ def update_game_price_rollups(
 ) -> None:
     game = db.query(Game).filter(Game.id == game_id).first()
     if not game:
+        return
+    if bool(getattr(game, "is_free", False)):
+        game.avg_best_price_30d = None
+        game.lowest_ever_pln = None
+        game.lowest_ever_at = None
         return
     region = normalize_shopping_region(region)
     now = datetime.utcnow()

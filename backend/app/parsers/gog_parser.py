@@ -180,32 +180,40 @@ def update_gog_offer_for_game(db: Session, game: Game) -> bool:
     if not product_url or price_pln is None:
         return False
 
-    affiliate_url = make_affiliate_link(product_url, "GOG")
-    existing_offer = (
+    # Route through shared upsert so title_mismatch / franchise guards apply
+    # (prevents A Plague Tale: Innocence attaching to Resonance Legacy).
+    from app.parsers.keyshop_common import upsert_keyshop_offer
+
+    before = (
         db.query(Offer)
         .filter(Offer.game_id == game.id, Offer.shop_name == "GOG")
         .first()
     )
-    if existing_offer:
-        existing_offer.price_pln = price_pln
-        existing_offer.affiliate_url = affiliate_url
-        existing_offer.in_stock = True
-        if confidence is not None:
-            existing_offer.match_confidence = confidence
-    else:
-        db.add(
-            Offer(
-                game_id=game.id,
-                shop_name="GOG",
-                price_pln=price_pln,
-                original_price_pln=None,
-                affiliate_url=affiliate_url,
-                is_official=True,
-                in_stock=True,
-                match_confidence=confidence,
-            )
-        )
-    return True
+    before_url = before.affiliate_url if before else None
+    before_price = before.price_pln if before else None
+    upsert_keyshop_offer(
+        db,
+        game,
+        "GOG",
+        product_url,
+        price_pln,
+        is_official=True,
+        match_confidence=confidence,
+    )
+    after = (
+        db.query(Offer)
+        .filter(Offer.game_id == game.id, Offer.shop_name == "GOG")
+        .first()
+    )
+    if after is None:
+        return False
+    if before is None:
+        return True
+    return (
+        after.affiliate_url != before_url
+        or (after.price_pln is not None and after.price_pln != before_price)
+        or after.in_stock
+    )
 
 
 def import_gog_offers(db: Session, limit: int = 150) -> dict:

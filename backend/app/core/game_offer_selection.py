@@ -164,6 +164,11 @@ def best_offers_map(
 
     best: dict[int, Offer] = {}
     for game_id, game_offers in by_game.items():
+        game = games.get(game_id)
+        # Permanent Free-to-Play base games must never surface a paid keyshop
+        # as the catalog / page "best price" (CS2, TF2, etc.).
+        if game is not None and bool(getattr(game, "is_free", False)):
+            continue
         steam = steam_map.get(game_id)
         steam_price = float(steam.price_pln) if steam and steam.price_pln else None
         peer_prices = [float(o.price_pln) for o in game_offers if o.price_pln]

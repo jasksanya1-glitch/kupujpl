@@ -223,6 +223,30 @@ _ALLOWED_PRODUCT_EXTRAS = {
     "linux",
 }
 
+
+
+def _is_store_sku_token(token: str) -> bool:
+    """Epic/store URL suffixes like '-02' or offer UUIDs — not product identity."""
+    t = (token or "").lower()
+    if not t:
+        return False
+    if re.fullmatch(r"0\d", t):
+        return True
+    if len(t) >= 16 and re.fullmatch(r"[0-9a-f]+", t):
+        return True
+    if t.endswith("generalaudience") or t.endswith("audience"):
+        return True
+    return False
+
+
+def _distinctive_tokens(tokens: set[str]) -> set[str]:
+    return {
+        t
+        for t in tokens
+        if t not in _ALLOWED_PRODUCT_EXTRAS and not _is_store_sku_token(t)
+    }
+
+
 _ROMAN_EDITION = {
     "i": 1,
     "ii": 2,
@@ -247,10 +271,20 @@ def slugify(text: str) -> str:
 
 def _query_wants_dlc(query: str) -> bool:
     lower = (query or "").lower()
-    return any(
-        token in lower
-        for token in ("dlc", "expansion", " pack", "bundle", "season pass", "costume", "outfit")
+    patterns = (
+        r"\bdlc\b",
+        r"\bexpansion\b",
+        r"\bseason\s*pass\b",
+        r"\badd[\s-]?on\b",
+        r"\bcontent\s*pack\b",
+        r"\bweapon\s*pack\b",
+        r"\bskin\s*pack\b",
+        r"\bbonus\s*content\b",
+        r"\bstory\s*quest\s*pack\b",
+        r"\bdodatek\b",
+        r"\bprzepustk\w*\s+sezonow\w*\b",
     )
+    return any(re.search(pattern, lower) for pattern in patterns)
 
 
 def _edition_numbers(title: str) -> set[int]:
@@ -259,6 +293,9 @@ def _edition_numbers(title: str) -> set[int]:
         if token in _ROMAN_EDITION:
             nums.add(_ROMAN_EDITION[token])
         elif token.isdigit() and len(token) <= 2:
+            # Skip zero-padded store SKU suffixes (Epic …-02); keep "2" / "10".
+            if token.startswith("0") and len(token) == 2:
+                continue
             value = int(token)
             if 1 <= value <= 20:
                 nums.add(value)
@@ -296,8 +333,22 @@ def title_mismatch(query: str, candidate: str) -> bool:
     q_tokens = _title_tokens(query)
     c_tokens = _title_tokens(candidate)
     if q_tokens and c_tokens and q_tokens <= c_tokens:
-        extras = c_tokens - q_tokens - _ALLOWED_PRODUCT_EXTRAS
+        extras = _distinctive_tokens(c_tokens - q_tokens)
         if extras:
+            return True
+
+    # Both sides have distinctive product tokens beyond a shared franchise core
+    # → different games (Innocence ≠ Legacy ≠ Requiem). Require a non-empty
+    # *word* core (not just "3") so PL↔EN localizations are not rejected.
+    if q_tokens and c_tokens:
+        shared_core = {
+            t
+            for t in _distinctive_tokens(q_tokens & c_tokens)
+            if not (t.isdigit() and len(t) <= 2)
+        }
+        q_only = _distinctive_tokens(q_tokens - c_tokens)
+        c_only = _distinctive_tokens(c_tokens - q_tokens)
+        if shared_core and q_only and c_only:
             return True
 
     q_nums = _edition_numbers(query)
@@ -571,10 +622,118 @@ _RESTRICTED_REGION_PATTERNS = tuple(
     )
 )
 
+_NA_REGION_PATTERNS = tuple(
+    re.compile(pattern)
+    for pattern in (
+        r"\bnorth\s*america\b",
+        r"\bna\b",
+        r"\bcanada\b",
+        r"\bca\b",
+        r"\bunited\s*states\b",
+        r"\busa\b",
+        r"\bu\s+s\b",
+        r"\bus\s*(?:only|region|steam|key|code|gift|account|activation|version)\b",
+        r"\b(?:pc|steam|xbox|windows|key|code|gift)\s*us\b",
+    )
+)
+
+_EU_ONLY_REGION_PATTERNS = tuple(
+    re.compile(pattern)
+    for pattern in (
+        r"\beu\s*only\b",
+        r"\beurope(?:an)?\s*only\b",
+        r"\bpoland\s*only\b",
+        r"\bpolska\s*only\b",
+        r"\bpl\s*only\b",
+        r"\b(?:eu|europe(?:an)?)\s*region\b",
+        r"\bregion\s*(?:eu|europe(?:an)?)\b",
+        r"\bactivat(?:e|ion)\s*(?:in\s*)?(?:eu|europe(?:an)?)\b",
+        r"\b(?:eu|europe(?:an)?)\s*(?:key|steam|pc)\b",
+        r"\bnot\s*(?:for|available\s*in|activat(?:e|ion)\s*in)\s*(?:us|usa|united\s*states|na|north\s*america)\b",
+    )
+)
+
 
 _AMBIGUOUS_REGION_PATTERN = re.compile(
     r"\b(?:region|activation|activate|only|restricted|locked)\b"
 )
+
+_GLOBAL_REGION_MARKERS = (
+    " global",
+    " worldwide",
+    " world wide",
+    " ww ",
+    "/ww/",
+    "-ww-",
+    " row ",
+    "/row/",
+    "-row-",
+    "rest of world",
+    "emea",
+)
+
+_BLOCKED_ONLY_REGION_MARKERS = (
+    "latam",
+    "argentina",
+    "turkey",
+    "turkiye",
+    " ru ",
+    "-ru-",
+    "/ru/",
+    " russia",
+    " russian",
+    " latin america",
+    " asia",
+    " asian",
+    " pc au",
+    " steam au",
+    " australia",
+    " pc tr",
+    " steam tr",
+    " mena",
+    " middle east",
+    " africa",
+    "/cis",
+    "-cis-",
+    " sea ",
+    "global except",
+    "row only",
+)
+
+
+def detect_activation_region(text: str) -> str:
+    """Return eu|na|global|unknown|blocked from listing title/url/region blob."""
+    blob = f" {_region_blob(text)} "
+    lower = f" {(text or '').lower()} "
+    if any(m in lower for m in _BLOCKED_ONLY_REGION_MARKERS):
+        return "blocked"
+    if any(p.search(blob) for p in _RESTRICTED_REGION_PATTERNS):
+        # Distinguish NA vs other restricted
+        if any(p.search(blob) for p in _NA_REGION_PATTERNS) or any(m in lower for m in _NA_REGION_MARKERS):
+            return "na"
+        if any(p.search(blob) for p in _EU_ONLY_REGION_PATTERNS) or any(
+            m in lower for m in _EU_ONLY_REGION_MARKERS
+        ):
+            return "eu"
+        # LATAM / TR / RU / Asia etc.
+        if not any(p.search(blob) for p in _NA_REGION_PATTERNS):
+            return "blocked"
+    if any(m in lower for m in _NA_REGION_MARKERS) or any(p.search(blob) for p in _NA_REGION_PATTERNS):
+        return "na"
+    if any(m in lower for m in _EU_ONLY_REGION_MARKERS) or any(
+        p.search(blob) for p in _EU_ONLY_REGION_PATTERNS
+    ):
+        return "eu"
+    if any(m in lower for m in _GLOBAL_REGION_MARKERS) or re.search(
+        r"\b(?:global|worldwide|ww|row)\b", blob
+    ):
+        return "global"
+    return "unknown"
+
+
+def is_blocked_activation_region(text: str) -> bool:
+    """True for keys that are neither EU nor NA nor Global (LATAM/RU/TR/Asia…)."""
+    return detect_activation_region(text) == "blocked"
 
 
 def classify_keyshop_product(
@@ -587,16 +746,24 @@ def classify_keyshop_product(
     """Classify whether a keyshop product looks valid for a base game."""
     candidate = product_title or product_title_from_url(url)
     if not candidate:
-        return {"valid": False, "reason": "no_candidate", "score": 0.0}
+        return {"valid": False, "reason": "no_candidate", "score": 0.0, "activation_region": "unknown"}
     text = f" {candidate.lower()} {url.lower()} "
-    if is_restricted_region_listing(text):
+    activation = detect_activation_region(text)
+    if activation == "blocked":
         game_blob = _region_blob(game_title)
         listing_blob = _region_blob(text)
         matched_patterns = [
             pattern for pattern in _RESTRICTED_REGION_PATTERNS if pattern.search(listing_blob)
         ]
+        # Allow if the base game title itself embeds the same region (rare)
         if not matched_patterns or not all(pattern.search(game_blob) for pattern in matched_patterns):
-            return {"valid": False, "reason": "restricted_region", "score": 0.0}
+            return {
+                "valid": False,
+                "reason": "restricted_region",
+                "score": 0.0,
+                "activation_region": activation,
+            }
+        activation = "unknown"
     for marker in BAD_KEYSHOP_PRODUCT_MARKERS:
         if marker in text:
             if marker == " vr " and "vr" in (game_title or "").lower():
@@ -605,17 +772,42 @@ def classify_keyshop_product(
                 continue
             if marker in (" dlc ", " expansion ", " add on ", " add-on ") and _query_wants_dlc(game_title):
                 continue
-            return {"valid": False, "reason": f"bad_marker:{marker.strip()}", "score": 0.0}
+            return {
+                "valid": False,
+                "reason": f"bad_marker:{marker.strip()}",
+                "score": 0.0,
+                "activation_region": activation,
+            }
+    if title_mismatch(game_title, candidate):
+        return {
+            "valid": False,
+            "reason": "title_mismatch",
+            "score": 0.0,
+            "activation_region": activation,
+        }
     score = title_match_score(game_title, candidate)
     game_nums = _edition_numbers(game_title)
     cand_nums = _edition_numbers(candidate)
     if (game_nums or cand_nums) and game_nums != cand_nums:
-        return {"valid": False, "reason": "edition_number_mismatch", "score": score}
+        return {
+            "valid": False,
+            "reason": "edition_number_mismatch",
+            "score": score,
+            "activation_region": activation,
+        }
     if score < min_score:
-        return {"valid": False, "reason": "low_score", "score": score}
-    if title_mismatch(game_title, candidate):
-        return {"valid": False, "reason": "title_mismatch", "score": score}
-    return {"valid": True, "reason": "match", "score": score}
+        return {
+            "valid": False,
+            "reason": "low_score",
+            "score": score,
+            "activation_region": activation,
+        }
+    return {
+        "valid": True,
+        "reason": "match",
+        "score": score,
+        "activation_region": activation if activation != "blocked" else "unknown",
+    }
 
 
 _RESTRICTED_REGION_MARKERS = (
@@ -666,17 +858,65 @@ _RESTRICTED_REGION_MARKERS = (
     "row only",
 )
 
+# NA markers are restricted for PL shoppers but allowed for US shopping region.
+_NA_REGION_MARKERS = (
+    " united states",
+    " pc us",
+    " steam us",
+    " us steam",
+    " us windows",
+    " windows us",
+    " xbox us",
+    " pc na",
+    " steam na",
+    " na steam",
+)
 
-def is_restricted_region_listing(text: str) -> bool:
-    """Skip LATAM / TR / etc. keys on a PL-facing price aggregator."""
+_EU_ONLY_REGION_MARKERS = (
+    " eu only",
+    " europe only",
+    " european only",
+    " poland only",
+    " polska only",
+    " pl only",
+    " eu region",
+    " europe region",
+    " region eu",
+    " region europe",
+    " activation eu",
+    " activation europe",
+    " eu key",
+    " europe key",
+)
+
+
+def is_restricted_region_listing(text: str, region: str = "pl") -> bool:
+    """Skip region-locked keys for the given shopping region (default PL)."""
+    shopping = (region or "pl").strip().lower() or "pl"
     lower = (text or "").lower()
-    if any(marker in lower for marker in _RESTRICTED_REGION_MARKERS):
+    markers = _RESTRICTED_REGION_MARKERS
+    patterns = _RESTRICTED_REGION_PATTERNS
+    if shopping == "us":
+        na_set = set(_NA_REGION_MARKERS)
+        markers = tuple(m for m in _RESTRICTED_REGION_MARKERS if m not in na_set)
+        markers = markers + _EU_ONLY_REGION_MARKERS
+        na_src = {p.pattern for p in _NA_REGION_PATTERNS}
+        patterns = tuple(p for p in _RESTRICTED_REGION_PATTERNS if p.pattern not in na_src)
+        patterns = patterns + _EU_ONLY_REGION_PATTERNS
+    if any(marker in lower for marker in markers):
         return True
     blob = _region_blob(text)
-    if any(pattern.search(blob) for pattern in _RESTRICTED_REGION_PATTERNS):
+    if any(pattern.search(blob) for pattern in patterns):
         return True
     if _AMBIGUOUS_REGION_PATTERN.search(blob) and not _SAFE_REGION_PATTERN.search(blob):
         return True
+    if shopping == "us" and _AMBIGUOUS_REGION_PATTERN.search(blob):
+        if any(p.search(blob) for p in _EU_ONLY_REGION_PATTERNS):
+            return True
+        if re.search(r"\b(?:eu|europe|european|poland|polska)\b", blob) and not re.search(
+            r"\b(?:us|usa|na|north\s*america|worldwide|global)\b", blob
+        ):
+            return True
     return False
 
 
@@ -767,6 +1007,27 @@ def extract_best_price(html: str, *, kinguin_listing: bool = False) -> float | N
     return None
 
 
+# Storefronts keyed by AppID / console catalog ID — title classify is optional.
+_ID_BACKED_SHOPS = frozenset(
+    {"Steam", "Steam US", "PlayStation Store", "Xbox Store"}
+)
+# Digi stores that still need title/URL classify (GOG Innocence≠Legacy, etc.).
+_TITLE_MATCH_SHOPS = frozenset(
+    {
+        "GOG",
+        "Epic Games",
+        "Fanatical",
+        "Humble Store",
+        "Instant Gaming",
+        "Kinguin",
+        "G2A",
+        "CDKeys",
+        "Gamivo",
+        "Eneba",
+    }
+)
+
+
 def upsert_keyshop_offer(
     db: Session,
     game: Game,
@@ -776,25 +1037,41 @@ def upsert_keyshop_offer(
     *,
     is_official: bool = False,
     match_confidence: float | None = None,
-) -> None:
-    if not is_official and shop_name not in {
-        "Steam",
-        "Steam US",
-        "GOG",
-        "Epic Games",
-        "Fanatical",
-        "Humble Store",
-        "PlayStation Store",
-        "Xbox Store",
-    }:
-        candidate = product_title_from_url(product_url)
+    activation_region: str | None = None,
+    product_title: str | None = None,
+) -> bool:
+    region = (activation_region or "").strip().lower() or None
+    # Permanent F2P base games: never attach paid marketplace / digi copies.
+    if bool(getattr(game, "is_free", False)) and shop_name not in _ID_BACKED_SHOPS:
+        if price_pln is not None and float(price_pln) > 0.01:
+            logger.info(
+                "Skipping paid %s offer for F2P game %s (%.2f)",
+                shop_name,
+                game.title,
+                float(price_pln),
+            )
+            return False
+
+    needs_title_match = shop_name in _TITLE_MATCH_SHOPS or (
+        shop_name not in _ID_BACKED_SHOPS and shop_name != "Steam"
+    )
+    if needs_title_match:
+        candidate = product_title or product_title_from_url(product_url)
         verdict = classify_keyshop_product(
             game.title,
             candidate,
             product_url,
             min_score=MIN_MATCH_SCORE,
         )
-        if not verdict["valid"]:
+        # Official digi + Steam AppID: allow low fuzzy score for PL↔EN titles
+        # when hard title_mismatch did not fire (no shared wrong franchise core).
+        allow_localized = (
+            is_official
+            and bool(getattr(game, "steam_appid", None))
+            and verdict.get("reason") == "low_score"
+            and not title_mismatch(game.title, candidate or "")
+        )
+        if not verdict["valid"] and not allow_localized:
             logger.info(
                 "Skipping %s offer for %s: %s (%s)",
                 shop_name,
@@ -802,22 +1079,73 @@ def upsert_keyshop_offer(
                 verdict["reason"],
                 product_url[:160],
             )
-            return
+            # Soft-disable any existing row for this shop (any region) so bad
+            # GOG/Epic matches cannot stay public after a failed re-check.
+            stale = (
+                db.query(Offer)
+                .filter(Offer.game_id == game.id, Offer.shop_name == shop_name)
+                .all()
+            )
+            for row in stale:
+                row.in_stock = False
+                if row.match_confidence is None or row.match_confidence > 0:
+                    row.match_confidence = 0.0
+            return False
+        if not region or region == "unknown":
+            detected = str(verdict.get("activation_region") or "unknown")
+            region = detected if detected != "blocked" else "unknown"
+        if match_confidence is None:
+            try:
+                match_confidence = float(verdict.get("score") or 0.0)
+            except (TypeError, ValueError):
+                match_confidence = None
+            if allow_localized and (match_confidence or 0) < MIN_MATCH_SCORE:
+                match_confidence = float(MIN_MATCH_SCORE)
+    elif shop_name in _ID_BACKED_SHOPS or is_official:
+        if not region or region == "unknown":
+            region = "na" if shop_name == "Steam US" else "global"
+
+    if not region:
+        region = "unknown"
+    if region == "blocked":
+        return False
     affiliate_url = make_affiliate_link(product_url, shop_name)
     existing = (
         db.query(Offer)
-        .filter(Offer.game_id == game.id, Offer.shop_name == shop_name)
+        .filter(
+            Offer.game_id == game.id,
+            Offer.shop_name == shop_name,
+            Offer.activation_region == region,
+        )
         .first()
     )
+    # Migrate legacy single-row offers (no region awareness) into the tagged row
+    if existing is None and region != "unknown":
+        legacy = (
+            db.query(Offer)
+            .filter(
+                Offer.game_id == game.id,
+                Offer.shop_name == shop_name,
+                Offer.activation_region == "unknown",
+            )
+            .first()
+        )
+        if legacy is not None:
+            legacy.activation_region = region
+            existing = legacy
     if existing:
         prev_price = float(existing.price_pln) if existing.price_pln is not None else None
         existing.price_pln = price_pln
         existing.affiliate_url = affiliate_url
+        # Only restock after title match (or ID-backed). Soft-disabled bad rows
+        # stay down until classify accepts a new URL/title above.
         existing.in_stock = True
+        existing.activation_region = region
         if match_confidence is not None:
             existing.match_confidence = match_confidence
         from app.core.price_history import record_offer_price_change
 
+        db.flush()
         record_offer_price_change(
             db,
             game_id=game.id,
@@ -825,11 +1153,13 @@ def upsert_keyshop_offer(
             price_pln=price_pln,
             previous_price=prev_price,
         )
+        return True
     else:
         db.add(
             Offer(
                 game_id=game.id,
                 shop_name=shop_name,
+                activation_region=region,
                 price_pln=price_pln,
                 original_price_pln=None,
                 affiliate_url=affiliate_url,
@@ -840,6 +1170,7 @@ def upsert_keyshop_offer(
         )
         from app.core.price_history import record_offer_price_change
 
+        db.flush()
         record_offer_price_change(
             db,
             game_id=game.id,
@@ -847,6 +1178,7 @@ def upsert_keyshop_offer(
             price_pln=price_pln,
             previous_price=None,
         )
+        return True
 
 
 def refresh_keyshop_for_game(
@@ -859,8 +1191,7 @@ def refresh_keyshop_for_game(
     product_url, price = search_fn(game.title, slug)
     if not product_url or price is None:
         return False
-    upsert_keyshop_offer(db, game, shop_name, product_url, price)
-    return True
+    return upsert_keyshop_offer(db, game, shop_name, product_url, price)
 
 
 def import_keyshop_offers(
@@ -894,12 +1225,15 @@ def import_keyshop_offers(
                 .filter(Offer.game_id == game.id, Offer.shop_name == shop_name)
                 .first()
             )
-            upsert_keyshop_offer(db, game, shop_name, product_url, price)
-            commit_with_retry(db)
-            if had:
-                updated += 1
+            applied = upsert_keyshop_offer(db, game, shop_name, product_url, price)
+            if applied:
+                commit_with_retry(db)
+                if had:
+                    updated += 1
+                else:
+                    added += 1
             else:
-                added += 1
+                skipped += 1
         else:
             skipped += 1
         time.sleep(delay_sec)

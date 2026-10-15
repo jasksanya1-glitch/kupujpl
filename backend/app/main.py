@@ -648,6 +648,31 @@ def _game_list_item(
     *,
     deal_age_label: str | None = None,
 ) -> GameListResponse:
+    is_free = bool(game.is_free)
+    if is_free:
+        # Permanent F2P: catalog/list price is always 0 — never a paid keyshop.
+        return GameListResponse(
+            id=game.id,
+            title=_display_title(game.title),
+            slug=game.slug,
+            cover_image=list_cover_image(game.cover_image, game.steam_appid),
+            steam_appid=game.steam_appid,
+            platform=getattr(game, "platform", None) or "pc",
+            release_date=game.release_date,
+            rating=game.rating,
+            best_price_pln=0.0,
+            best_price_is_official=True,
+            best_shop_name="Steam",
+            steam_price_pln=0.0,
+            savings_pln=None,
+            savings_pct=None,
+            lowest_ever_pln=None,
+            avg_best_price_30d=None,
+            lowest_ever_label=None,
+            at_historical_low=False,
+            deal_age_label=deal_age_label,
+            is_free=True,
+        )
     savings = _savings_vs_steam(best, steam)
     best_price = best.price_pln if best else None
     label = lowest_ever_label_pl(game, best_price)
@@ -675,17 +700,30 @@ def _game_list_item(
     )
 
 
+_F2P_OFFICIAL_SHOPS = frozenset({"Steam", "Steam US", "GOG", "Epic Games"})
+
+
 def _sorted_offers(game: Game, *, region: str = "pl") -> list[Offer]:
     region = _normalize_shopping_region(region)
     active = _display_shops_for_game(game, region=region)
-    visible = [
-        o for o in game.offers
-        if o.in_stock
-        and o.shop_name in active
-        and o.price_pln is not None
-        and o.price_pln > 0
-        and _offer_visible_for_shopping_region(o, region)
-    ]
+    is_free = bool(getattr(game, "is_free", False))
+    visible: list[Offer] = []
+    for o in game.offers:
+        if not o.in_stock or o.shop_name not in active:
+            continue
+        if o.price_pln is None:
+            continue
+        if not _offer_visible_for_shopping_region(o, region):
+            continue
+        if is_free:
+            # F2P base page: only official free storefronts (price may be 0).
+            if o.shop_name not in _F2P_OFFICIAL_SHOPS:
+                continue
+            if o.price_pln < 0:
+                continue
+        elif o.price_pln <= 0:
+            continue
+        visible.append(o)
     # One row per shop: cheapest among matching activation regions
     by_shop: dict[str, Offer] = {}
     for offer in visible:
@@ -858,6 +896,38 @@ def _game_to_response(
     ]
     updated_at = _offers_updated_at(game)
     tier_a = is_in_tier_a_daily_scan(game)
+
+    if bool(game.is_free):
+        return GameResponse(
+            id=game.id,
+            title=_display_title(game.title),
+            slug=game.slug,
+            cover_image=game.cover_image,
+            description=game.description,
+            steam_appid=game.steam_appid,
+            platform=getattr(game, "platform", None) or "pc",
+            release_date=game.release_date,
+            rating=game.rating,
+            created_at=game.created_at,
+            offers=offers,
+            offers_updated_at=updated_at,
+            offers_stale=_offers_stale(game),
+            in_stock_shop_count=_in_stock_shop_count(game, region=region),
+            in_tier_a_daily_scan=tier_a,
+            next_tier_a_scan_at=next_tier_a_scan_at() if tier_a else None,
+            best_price_pln=0.0,
+            best_shop_name="Steam",
+            lowest_ever_pln=None,
+            avg_best_price_30d=None,
+            lowest_ever_label=None,
+            at_historical_low=False,
+            steam_price_pln=0.0,
+            savings_pln=None,
+            savings_pct=None,
+            is_free=True,
+            related_dlc=related_dlc or [],
+            parent_game=parent_game,
+        )
 
     eligible = [
         o
@@ -1269,6 +1339,38 @@ def _game_landing_context(db: Session, game: Game) -> dict:
     steam_map = _steam_offers_map(db, [game.id])
     best = best_map.get(game.id)
     steam = steam_map.get(game.id)
+    is_free = bool(getattr(game, "is_free", False))
+    if is_free:
+        # Prefer in-memory Steam free offer (price 0) even when steam_map
+        # excludes price_pln == 0.
+        steam = next(
+            (
+                o
+                for o in game.offers
+                if o.in_stock and o.shop_name in ("Steam", "Steam US")
+            ),
+            steam,
+        )
+        best = None
+        savings = {"steam_price_pln": 0.0, "savings_pln": None, "savings_pct": None}
+        sorted_offers = _sorted_offers(game)
+        display_offers = sorted_offers
+        offers = [
+            _offer_to_response(o, steam_price_pln=0.0, peer_prices=[])
+            for o in display_offers
+        ]
+        # Do not write paid-keyshop snapshots into F2P history.
+        history = get_price_history(db, game.id, days=90, current_best_pln=None)
+        return {
+            "game": game,
+            "offers": offers,
+            "best": best,
+            "steam": steam,
+            "savings": savings,
+            "history": history,
+            "cover": list_cover_image(game.cover_image, game.steam_appid),
+            "is_free": True,
+        }
     savings = _savings_vs_steam(best, steam)
     sorted_offers = _sorted_offers(game)
     peer_prices = _peer_prices_for_offers(sorted_offers)
@@ -1276,6 +1378,9 @@ def _game_landing_context(db: Session, game: Game) -> dict:
     display_offers = _filter_display_offers(
         sorted_offers, steam_price_pln=steam_price, peer_prices=peer_prices
     )
+    # Hero price/CTA and table row #1 must be the same canonical best offer.
+    if best is not None:
+        display_offers = [best] + [o for o in display_offers if o.id != best.id]
     offers = [
         _offer_to_response(o, steam_price_pln=steam_price, peer_prices=peer_prices)
         for o in display_offers
@@ -1301,6 +1406,7 @@ def _game_landing_context(db: Session, game: Game) -> dict:
         "savings": savings,
         "history": history,
         "cover": list_cover_image(game.cover_image, game.steam_appid),
+        "is_free": False,
     }
 
 
@@ -1313,8 +1419,16 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
     if (slug or "").strip().lower() != (game.slug or "").strip().lower():
         return RedirectResponse(url=f"{SITE_ORIGIN}/gra/{game.slug}", status_code=301)
     ctx = _game_landing_context(db, game)
-    best_price = ctx["best"].price_pln if ctx["best"] else None
-    label = lowest_ever_label_pl(ctx["game"], best_price)
+    is_free = bool(ctx.get("is_free")) or bool(getattr(ctx["game"], "is_free", False))
+    best_price = 0.0 if is_free else (ctx["best"].price_pln if ctx["best"] else None)
+    label = None if is_free else lowest_ever_label_pl(ctx["game"], best_price)
+    free_play_url = None
+    if is_free:
+        steam_offer = ctx.get("steam")
+        if steam_offer is not None and getattr(steam_offer, "affiliate_url", None):
+            free_play_url = steam_offer.affiliate_url
+        elif ctx["game"].steam_appid:
+            free_play_url = f"https://store.steampowered.com/app/{ctx['game'].steam_appid}"
     dlc_games = related_dlc_games(db, ctx["game"], limit=8)
     dlc_ids = [g.id for g in dlc_games]
     parent_row = parent_game_for_dlc(db, ctx["game"])
@@ -1373,14 +1487,18 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
             description=ctx["game"].description,
             cover_image=ctx["cover"],
             best_price_pln=best_price,
-            best_shop_name=ctx["best"].shop_name if ctx["best"] else None,
-            steam_price_pln=ctx["savings"].get("steam_price_pln"),
-            savings_pln=ctx["savings"].get("savings_pln"),
-            savings_pct=ctx["savings"].get("savings_pct"),
+            best_shop_name=(
+                "Steam"
+                if is_free
+                else (ctx["best"].shop_name if ctx["best"] else None)
+            ),
+            steam_price_pln=0.0 if is_free else ctx["savings"].get("steam_price_pln"),
+            savings_pln=None if is_free else ctx["savings"].get("savings_pln"),
+            savings_pct=None if is_free else ctx["savings"].get("savings_pct"),
             offers=ctx["offers"],
-            history=ctx["history"],
-            lowest_ever_pln=ctx["game"].lowest_ever_pln,
-            avg_best_price_30d=ctx["game"].avg_best_price_30d,
+            history=[] if is_free else ctx["history"],
+            lowest_ever_pln=None if is_free else ctx["game"].lowest_ever_pln,
+            avg_best_price_30d=None if is_free else ctx["game"].avg_best_price_30d,
             lowest_ever_label=label,
             at_historical_low=bool(label),
             related_dlc=related,
@@ -1388,7 +1506,12 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
             related_games=similar,
             category_slug=category_slug,
             category_name=category_name,
-            indexable=ctx["best"] is not None,
+            # F2P pages stay indexable (official free product); paid pages need a best offer.
+            indexable=is_free or ctx["best"] is not None,
+            is_free=is_free,
+            free_play_url=free_play_url,
+            history_points=0 if is_free else len(ctx.get("history") or []),
+            best_offer_id=None if is_free else (ctx["best"].id if ctx.get("best") else None),
         ),
         headers={
             # Dynamic price verdict — always revalidate so all users see fresh HTML.
@@ -3821,6 +3944,9 @@ def get_game_offers(
     display_offers = _filter_display_offers(
         sorted_offers, steam_price_pln=steam_price, peer_prices=peer_prices
     )
+    best = _best_offers_map(db, [game.id], region=region).get(game.id)
+    if best is not None:
+        display_offers = [best] + [o for o in display_offers if o.id != best.id]
     response = [
         _offer_to_response(o, steam_price_pln=steam_price, peer_prices=peer_prices)
         for o in display_offers

@@ -43,6 +43,10 @@ def game_interactive_html(
     category_slug: str | None = None,
     category_name: str | None = None,
     indexable: bool = True,
+    is_free: bool = False,
+    free_play_url: str | None = None,
+    history_points: int | None = None,
+    best_offer_id: int | None = None,
 ) -> str:
     page_url = _game_page_url(slug)
     hist_url = f"{SITE_ORIGIN}/historia-cen/{slug}"
@@ -56,7 +60,12 @@ def game_interactive_html(
     safe_page_title = html.escape(page_title)
     safe_h1 = html.escape(h1_text)
 
-    if best_price_pln is not None:
+    if is_free:
+        meta_plain = (
+            f"{title} – darmowa gra (Free-to-Play). Pobierz oficjalnie ze Steam. "
+            f"Sprawdź status i powiązane dodatki na KupujPL."
+        )
+    elif best_price_pln is not None:
         shop_bit = f" w {best_shop_name}" if best_shop_name else ""
         meta_plain = (
             f"{title} – porównaj ceny w sklepach. Najtaniej od {best_price_pln:.2f} zł{shop_bit}. "
@@ -71,7 +80,12 @@ def game_interactive_html(
     meta_desc = html.escape(meta_plain)
 
     seo_bits: list[str] = []
-    if best_price_pln is not None:
+    if is_free:
+        seo_bits.append(
+            f"<strong>{safe_title}</strong> to oficjalnie "
+            f"<strong>darmowa gra (Free-to-Play)</strong>."
+        )
+    elif best_price_pln is not None:
         shop_bit = f" ({html.escape(best_shop_name)})" if best_shop_name else ""
         seo_bits.append(
             f"<strong>{safe_title}</strong> kosztuje obecnie od "
@@ -112,6 +126,11 @@ def game_interactive_html(
         )
 
     offer_list = list(offers or [])
+    if best_offer_id is not None and offer_list:
+        offer_list = sorted(
+            offer_list,
+            key=lambda o: (0 if getattr(o, "id", None) == best_offer_id else 1, float(o.price_pln or 1e9)),
+        )
     offer_rows = ""
     for o in offer_list:
         store_class = classify_store(o.shop_name)
@@ -129,11 +148,22 @@ def game_interactive_html(
             kind = "other"
         trust_fallback = store_class_label_short_pl(store_class)
         go = f"{SITE_ORIGIN}/api/go/{o.id}"
+        checked = ""
+        updated = getattr(o, "updated_at", None)
+        if updated is not None:
+            try:
+                checked = (
+                    f'<div class="offer-checked">Sprawdzono: '
+                    f'{html.escape(updated.strftime("%d.%m.%Y, %H:%M"))}</div>'
+                )
+            except Exception:
+                checked = ""
         offer_rows += (
-            f'<div class="offer-row" data-shop-kind="{kind}" data-store-class="{store_class.value}">'
+            f'<div class="offer-row" data-shop-kind="{kind}" data-store-class="{store_class.value}" '
+            f'data-offer-id="{int(o.id)}">'
             f'<div class="offer-shop"><strong>{html.escape(o.shop_name)}</strong>'
             f'<span class="badge" data-i18n="{trust_key}">{html.escape(trust_fallback)}</span></div>'
-            f'<div class="offer-price">{o.price_pln:.2f} zł</div>'
+            f'<div class="offer-price">{o.price_pln:.2f} zł{checked}</div>'
             f'<a class="btn-buy" href="{html.escape(go)}" rel="noopener noreferrer sponsored" '
             f'target="_blank" data-i18n="offer.buy">Kup</a>'
             f"</div>"
@@ -141,11 +171,61 @@ def game_interactive_html(
 
     # Immediate answer strip: price / shop / buy / "Czy warto kupić?" score
     answer_html = ""
-    if best_price_pln is not None:
+    if is_free:
+        shop = html.escape(best_shop_name or "Steam")
+        play_href = html.escape(free_play_url or "")
+        worth = compute_worth_buy(
+            current_price=0.0,
+            avg_best_price_30d=None,
+            lowest_ever_pln=None,
+            steam_price_pln=None,
+            savings_pct=None,
+            at_historical_low=False,
+            is_free=True,
+        )
+        verdict = worth_buy_html(worth)
+        buy_btn = ""
+        if play_href:
+            buy_btn = (
+                f'<a class="btn-buy game-page-answer-buy" href="{play_href}" '
+                f'rel="noopener noreferrer" target="_blank" '
+                f'data-i18n="game.play_free">Graj za darmo</a>'
+            )
+        answer_html = (
+            '<div class="game-page-answer" id="gp-answer" data-is-free="1">'
+            '<div class="game-page-answer-row">'
+            '<div class="game-page-answer-price">'
+            '<span class="game-page-answer-label" data-i18n="game.price">cena</span> '
+            f'<strong id="gp-best-price">0,00 zł</strong>'
+            f'<span class="game-page-answer-shop"> · {shop} · Free-to-Play</span>'
+            "</div>"
+            f"{buy_btn}"
+            "</div>"
+            f"{verdict}"
+            "</div>"
+        )
+    elif best_price_pln is not None:
         shop = html.escape(best_shop_name or "")
+        buy_offer = None
+        if best_offer_id is not None:
+            buy_offer = next((o for o in offer_list if getattr(o, "id", None) == best_offer_id), None)
+        if buy_offer is None and offer_list:
+            buy_offer = offer_list[0]
         buy_href = ""
-        if offer_list:
-            buy_href = html.escape(f"{SITE_ORIGIN}/api/go/{offer_list[0].id}")
+        if buy_offer is not None:
+            buy_href = html.escape(f"{SITE_ORIGIN}/api/go/{buy_offer.id}")
+        offer_verified = True
+        if buy_offer is not None:
+            top_shop = buy_offer.shop_name or ""
+            conf = getattr(buy_offer, "match_confidence", None)
+            offer_verified = bool(
+                buy_offer.is_official
+                or top_shop in {"Steam", "Steam US", "PlayStation Store", "Xbox Store"}
+                or (conf is not None and float(conf) >= 0.55)
+            )
+        points = history_points
+        if points is None and history is not None:
+            points = len(history)
         worth = compute_worth_buy(
             current_price=best_price_pln,
             avg_best_price_30d=avg_best_price_30d,
@@ -153,6 +233,9 @@ def game_interactive_html(
             steam_price_pln=steam_price_pln,
             savings_pct=savings_pct,
             at_historical_low=at_historical_low,
+            is_free=False,
+            history_points=points,
+            offer_verified=offer_verified,
         )
         verdict = worth_buy_html(worth)
         buy_btn = ""
@@ -304,7 +387,17 @@ def game_interactive_html(
         "gamePlatform": "PC",
         "image": cover_image or None,
     }
-    if best_price_pln:
+    if is_free:
+        product["offers"] = {
+            "@type": "Offer",
+            "priceCurrency": "PLN",
+            "price": "0.00",
+            "availability": "https://schema.org/InStock",
+            "url": free_play_url or page_url,
+            "category": "FreeToPlay",
+        }
+        product["isAccessibleForFree"] = True
+    elif best_price_pln is not None and best_price_pln > 0:
         product["offers"] = {
             "@type": "AggregateOffer",
             "priceCurrency": "PLN",

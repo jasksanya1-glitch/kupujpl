@@ -4,7 +4,7 @@ DATA SOURCE → SERVICE → CACHE → PAGE/API
 ---------------------------------------
 offers (DB)
   → offer_eligible_for_best_price + region filters  (game_offer_selection)
-  → best_offers_map / get_current_min_price          (this module)
+  → best_offers_map / get_current_min_price / game_price_context
   → short TTL in-process caches (_HOME_RESP_CACHE, games list)
   → homepage / promocje / categories / search / Polecane / game page / API
 
@@ -15,6 +15,7 @@ path with raw SQL MIN(price_pln) for displayed prices.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
@@ -25,7 +26,71 @@ from app.core.game_offer_selection import (
     offer_visible_for_shopping_region,
 )
 from app.core.offer_quality import offer_eligible_for_best_price
+from app.core.worth_buy import WorthBuyResult, compute_worth_buy
 from app.models.models import Game, Offer
+
+
+@dataclass(frozen=True)
+class GamePriceContext:
+    """Single public price/status view for catalog, page, SEO, and API."""
+
+    is_free: bool
+    price_pln: float | None
+    best_offer: Offer | None
+    worth: WorthBuyResult | None
+
+
+def game_price_context(
+    db: Session,
+    game: Game,
+    *,
+    region: str = "pl",
+    steam_price_pln: float | None = None,
+    savings_pct: int | None = None,
+    history_points: int | None = None,
+) -> GamePriceContext:
+    """Canonical F2P/paid price + worth-buy for every public surface."""
+    is_free = bool(getattr(game, "is_free", False))
+    if is_free:
+        worth = compute_worth_buy(
+            current_price=0.0,
+            is_free=True,
+            history_points=history_points,
+        )
+        return GamePriceContext(
+            is_free=True,
+            price_pln=0.0,
+            best_offer=None,
+            worth=worth,
+        )
+    price, offer = get_current_min_price(db, game, region=region)
+    at_low = bool(
+        price is not None
+        and game.lowest_ever_pln
+        and price <= float(game.lowest_ever_pln) * 1.02
+    )
+    worth = compute_worth_buy(
+        current_price=price,
+        avg_best_price_30d=game.avg_best_price_30d,
+        lowest_ever_pln=game.lowest_ever_pln,
+        steam_price_pln=steam_price_pln,
+        savings_pct=savings_pct,
+        at_historical_low=at_low,
+        is_free=False,
+        history_points=history_points,
+        offer_verified=bool(
+            offer is None
+            or offer.is_official
+            or (offer.match_confidence is not None and offer.match_confidence >= 0.55)
+            or (offer.shop_name or "") in {"Steam", "Steam US", "PlayStation Store", "Xbox Store"}
+        ),
+    )
+    return GamePriceContext(
+        is_free=False,
+        price_pln=price,
+        best_offer=offer,
+        worth=worth,
+    )
 
 
 def get_valid_current_offers(
@@ -66,6 +131,8 @@ def get_current_min_price(
     region: str = "pl",
 ) -> tuple[float | None, Offer | None]:
     """Canonical minimum: (price_pln, winning offer) or (None, None)."""
+    if bool(getattr(game, "is_free", False)):
+        return 0.0, None
     best = best_offers_map(db, [game.id], region=region, games={game.id: game}).get(game.id)
     if not best or best.price_pln is None:
         return None, None
