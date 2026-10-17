@@ -13,7 +13,6 @@ from typing import List, Optional, Any
 import logging
 import math
 import os
-import re
 import json
 import time
 import hashlib
@@ -68,7 +67,25 @@ from app.core.affiliate import make_affiliate_link, resolve_outbound_url
 from app.core.affiliate_config import affiliate_env_status
 from app.core.click_tracking import collect_click_stats, log_affiliate_click, prune_old_clicks
 from app.core.og_image import render_og_png, render_logo_png
-from app.core.offer_quality import offer_eligible_for_best_price, offer_is_suspicious_outlier
+from app.core.f2p_storefronts import verified_free_play_storefront
+from app.core.offer_freshness import (
+    evaluate_offer_freshness,
+    format_last_checked_pl,
+    freshness_warning_pl,
+)
+from app.core.offer_quality import (
+    offer_edition_verified,
+    offer_eligible_for_best_price,
+    offer_is_suspicious_outlier,
+)
+from app.core.site_chat_routes import router as site_chat_router
+from app.core.price_engine import (
+    evaluate_game_prices,
+    evaluate_game_prices_from_db,
+    result_to_audit_dict,
+    unverified_offers_from_result,
+)
+from app.core.price_engine_config import price_engine_v2_enabled
 from app.core.catalog_cache import on_catalog_change
 from app.core.game_offer_selection import (
     best_offers_map as _best_offers_map,
@@ -302,9 +319,11 @@ app = FastAPI(
     version="1.4.0",
 )
 
+
+app.include_router(site_chat_router)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in os.environ.get("CORS_ORIGINS", "https://kupujpl.pl,https://www.kupujpl.pl").split(",") if o.strip()],
+    allow_origins=[o.strip() for o in os.environ.get("CORS_ORIGINS", "https://quenly.pl,https://www.quenly.pl,https://kupujpl.pl,https://www.kupujpl.pl").split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -533,85 +552,6 @@ def _static_page(name: str):
     return FileResponse(path)
 
 
-_MOBILE_HOME_UA_RE = re.compile(
-    r"Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini|"
-    r"Googlebot-Mobile|AdsBot-Google-Mobile|Mobile Safari",
-    re.I,
-)
-_MOBILE_HOME_BLOCK_RE = re.compile(
-    r"<!--\s*Mobile-only legacy home[\s\S]*?-->\s*"
-    r'<div id="mobile-home-mount"></div>\s*'
-    r'<template id="tpl-mobile-home-legacy">([\s\S]*?)</template>',
-    re.I,
-)
-_MOBILE_SORT_RE = re.compile(
-    r'<label class="catalog-sort"[^>]*id="mobile-catalog-sort"[^>]*>[\s\S]*?</label>',
-    re.I,
-)
-
-
-def _wants_mobile_home_html(request: Request) -> bool:
-    """Prefer Client Hints; fall back to UA. Desktop browsers must not get legacy hero HTML."""
-    ch = (request.headers.get("sec-ch-ua-mobile") or "").strip()
-    if ch == "?1":
-        return True
-    if ch == "?0":
-        return False
-    ua = request.headers.get("user-agent") or ""
-    return bool(_MOBILE_HOME_UA_RE.search(ua))
-
-
-def _index_html_response(request: Request) -> HTMLResponse:
-    path = os.path.join(STATIC_DIR, "index.html")
-    if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail="Page not found")
-    with open(path, encoding="utf-8") as fh:
-        html = fh.read()
-    match = _MOBILE_HOME_BLOCK_RE.search(html)
-    if match:
-        inner = match.group(1)
-        if _wants_mobile_home_html(request):
-            sort_m = _MOBILE_SORT_RE.search(inner)
-            sort_html = sort_m.group(0) if sort_m else ""
-            home_html = _MOBILE_SORT_RE.sub("", inner, count=1) if sort_m else inner
-            replacement = f'<div id="mobile-home-mount">{home_html}</div>'
-            html = _MOBILE_HOME_BLOCK_RE.sub(replacement, html, count=1)
-            if sort_html:
-                html = html.replace(
-                    '<div id="catalog-sort-slot"></div>',
-                    f'<div id="catalog-sort-slot">{sort_html}</div>',
-                    1,
-                )
-        else:
-            html = _MOBILE_HOME_BLOCK_RE.sub(
-                '<div id="mobile-home-mount" hidden></div>',
-                html,
-                count=1,
-            )
-    # Crawlable first paint: Polecane + news + first catalogue cards (JS still hydrates).
-    try:
-        from app.core.home_ssr import inject_homepage_ssr, safe_homepage_ssr
-
-        db = SessionLocal()
-        try:
-            fragments = safe_homepage_ssr(db)
-            if fragments:
-                html = inject_homepage_ssr(html, fragments)
-        finally:
-            db.close()
-    except Exception:
-        logging.getLogger("home_ssr").exception("homepage SSR inject failed")
-    return HTMLResponse(
-        content=html,
-        media_type="text/html; charset=utf-8",
-        headers={
-            "Cache-Control": "private, no-cache",
-            "Vary": "User-Agent, Sec-CH-UA-Mobile",
-            "Accept-CH": "Sec-CH-UA-Mobile",
-        },
-    )
-
-
 def _display_title(title: str | None) -> str:
     if not title:
         return ""
@@ -619,25 +559,17 @@ def _display_title(title: str | None) -> str:
 
 
 def _savings_vs_steam(best: Offer | None, steam: Offer | None) -> dict[str, float | int | None]:
-    """Discount vs Steam reference — omit when reference/current invalid."""
     steam_price = float(steam.price_pln) if steam and steam.price_pln else None
     best_price = float(best.price_pln) if best and best.price_pln else None
-    empty = {"steam_price_pln": steam_price, "savings_pln": None, "savings_pct": None}
-    # reference_price > current_price > 0
-    if steam_price is None or best_price is None:
-        return empty
-    if steam_price <= 0 or best_price <= 0 or best_price >= steam_price:
-        return empty
+    if steam_price is None or best_price is None or best_price >= steam_price:
+        return {"steam_price_pln": steam_price, "savings_pln": None, "savings_pct": None}
     savings = steam_price - best_price
     if savings < 0.01:
-        return empty
-    pct = int(round((savings / steam_price) * 100))
-    if pct < 1 or pct > 99:
-        return empty
+        return {"steam_price_pln": steam_price, "savings_pln": None, "savings_pct": None}
     return {
         "steam_price_pln": steam_price,
         "savings_pln": round(savings, 2),
-        "savings_pct": pct,
+        "savings_pct": int(round((savings / steam_price) * 100)),
     }
 
 
@@ -648,31 +580,6 @@ def _game_list_item(
     *,
     deal_age_label: str | None = None,
 ) -> GameListResponse:
-    is_free = bool(game.is_free)
-    if is_free:
-        # Permanent F2P: catalog/list price is always 0 — never a paid keyshop.
-        return GameListResponse(
-            id=game.id,
-            title=_display_title(game.title),
-            slug=game.slug,
-            cover_image=list_cover_image(game.cover_image, game.steam_appid),
-            steam_appid=game.steam_appid,
-            platform=getattr(game, "platform", None) or "pc",
-            release_date=game.release_date,
-            rating=game.rating,
-            best_price_pln=0.0,
-            best_price_is_official=True,
-            best_shop_name="Steam",
-            steam_price_pln=0.0,
-            savings_pln=None,
-            savings_pct=None,
-            lowest_ever_pln=None,
-            avg_best_price_30d=None,
-            lowest_ever_label=None,
-            at_historical_low=False,
-            deal_age_label=deal_age_label,
-            is_free=True,
-        )
     savings = _savings_vs_steam(best, steam)
     best_price = best.price_pln if best else None
     label = lowest_ever_label_pl(game, best_price)
@@ -700,30 +607,18 @@ def _game_list_item(
     )
 
 
-_F2P_OFFICIAL_SHOPS = frozenset({"Steam", "Steam US", "GOG", "Epic Games"})
-
-
 def _sorted_offers(game: Game, *, region: str = "pl") -> list[Offer]:
     region = _normalize_shopping_region(region)
     active = _display_shops_for_game(game, region=region)
-    is_free = bool(getattr(game, "is_free", False))
-    visible: list[Offer] = []
-    for o in game.offers:
-        if not o.in_stock or o.shop_name not in active:
-            continue
-        if o.price_pln is None:
-            continue
-        if not _offer_visible_for_shopping_region(o, region):
-            continue
-        if is_free:
-            # F2P base page: only official free storefronts (price may be 0).
-            if o.shop_name not in _F2P_OFFICIAL_SHOPS:
-                continue
-            if o.price_pln < 0:
-                continue
-        elif o.price_pln <= 0:
-            continue
-        visible.append(o)
+    allow_zero = bool(getattr(game, "is_free", False))
+    visible = [
+        o for o in game.offers
+        if o.in_stock
+        and o.shop_name in active
+        and o.price_pln is not None
+        and (o.price_pln > 0 or (allow_zero and o.price_pln == 0))
+        and _offer_visible_for_shopping_region(o, region)
+    ]
     # One row per shop: cheapest among matching activation regions
     by_shop: dict[str, Offer] = {}
     for offer in visible:
@@ -790,24 +685,51 @@ def _queue_offer_refresh(
     )
 
 
-def _peer_prices_for_offers(offers: list[Offer]) -> list[float]:
-    return [float(o.price_pln) for o in offers if o.price_pln]
+def _peer_prices_for_offers(
+    offers: list[Offer],
+    *,
+    game_title: str | None = None,
+) -> list[float]:
+    skip = {"Steam", "Steam US", "PlayStation Store", "Xbox Store"}
+    out: list[float] = []
+    for o in offers:
+        if not o.price_pln or o.price_pln <= 0:
+            continue
+        if (o.shop_name or "") in skip:
+            continue
+        if game_title and not offer_edition_verified(o, game_title=game_title):
+            continue
+        out.append(float(o.price_pln))
+    return out
 
 
 def _steam_price_from_game(game: Game, *, region: str = "pl") -> float | None:
-    steam_shop = _steam_shop_for_region(region)
-    steam_offer = next(
-        (o for o in game.offers if o.shop_name == steam_shop and o.in_stock),
-        None,
-    )
-    if steam_offer is None and region == "us":
-        steam_offer = next(
-            (o for o in game.offers if o.shop_name == "Steam" and o.in_stock),
-            None,
+    from app.core.price_engine import _reference_steam_price_pl
+
+    return _reference_steam_price_pl(game.offers, region=region)
+
+
+def _engine_display_offers(
+    engine_result,
+    *,
+    sorted_offers: list[Offer],
+    steam_price_pln: float | None,
+    peer_prices: list[float],
+    game_title: str | None,
+) -> list[Offer]:
+    """Offers safe to hydrate game page / API — never leak excluded keyshops when engine is empty."""
+    if engine_result is None:
+        return _filter_display_offers(
+            sorted_offers,
+            steam_price_pln=steam_price_pln,
+            peer_prices=peer_prices,
+            game_title=game_title,
         )
-    if steam_offer and steam_offer.price_pln:
-        return float(steam_offer.price_pln)
-    return None
+    return list(engine_result.confirmed_offers) + list(engine_result.stale_offers)
+
+
+def _engine_unverified_offers(engine_result) -> list[tuple[Offer, str | None]]:
+    return unverified_offers_from_result(engine_result)
 
 
 def _filter_display_offers(
@@ -815,17 +737,19 @@ def _filter_display_offers(
     *,
     steam_price_pln: float | None,
     peer_prices: list[float],
+    game_title: str | None = None,
 ) -> list[Offer]:
-    """Drop absurd marketplace outliers (wrong SKU / broken cheap links)."""
-    kept = [
+    """Drop wrong editions / absurd marketplace outliers (never invent a fallback)."""
+    return [
         o
         for o in offers
-        if o.is_official
-        or not offer_is_suspicious_outlier(
-            o, steam_price_pln=steam_price_pln, peer_prices=peer_prices
+        if not offer_is_suspicious_outlier(
+            o,
+            steam_price_pln=steam_price_pln,
+            peer_prices=peer_prices,
+            game_title=game_title,
         )
     ]
-    return kept or list(offers)
 
 
 def _offer_to_response(
@@ -833,12 +757,16 @@ def _offer_to_response(
     *,
     steam_price_pln: float | None = None,
     peer_prices: list[float] | None = None,
+    game_title: str | None = None,
+    price_bucket: str | None = None,
+    exclusion_reason: str | None = None,
 ) -> OfferResponse:
     confidence = offer.match_confidence
     suspicious = offer_is_suspicious_outlier(
         offer,
         steam_price_pln=steam_price_pln,
         peer_prices=peer_prices,
+        game_title=game_title,
     )
     low = suspicious or (confidence is not None and confidence < 0.55)
     trust = shop_trust_badge(offer.shop_name, is_official=offer.is_official)
@@ -858,10 +786,11 @@ def _offer_to_response(
         trust_label=trust["label"] if trust else None,
         trust_tier=trust["tier"] if trust else None,
         trust_note=trust.get("notes_pl") if trust else None,
-        store_class=trust.get("store_class") if trust else None,
         refund_policy_url=trust.get("refund_policy_url") if trust else None,
         refund_note_pl=trust.get("refund_note_pl") if trust else None,
         refund_note_uk=trust.get("refund_note_uk") if trust else None,
+        price_bucket=price_bucket,
+        exclusion_reason=exclusion_reason,
     )
 
 
@@ -885,61 +814,78 @@ def _game_to_response(
             (o for o in game.offers if o.shop_name == "Steam" and o.in_stock),
             None,
         )
-    peer_prices = _peer_prices_for_offers(sorted_offers)
+    peer_prices = _peer_prices_for_offers(sorted_offers, game_title=game.title)
     display_offers = _filter_display_offers(
-        sorted_offers, steam_price_pln=steam_price, peer_prices=peer_prices
+        sorted_offers,
+        steam_price_pln=steam_price,
+        peer_prices=peer_prices,
+        game_title=game.title,
     )
 
     offers = [
-        _offer_to_response(o, steam_price_pln=steam_price, peer_prices=peer_prices)
+        _offer_to_response(
+            o,
+            steam_price_pln=steam_price,
+            peer_prices=peer_prices,
+            game_title=game.title,
+        )
         for o in display_offers
     ]
     updated_at = _offers_updated_at(game)
     tier_a = is_in_tier_a_daily_scan(game)
+    is_free = bool(game.is_free)
 
-    if bool(game.is_free):
-        return GameResponse(
-            id=game.id,
-            title=_display_title(game.title),
-            slug=game.slug,
-            cover_image=game.cover_image,
-            description=game.description,
-            steam_appid=game.steam_appid,
-            platform=getattr(game, "platform", None) or "pc",
-            release_date=game.release_date,
-            rating=game.rating,
-            created_at=game.created_at,
-            offers=offers,
-            offers_updated_at=updated_at,
-            offers_stale=_offers_stale(game),
-            in_stock_shop_count=_in_stock_shop_count(game, region=region),
-            in_tier_a_daily_scan=tier_a,
-            next_tier_a_scan_at=next_tier_a_scan_at() if tier_a else None,
-            best_price_pln=0.0,
-            best_shop_name="Steam",
-            lowest_ever_pln=None,
-            avg_best_price_30d=None,
-            lowest_ever_label=None,
-            at_historical_low=False,
-            steam_price_pln=0.0,
-            savings_pln=None,
-            savings_pct=None,
-            is_free=True,
-            related_dlc=related_dlc or [],
-            parent_game=parent_game,
+    engine_result = None
+    unverified_offers: list[OfferResponse] = []
+    if price_engine_v2_enabled():
+        engine_result = evaluate_game_prices(game, sorted_offers, region=region)
+        best_raw = engine_result.best_confirmed_offer
+        display_offers = _engine_display_offers(
+            engine_result,
+            sorted_offers=sorted_offers,
+            steam_price_pln=steam_price,
+            peer_prices=peer_prices,
+            game_title=game.title,
         )
-
-    eligible = [
-        o
-        for o in display_offers
-        if offer_eligible_for_best_price(
-            o, steam_price_pln=steam_price, peer_prices=peer_prices
-        )
-    ]
-    best_raw = eligible[0] if eligible else (display_offers[0] if display_offers else None)
-    best_price = best_raw.price_pln if best_raw else None
+        confirmed_ids = {o.id for o in engine_result.confirmed_offers}
+        offers = [
+            _offer_to_response(
+                o,
+                steam_price_pln=steam_price,
+                peer_prices=peer_prices,
+                game_title=game.title,
+                price_bucket="confirmed" if o.id in confirmed_ids else "stale",
+            )
+            for o in display_offers
+        ]
+        unverified_offers = [
+            _offer_to_response(
+                o,
+                steam_price_pln=steam_price,
+                peer_prices=peer_prices,
+                game_title=game.title,
+                price_bucket="unverified",
+                exclusion_reason=reason,
+            )
+            for o, reason in _engine_unverified_offers(engine_result)
+        ]
+    else:
+        eligible = [
+            o
+            for o in display_offers
+            if offer_eligible_for_best_price(
+                o,
+                steam_price_pln=steam_price,
+                peer_prices=peer_prices,
+                game_title=game.title,
+                allow_zero_price=is_free,
+            )
+        ]
+        best_raw = eligible[0] if eligible else None
+    best_price = best_raw.price_pln if best_raw is not None else None
     savings = _savings_vs_steam(best_raw, steam_offer)
     label = lowest_ever_label_pl(game, best_price)
+    recommended = engine_result.recommended_offer if engine_result else best_raw
     return GameResponse(
         id=game.id,
         title=_display_title(game.title),
@@ -952,6 +898,7 @@ def _game_to_response(
         rating=game.rating,
         created_at=game.created_at,
         offers=offers,
+        unverified_offers=unverified_offers,
         offers_updated_at=updated_at,
         offers_stale=_offers_stale(game),
         in_stock_shop_count=_in_stock_shop_count(game, region=region),
@@ -959,6 +906,18 @@ def _game_to_response(
         next_tier_a_scan_at=next_tier_a_scan_at() if tier_a else None,
         best_price_pln=best_price,
         best_shop_name=best_raw.shop_name if best_raw else None,
+        price_verified=bool(engine_result and engine_result.has_confirmed) if engine_result else None,
+        price_confirmed=bool(engine_result and engine_result.has_confirmed) if engine_result else None,
+        price_match_verified=bool(
+            engine_result and (engine_result.has_confirmed or engine_result.has_match_verified_stale_only)
+        )
+        if engine_result
+        else None,
+        price_stale=bool(engine_result and not engine_result.has_confirmed and engine_result.stale_offers)
+        if engine_result
+        else None,
+        recommended_price_pln=recommended.price_pln if recommended else None,
+        recommended_shop_name=recommended.shop_name if recommended else None,
         lowest_ever_pln=game.lowest_ever_pln,
         avg_best_price_30d=game.avg_best_price_30d,
         lowest_ever_label=label,
@@ -1169,8 +1128,8 @@ def service_worker_js():
 
 
 @app.get("/")
-def read_root(request: Request):
-    return _index_html_response(request)
+def read_root():
+    return _static_page("index.html")
 
 
 @app.get("/login")
@@ -1228,27 +1187,6 @@ def legal_en_page():
     return _static_page("legal-en.html")
 
 
-@app.get("/legal", response_class=HTMLResponse)
-def legal_hub_page():
-    """Public legal hub (200) linking Polish terms + privacy + EN legal."""
-    body = """<!DOCTYPE html><html lang="pl"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Informacje prawne — KupujPL</title>
-<link rel="canonical" href="https://kupujpl.pl/games/legal">
-<meta name="robots" content="index,follow">
-<link rel="stylesheet" href="static/style.css?v=93">
-</head><body class="legal-page"><main class="wrap" style="max-width:720px;margin:2rem auto;padding:1rem">
-<h1>Informacje prawne</h1>
-<ul>
-<li><a href="regulamin">Regulamin</a></li>
-<li><a href="polityka-prywatnosci">Polityka prywatności</a></li>
-<li><a href="legal-en">Legal information (EN)</a></li>
-</ul>
-<p><a href="./">← KupujPL Gry</a></p>
-</main></body></html>"""
-    return HTMLResponse(body)
-
-
 @app.get("/api/site/info")
 def site_info():
     return public_site_info()
@@ -1260,6 +1198,10 @@ def api_geo(request: Request):
     from app.core.site_tracking import visitor_geo_hint
 
     return visitor_geo_hint(request)
+
+
+
+# Site chat routes: app.core.site_chat_routes (honest unavailable / 503)
 
 
 @app.get("/api/fx")
@@ -1335,58 +1277,43 @@ def blog_feed(db: Session = Depends(get_db)):
 
 def _game_landing_context(db: Session, game: Game) -> dict:
     game = _load_game_with_offers(db, game.id)
-    best_map = _best_offers_map(db, [game.id])
     steam_map = _steam_offers_map(db, [game.id])
-    best = best_map.get(game.id)
     steam = steam_map.get(game.id)
-    is_free = bool(getattr(game, "is_free", False))
-    if is_free:
-        # Prefer in-memory Steam free offer (price 0) even when steam_map
-        # excludes price_pln == 0.
-        steam = next(
-            (
-                o
-                for o in game.offers
-                if o.in_stock and o.shop_name in ("Steam", "Steam US")
-            ),
-            steam,
-        )
-        best = None
-        savings = {"steam_price_pln": 0.0, "savings_pln": None, "savings_pct": None}
-        sorted_offers = _sorted_offers(game)
-        display_offers = sorted_offers
-        offers = [
-            _offer_to_response(o, steam_price_pln=0.0, peer_prices=[])
-            for o in display_offers
-        ]
-        # Do not write paid-keyshop snapshots into F2P history.
-        history = get_price_history(db, game.id, days=90, current_best_pln=None)
-        return {
-            "game": game,
-            "offers": offers,
-            "best": best,
-            "steam": steam,
-            "savings": savings,
-            "history": history,
-            "cover": list_cover_image(game.cover_image, game.steam_appid),
-            "is_free": True,
-        }
-    savings = _savings_vs_steam(best, steam)
-    sorted_offers = _sorted_offers(game)
-    peer_prices = _peer_prices_for_offers(sorted_offers)
     steam_price = float(steam.price_pln) if steam and steam.price_pln else None
-    display_offers = _filter_display_offers(
-        sorted_offers, steam_price_pln=steam_price, peer_prices=peer_prices
-    )
-    # Hero price/CTA and table row #1 must be the same canonical best offer.
-    if best is not None:
-        display_offers = [best] + [o for o in display_offers if o.id != best.id]
+    sorted_offers = _sorted_offers(game)
+    peer_prices = _peer_prices_for_offers(sorted_offers, game_title=game.title)
+    engine_result = None
+    if price_engine_v2_enabled():
+        engine_result = evaluate_game_prices(game, sorted_offers)
+        best = engine_result.best_confirmed_offer
+        display_models = _engine_display_offers(
+            engine_result,
+            sorted_offers=sorted_offers,
+            steam_price_pln=steam_price,
+            peer_prices=peer_prices,
+            game_title=game.title,
+        )
+    else:
+        best_map = _best_offers_map(db, [game.id])
+        best = best_map.get(game.id)
+        display_models = _filter_display_offers(
+            sorted_offers,
+            steam_price_pln=steam_price,
+            peer_prices=peer_prices,
+            game_title=game.title,
+        )
     offers = [
-        _offer_to_response(o, steam_price_pln=steam_price, peer_prices=peer_prices)
-        for o in display_offers
+        _offer_to_response(
+            o,
+            steam_price_pln=steam_price,
+            peer_prices=peer_prices,
+            game_title=game.title,
+        )
+        for o in display_models
     ]
-    best_price = float(best.price_pln) if best and best.price_pln else None
-    if best_price is not None:
+    savings = _savings_vs_steam(best, steam)
+    best_price = float(best.price_pln) if best is not None and best.price_pln is not None else None
+    if best_price is not None and best_price > 0:
         ensure_today_best_snapshot(
             db,
             game_id=game.id,
@@ -1398,15 +1325,44 @@ def _game_landing_context(db: Session, game: Game) -> dict:
         except Exception:
             db.rollback()
     history = get_price_history(db, game.id, days=90, current_best_pln=best_price)
+    last_offer_ts = _offers_updated_at(game)
+    freshness = evaluate_offer_freshness(
+        best.updated_at if best else last_offer_ts,
+        shop_name=best.shop_name if best else None,
+    )
+    freshness_note = None
+    if engine_result is not None:
+        if best is None:
+            freshness_note = engine_result.confirmed_unavailable_message or freshness_warning_pl(
+                evaluate_offer_freshness(last_offer_ts, shop_name=None)
+            )
+        elif not engine_result.has_confirmed:
+            freshness_note = engine_result.confirmed_unavailable_message
+    elif best is None or freshness.needs_warning or freshness.status in {"too_old", "unknown"}:
+        freshness_note = freshness_warning_pl(freshness)
+    free_sf = (
+        verified_free_play_storefront(game.steam_appid)
+        if bool(game.is_free)
+        else None
+    )
     return {
         "game": game,
         "offers": offers,
         "best": best,
+        "recommended": engine_result.recommended_offer if engine_result else best,
+        "price_engine": engine_result,
         "steam": steam,
         "savings": savings,
         "history": history,
         "cover": list_cover_image(game.cover_image, game.steam_appid),
-        "is_free": False,
+        "freshness": freshness,
+        "freshness_note": freshness_note,
+        "last_checked_label": (
+            engine_result.last_checked_label
+            if engine_result and engine_result.last_checked_label
+            else format_last_checked_pl(best.updated_at if best else last_offer_ts)
+        ),
+        "free_play": free_sf,
     }
 
 
@@ -1419,16 +1375,8 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
     if (slug or "").strip().lower() != (game.slug or "").strip().lower():
         return RedirectResponse(url=f"{SITE_ORIGIN}/gra/{game.slug}", status_code=301)
     ctx = _game_landing_context(db, game)
-    is_free = bool(ctx.get("is_free")) or bool(getattr(ctx["game"], "is_free", False))
-    best_price = 0.0 if is_free else (ctx["best"].price_pln if ctx["best"] else None)
-    label = None if is_free else lowest_ever_label_pl(ctx["game"], best_price)
-    free_play_url = None
-    if is_free:
-        steam_offer = ctx.get("steam")
-        if steam_offer is not None and getattr(steam_offer, "affiliate_url", None):
-            free_play_url = steam_offer.affiliate_url
-        elif ctx["game"].steam_appid:
-            free_play_url = f"https://store.steampowered.com/app/{ctx['game'].steam_appid}"
+    best_price = ctx["best"].price_pln if ctx["best"] else None
+    label = lowest_ever_label_pl(ctx["game"], best_price)
     dlc_games = related_dlc_games(db, ctx["game"], limit=8)
     dlc_ids = [g.id for g in dlc_games]
     parent_row = parent_game_for_dlc(db, ctx["game"])
@@ -1480,25 +1428,41 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
         parent_dump = _game_list_item(
             parent_row, dlc_best.get(parent_row.id), dlc_steam.get(parent_row.id)
         ).model_dump()
+    free_sf = ctx.get("free_play")
+    is_free = bool(ctx["game"].is_free)
+    # Free games: prefer verified storefront URL over Steam remnant affiliate go-link.
+    free_url = None
+    free_label = None
+    if is_free and free_sf:
+        free_url = free_sf.url
+        free_label = free_sf.label_pl
+    elif is_free and ctx["best"] is not None and (ctx["best"].price_pln or 0) <= 0.01:
+        free_url = f"{SITE_ORIGIN}/api/go/{ctx['best'].id}"
+        free_label = "Graj za darmo"
+    indexable = bool(free_url) or (
+        ctx["best"] is not None and best_price is not None and best_price > 0
+    )
+    # Verified F2P claim URL is authoritative — do not scare users with "no offers".
+    freshness_note = None if free_url else ctx.get("freshness_note")
+    last_checked_label = None if free_url else ctx.get("last_checked_label")
     return HTMLResponse(
         game_interactive_html(
             title=_display_title(ctx["game"].title),
             slug=ctx["game"].slug,
             description=ctx["game"].description,
             cover_image=ctx["cover"],
-            best_price_pln=best_price,
+            best_price_pln=best_price if not is_free else (0.0 if free_url else None),
             best_shop_name=(
-                "Steam"
-                if is_free
-                else (ctx["best"].shop_name if ctx["best"] else None)
+                (free_sf.shop_name if free_sf else None)
+                or (ctx["best"].shop_name if ctx["best"] else None)
             ),
-            steam_price_pln=0.0 if is_free else ctx["savings"].get("steam_price_pln"),
-            savings_pln=None if is_free else ctx["savings"].get("savings_pln"),
-            savings_pct=None if is_free else ctx["savings"].get("savings_pct"),
+            steam_price_pln=ctx["savings"].get("steam_price_pln"),
+            savings_pln=ctx["savings"].get("savings_pln"),
+            savings_pct=ctx["savings"].get("savings_pct"),
             offers=ctx["offers"],
-            history=[] if is_free else ctx["history"],
-            lowest_ever_pln=None if is_free else ctx["game"].lowest_ever_pln,
-            avg_best_price_30d=None if is_free else ctx["game"].avg_best_price_30d,
+            history=ctx["history"],
+            lowest_ever_pln=ctx["game"].lowest_ever_pln,
+            avg_best_price_30d=ctx["game"].avg_best_price_30d,
             lowest_ever_label=label,
             at_historical_low=bool(label),
             related_dlc=related,
@@ -1506,12 +1470,17 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
             related_games=similar,
             category_slug=category_slug,
             category_name=category_name,
-            # F2P pages stay indexable (official free product); paid pages need a best offer.
-            indexable=is_free or ctx["best"] is not None,
+            indexable=indexable,
             is_free=is_free,
-            free_play_url=free_play_url,
-            history_points=0 if is_free else len(ctx.get("history") or []),
-            best_offer_id=None if is_free else (ctx["best"].id if ctx.get("best") else None),
+            free_play_url=free_url,
+            free_play_label=free_label,
+            freshness_note=freshness_note,
+            last_checked_label=last_checked_label,
+            worth_buy_enabled=bool(ctx.get("best")),
+            price_confirmed=(
+                ctx["price_engine"].has_confirmed if ctx.get("price_engine") is not None else None
+            ),
+            display_offer_ids=[o.id for o in ctx["offers"]],
         ),
         headers={
             # Dynamic price verdict — always revalidate so all users see fresh HTML.
@@ -1749,7 +1718,6 @@ def api_articles_latest(db: Session = Depends(get_db), limit: int = 6):
                 else None,
                 "url": f"/games/blog/{a.slug}",
                 "article_type": a.article_type,
-                "featured_image": a.featured_image,
             }
             for a in arts
         ],
@@ -1988,6 +1956,22 @@ def panel3_live_page(request: Request):
 def admin_stats(request: Request, db: Session = Depends(get_db)):
     require_panel3_gate(request)
     return collect_admin_stats(db)
+
+
+@app.get("/api/admin/price-audit")
+def admin_price_audit(
+    request: Request,
+    game_id: int = Query(..., ge=1),
+    region: str = Query("pl"),
+    db: Session = Depends(get_db),
+):
+    require_panel3_gate(request)
+    game = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    game = _load_game_with_offers(db, game.id)
+    result = evaluate_game_prices_from_db(db, game, region=_normalize_shopping_region(region))
+    return result_to_audit_dict(result)
 
 
 @app.get("/api/admin/events")
@@ -3206,23 +3190,13 @@ def catalog_status(db: Session = Depends(get_db)):
         .group_by(Offer.shop_name)
         .all()
     )
-    offers_by_shop = {name: count for name, count in offer_rows}
-    display_shops_all = list(get_display_shops())
-    # PL marketing count excludes Steam US (region-specific storefront).
-    pl_shops = sorted(_display_shops_for_region("pl"))
     return {
         **get_catalog_progress(),
         "games_total": visible,
         "games_in_db": total_in_db,
         "games_enriched": enriched,
         "categories_total": categories,
-        # Canonical public storefront count (marketing / FAQ / hero meta) — PL region.
-        "stores_total": len(pl_shops),
-        "display_shops": pl_shops,
-        "display_shops_all": display_shops_all,
-        # Raw distinct shop_name rows in Offer table (may include Steam US / console).
-        "stores_with_offers": len(offers_by_shop),
-        "offers_by_shop": offers_by_shop,
+        "offers_by_shop": {name: count for name, count in offer_rows},
         "offer_scheduler": get_scheduler_status(),
     }
 
@@ -3940,15 +3914,30 @@ def get_game_offers(
     game = _load_game_with_offers(db, game.id)
     sorted_offers = _sorted_offers(game, region=region)
     steam_price = _steam_price_from_game(game, region=region)
-    peer_prices = _peer_prices_for_offers(sorted_offers)
-    display_offers = _filter_display_offers(
-        sorted_offers, steam_price_pln=steam_price, peer_prices=peer_prices
-    )
-    best = _best_offers_map(db, [game.id], region=region).get(game.id)
-    if best is not None:
-        display_offers = [best] + [o for o in display_offers if o.id != best.id]
+    peer_prices = _peer_prices_for_offers(sorted_offers, game_title=game.title)
+    if price_engine_v2_enabled():
+        engine_result = evaluate_game_prices(game, sorted_offers, region=region)
+        display_offers = _engine_display_offers(
+            engine_result,
+            sorted_offers=sorted_offers,
+            steam_price_pln=steam_price,
+            peer_prices=peer_prices,
+            game_title=game.title,
+        )
+    else:
+        display_offers = _filter_display_offers(
+            sorted_offers,
+            steam_price_pln=steam_price,
+            peer_prices=peer_prices,
+            game_title=game.title,
+        )
     response = [
-        _offer_to_response(o, steam_price_pln=steam_price, peer_prices=peer_prices)
+        _offer_to_response(
+            o,
+            steam_price_pln=steam_price,
+            peer_prices=peer_prices,
+            game_title=game.title,
+        )
         for o in display_offers
     ]
     _price_debug_log(

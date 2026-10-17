@@ -21,10 +21,12 @@ class OfferResponse(OfferBase):
     trust_label: Optional[str] = None
     trust_tier: Optional[str] = None
     trust_note: Optional[str] = None
-    store_class: Optional[str] = None  # OFFICIAL_STORE | AUTHORIZED_RESELLER | MARKETPLACE | UNREVIEWED
     refund_policy_url: Optional[str] = None
     refund_note_pl: Optional[str] = None
     refund_note_uk: Optional[str] = None
+    # Price Engine V2: confirmed/stale stay in `offers`; excluded-but-visible use unverified_offers
+    price_bucket: Optional[str] = None
+    exclusion_reason: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -47,6 +49,8 @@ class GameResponse(GameBase):
     id: int
     created_at: datetime
     offers: List[OfferResponse] = []
+    # In-stock marketplace rows excluded from confirmed best price (never mixed into `offers`).
+    unverified_offers: List[OfferResponse] = []
     offers_updated_at: Optional[datetime] = None
     offers_stale: bool = False
     in_stock_shop_count: int = 0
@@ -54,6 +58,12 @@ class GameResponse(GameBase):
     next_tier_a_scan_at: Optional[str] = None
     best_price_pln: Optional[float] = None
     best_shop_name: Optional[str] = None
+    price_verified: Optional[bool] = None
+    price_stale: Optional[bool] = None
+    price_match_verified: Optional[bool] = None
+    price_confirmed: Optional[bool] = None
+    recommended_price_pln: Optional[float] = None
+    recommended_shop_name: Optional[str] = None
     lowest_ever_pln: Optional[float] = None
     avg_best_price_30d: Optional[float] = None
     lowest_ever_label: Optional[str] = None

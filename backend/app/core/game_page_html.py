@@ -1,4 +1,4 @@
-"""Interactive full game page HTML (replaces modal UX)."""
+﻿"""Interactive full game page HTML (replaces modal UX)."""
 from __future__ import annotations
 
 import html
@@ -383,9 +383,9 @@ def game_interactive_html(
   <meta property="og:description" content="{meta_desc}">
   <meta property="og:image" content="{SITE_ORIGIN}/og/gra/{html.escape(slug)}.png">
   <meta property="og:url" content="{html.escape(page_url)}">
-  <link rel="icon" href="static/favicon.png?v=1" type="image/png">
-  <link rel="shortcut icon" href="static/favicon.ico?v=1">
-  <link rel="icon" href="static/favicon.ico?v=1" sizes="any">
+  <link rel="icon" href="static/brand/quenly/favicon-32.png?v=4" type="image/png">
+  <link rel="shortcut icon" href="static/brand/quenly/favicon.ico?v=4">
+  <link rel="icon" href="static/brand/quenly/favicon.ico?v=4" sizes="any">
   <link rel="stylesheet" href="static/style.css?v=99">
   <link rel="stylesheet" href="static/mobile-concept4.css?v=20">
   <link rel="stylesheet" href="static/desktop-concept3.css?v=22">
@@ -446,6 +446,11 @@ def game_interactive_html(
     .game-page-desc{{margin:0;font-size:.9rem;line-height:1.45;color:#e8e2d2!important;text-transform:none!important;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}}
     .game-page-prices{{margin-top:2px}}
     .game-page-prices .offers-title{{margin:0 0 8px}}
+    .offers-unverified{{margin-top:16px;padding-top:12px;border-top:1px dashed rgba(0,0,0,.14)}}
+    .offers-unverified-title{{margin:0 0 4px;font-size:.95rem}}
+    .offers-unverified-note{{margin:0 0 10px;font-size:.8rem;opacity:.78;line-height:1.35}}
+    .offer-row-unverified{{opacity:.92}}
+    .badge-unverified{{background:rgba(196,92,38,.12);color:#8a3d14;border:1px solid rgba(196,92,38,.28)}}
     .game-page-actions{{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}}
     @media (max-width:900px){{
       .game-media-row{{grid-template-columns:1fr;gap:12px}}

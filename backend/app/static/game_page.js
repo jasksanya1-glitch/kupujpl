@@ -115,6 +115,7 @@
     let offersPollToken = 0;
     let scanStatusEl = null;
     let lastOffers = null;
+    let lastUnverifiedOffers = null;
     let lastGame = null;
 
     function ensureScanStatus() {
@@ -211,9 +212,50 @@
         return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    function renderOffers(offers, game) {
+    function offerRowHtml(o, { unverified = false } = {}) {
+        const trust = trustBadge(o);
+        const sc = String(o.store_class || '').toUpperCase();
+        const kind = (sc === 'OFFICIAL_STORE' || o.is_official)
+            ? 'official'
+            : sc === 'AUTHORIZED_RESELLER'
+                ? 'authorized'
+                : sc === 'MARKETPLACE'
+                    ? 'keyshop'
+                    : 'other';
+        const go = api(`go/${o.id}`);
+        const priceTxt = formatPrice(o.price_pln);
+        const regionBadge = activationBadge(o);
+        const regionHtml = regionBadge
+            ? `<span class="badge badge-region">${escapeHtml(regionBadge)}</span>`
+            : '';
+        const checked = formatCheckedAt(o.updated_at || o.updatedAt);
+        const checkedHtml = checked
+            ? `<div class="offer-checked">Sprawdzono: ${escapeHtml(checked)}</div>`
+            : '';
+        const freshStatus = String(o.freshness_status || o.freshnessStatus || '');
+        const freshLabel = o.freshness_label || o.freshnessLabel || '';
+        const freshHtml = freshLabel
+            ? `<span class="badge badge-freshness badge-freshness-${escapeHtml(freshStatus)}">${escapeHtml(freshLabel)}</span>`
+            : '';
+        const unverifiedBadge = unverified
+            ? '<span class="badge badge-unverified">Niepotwierdzona</span>'
+            : '';
+        const bucket = unverified ? 'unverified' : String(o.price_bucket || 'confirmed');
+        return `<div class="offer-row${unverified ? ' offer-row-unverified' : ''}" data-shop-kind="${kind}" data-offer-id="${Number(o.id)}" data-freshness="${escapeHtml(freshStatus)}" data-price-bucket="${escapeHtml(bucket)}">
+            <div class="offer-shop"><strong>${escapeHtml(shopLabel(o.shop_name))}</strong>
+            <span class="badge">${escapeHtml(trust)}</span>${unverifiedBadge}${regionHtml}${freshHtml}</div>
+            <div class="offer-price">${priceTxt}${checkedHtml}</div>
+            <a class="btn-buy" href="${escapeHtml(go)}" rel="noopener noreferrer sponsored" target="_blank" aria-label="${escapeHtml(tt('offer.buy'))}">${escapeHtml(tt('offer.buy'))}</a>
+        </div>`;
+    }
+
+    function renderOffers(offers, game, unverifiedOffers) {
         if (!offersEl) return;
         lastOffers = offers;
+        if (unverifiedOffers !== undefined) lastUnverifiedOffers = unverifiedOffers;
+        const unverifiedSrc = unverifiedOffers !== undefined
+            ? unverifiedOffers
+            : (game && game.unverified_offers) || lastUnverifiedOffers || [];
         let list = filterOffersForRegion(offers || []).filter((o) => o.in_stock && o.price_pln > 0);
         if (game && game.is_free) {
             list = filterOffersForRegion(offers || []).filter(
@@ -230,39 +272,24 @@
         } else {
             list = list.slice().sort((a, b) => Number(a.price_pln) - Number(b.price_pln));
         }
-        if (!list.length) {
+        const unverified = filterOffersForRegion(unverifiedSrc || [])
+            .filter((o) => o.in_stock && o.price_pln > 0)
+            .slice()
+            .sort((a, b) => Number(a.price_pln) - Number(b.price_pln));
+        if (!list.length && !unverified.length) {
             offersEl.innerHTML = `<p class="offers-empty" data-i18n="offer.empty">${escapeHtml(tt('offer.empty'))}</p>`;
             return;
         }
-        offersEl.innerHTML = list
-            .map((o) => {
-                const trust = trustBadge(o);
-                const sc = String(o.store_class || '').toUpperCase();
-                const kind = (sc === 'OFFICIAL_STORE' || o.is_official)
-                    ? 'official'
-                    : sc === 'AUTHORIZED_RESELLER'
-                        ? 'authorized'
-                        : sc === 'MARKETPLACE'
-                            ? 'keyshop'
-                            : 'other';
-                const go = api(`go/${o.id}`);
-                const priceTxt = formatPrice(o.price_pln);
-                const regionBadge = activationBadge(o);
-                const regionHtml = regionBadge
-                    ? `<span class="badge badge-region">${escapeHtml(regionBadge)}</span>`
-                    : '';
-                const checked = formatCheckedAt(o.updated_at || o.updatedAt);
-                const checkedHtml = checked
-                    ? `<div class="offer-checked">Sprawdzono: ${escapeHtml(checked)}</div>`
-                    : '';
-                return `<div class="offer-row" data-shop-kind="${kind}" data-offer-id="${Number(o.id)}">
-                    <div class="offer-shop"><strong>${escapeHtml(shopLabel(o.shop_name))}</strong>
-                    <span class="badge">${escapeHtml(trust)}</span>${regionHtml}</div>
-                    <div class="offer-price">${priceTxt}${checkedHtml}</div>
-                    <a class="btn-buy" href="${escapeHtml(go)}" rel="noopener noreferrer sponsored" target="_blank">${escapeHtml(tt('offer.buy'))}</a>
-                </div>`;
-            })
-            .join('');
+        let html = list.map((o) => offerRowHtml(o)).join('');
+        if (unverified.length) {
+            html +=
+                '<div class="offers-unverified" id="gp-offers-unverified">' +
+                '<h3 class="offers-unverified-title">Oferty niezweryfikowane</h3>' +
+                '<p class="offers-unverified-note">Te ceny nie wpływają na cenę główną — brak potwierdzenia zgodności produktu, regionu lub świeżości.</p>' +
+                unverified.map((o) => offerRowHtml(o, { unverified: true })).join('') +
+                '</div>';
+        }
+        offersEl.innerHTML = html;
         bindBuyTracking();
     }
 
@@ -286,10 +313,7 @@
 
     function computeWorthBuy(game) {
         let price = Number(game?.best_price_pln);
-        if (!(price > 0) && Array.isArray(game?.offers)) {
-            const prices = game.offers.map((o) => Number(o.price_pln)).filter((n) => n > 0);
-            if (prices.length) price = Math.min(...prices);
-        }
+        // Do not fall back to stale table rows for KUP TERAZ — best_price is SoT (fresh only).
         if (!(price > 0)) return null;
         const histLow = game.lowest_ever_pln != null ? Number(game.lowest_ever_pln) : null;
         const avg30 = game.avg_best_price_30d != null ? Number(game.avg_best_price_30d) : null;
@@ -448,7 +472,7 @@
             coverEl.alt = game.title;
         }
         document.title = `${game.title}${tt('game.title_suffix')}`;
-        renderOffers(game.offers, game);
+        renderOffers(game.offers, game, game.unverified_offers || []);
         updateHistBadge(game);
         updateWorthBuy(game);
         updateSavings(game);
@@ -524,7 +548,13 @@
         else {
             // Translate SSR buy/empty if still present
             offersEl?.querySelectorAll('a.btn-buy').forEach((a) => {
-                a.textContent = tt('offer.buy');
+                const label = tt('offer.buy');
+                a.setAttribute('aria-label', label);
+                if (a.getAttribute('data-i18n') === 'game.play_free') {
+                    a.textContent = tt('game.play_free');
+                } else {
+                    a.textContent = label;
+                }
             });
             const empty = offersEl?.querySelector('.offers-empty');
             if (empty) empty.textContent = tt(empty.getAttribute('data-i18n') || 'offer.empty');
@@ -551,6 +581,11 @@
     }
 
     async function requestOffersRefresh() {
+        // Only queue when there are zero in-stock shops (holes). Never poll otherwise.
+        const stockCount = Number(
+            lastGame?.in_stock_shop_count ?? lastGame?.inStockShopCount ?? -1
+        );
+        if (stockCount > 0) return;
         const token = ++offersPollToken;
         try {
             const res = await fetch(api(`games/${encodeURIComponent(slug)}/refresh-offers`), {
