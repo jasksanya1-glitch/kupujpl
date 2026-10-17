@@ -8,7 +8,7 @@ from app.core.price_engine import unverified_offers_from_result as _engine_unver
 
 def test_engine_unverified_offers_excludes_confirmed_and_oos():
     confirmed = SimpleNamespace(id=1, in_stock=True, price_pln=199.99, shop_name="Steam")
-    stale = SimpleNamespace(id=2, in_stock=True, price_pln=199.99, shop_name="Epic Games")
+    stale = SimpleNamespace(id=2, in_stock=True, price_pln=180.0, shop_name="Epic Games")
     cheap = SimpleNamespace(id=3, in_stock=True, price_pln=33.46, shop_name="Kinguin")
     oos = SimpleNamespace(id=4, in_stock=False, price_pln=31.0, shop_name="CDKeys")
 
@@ -23,10 +23,13 @@ def test_engine_unverified_offers_excludes_confirmed_and_oos():
         ],
     )
     out = _engine_unverified_offers(engine)
-    assert len(out) == 1
-    offer, reason = out[0]
-    assert offer.id == 3
-    assert reason == "not_eligible"
+    # Stale + excluded-unverified when confirmed exists; OOS omitted.
+    assert {o.id for o, _ in out} == {2, 3}
+    by_id = {o.id: reason for o, reason in out}
+    assert by_id[2] == "stale"
+    assert by_id[3] == "not_eligible"
+    # Cheapest unverified first
+    assert out[0][0].id == 3
 
 
 def test_engine_unverified_offers_none_engine():

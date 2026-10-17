@@ -79,6 +79,7 @@ from app.core.offer_quality import (
     offer_is_suspicious_outlier,
 )
 from app.core.site_chat_routes import router as site_chat_router
+from app.core.scanner_admin_routes import router as scanner_admin_router
 from app.core.price_engine import (
     evaluate_game_prices,
     evaluate_game_prices_from_db,
@@ -135,7 +136,12 @@ from app.core.seo_landings import (
     hub_links_html,
     is_indexable_count,
 )
-from app.core.price_history import ensure_today_best_snapshot, get_price_history, lowest_ever_label_pl
+from app.core.price_history import (
+    ensure_today_best_snapshot,
+    get_price_history,
+    lowest_ever_label_pl,
+    trusted_history_display,
+)
 from app.core.price_alerts import ensure_telegram_link_token, set_favorite_alert, process_price_alerts
 from app.core.game_page_html import game_interactive_html
 from app.core.home_feeds import (
@@ -321,6 +327,7 @@ app = FastAPI(
 
 
 app.include_router(site_chat_router)
+app.include_router(scanner_admin_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in os.environ.get("CORS_ORIGINS", "https://quenly.pl,https://www.quenly.pl,https://kupujpl.pl,https://www.kupujpl.pl").split(",") if o.strip()],
@@ -717,7 +724,10 @@ def _engine_display_offers(
     peer_prices: list[float],
     game_title: str | None,
 ) -> list[Offer]:
-    """Offers safe to hydrate game page / API — never leak excluded keyshops when engine is empty."""
+    """Main offer table: confirmed only when present; else match-verified stale fallback.
+
+    Cheaper stale / unverified rows belong in unverified_offers, not beside confirmed.
+    """
     if engine_result is None:
         return _filter_display_offers(
             sorted_offers,
@@ -725,7 +735,9 @@ def _engine_display_offers(
             peer_prices=peer_prices,
             game_title=game_title,
         )
-    return list(engine_result.confirmed_offers) + list(engine_result.stale_offers)
+    if engine_result.confirmed_offers:
+        return list(engine_result.confirmed_offers)
+    return list(engine_result.stale_offers)
 
 
 def _engine_unverified_offers(engine_result) -> list[tuple[Offer, str | None]]:
@@ -884,7 +896,24 @@ def _game_to_response(
         best_raw = eligible[0] if eligible else None
     best_price = best_raw.price_pln if best_raw is not None else None
     savings = _savings_vs_steam(best_raw, steam_offer)
+    # PE V2: trusted historical low (excludes pre-matching junk) for Worth Buy / UI.
+    # Uses Session from offer relationship when available via game; fall back to stored.
+    lowest_ever = game.lowest_ever_pln
+    avg_30 = game.avg_best_price_30d
     label = lowest_ever_label_pl(game, best_price)
+    at_hist_low = bool(label)
+    hist_points = 0
+    db_bind = None
+    try:
+        from sqlalchemy.orm import object_session
+
+        db_bind = object_session(game)
+    except Exception:
+        db_bind = None
+    if db_bind is not None and price_engine_v2_enabled():
+        lowest_ever, avg_30, label, at_hist_low, hist_points = trusted_history_display(
+            db_bind, game, current_best=best_price, region=region
+        )
     recommended = engine_result.recommended_offer if engine_result else best_raw
     return GameResponse(
         id=game.id,
@@ -918,16 +947,18 @@ def _game_to_response(
         else None,
         recommended_price_pln=recommended.price_pln if recommended else None,
         recommended_shop_name=recommended.shop_name if recommended else None,
-        lowest_ever_pln=game.lowest_ever_pln,
-        avg_best_price_30d=game.avg_best_price_30d,
+        lowest_ever_pln=lowest_ever,
+        avg_best_price_30d=avg_30,
         lowest_ever_label=label,
-        at_historical_low=bool(label),
+        at_historical_low=at_hist_low,
         steam_price_pln=savings["steam_price_pln"],
         savings_pln=savings["savings_pln"],
         savings_pct=savings["savings_pct"],
         is_free=bool(game.is_free),
         related_dlc=related_dlc or [],
         parent_game=parent_game,
+        history_points=hist_points or None,
+        best_offer_id=best_raw.id if best_raw is not None else None,
     )
 
 
@@ -1376,7 +1407,9 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
         return RedirectResponse(url=f"{SITE_ORIGIN}/gra/{game.slug}", status_code=301)
     ctx = _game_landing_context(db, game)
     best_price = ctx["best"].price_pln if ctx["best"] else None
-    label = lowest_ever_label_pl(ctx["game"], best_price)
+    lowest_ever, avg_30, label, at_hist_low, hist_points = trusted_history_display(
+        db, ctx["game"], current_best=best_price
+    )
     dlc_games = related_dlc_games(db, ctx["game"], limit=8)
     dlc_ids = [g.id for g in dlc_games]
     parent_row = parent_game_for_dlc(db, ctx["game"])
@@ -1461,10 +1494,10 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
             savings_pct=ctx["savings"].get("savings_pct"),
             offers=ctx["offers"],
             history=ctx["history"],
-            lowest_ever_pln=ctx["game"].lowest_ever_pln,
-            avg_best_price_30d=ctx["game"].avg_best_price_30d,
+            lowest_ever_pln=lowest_ever,
+            avg_best_price_30d=avg_30,
             lowest_ever_label=label,
-            at_historical_low=bool(label),
+            at_historical_low=at_hist_low,
             related_dlc=related,
             parent_game=parent_dump,
             related_games=similar,
@@ -1481,6 +1514,8 @@ def game_landing_page(slug: str, db: Session = Depends(get_db)):
                 ctx["price_engine"].has_confirmed if ctx.get("price_engine") is not None else None
             ),
             display_offer_ids=[o.id for o in ctx["offers"]],
+            history_points=hist_points or None,
+            best_offer_id=ctx["best"].id if ctx.get("best") is not None else None,
         ),
         headers={
             # Dynamic price verdict — always revalidate so all users see fresh HTML.
@@ -1573,14 +1608,26 @@ def category_landing_page(slug: str, db: Session = Depends(get_db)):
     return HTMLResponse(category_landing_html(category=cat, games=items))
 
 
+# Price-sensitive SSR landings: short revalidate so PE updates are not sticky.
+_DYNAMIC_PRICE_HTML_HEADERS = {
+    "Cache-Control": "no-cache, must-revalidate",
+    "Pragma": "no-cache",
+    "Vary": "Accept-Encoding",
+}
+
+
+def _price_landing_html(content: str) -> HTMLResponse:
+    return HTMLResponse(content, headers=_DYNAMIC_PRICE_HTML_HEADERS)
+
+
 @app.get("/promocje", response_class=HTMLResponse)
 def promocje_page(db: Session = Depends(get_db)):
-    return HTMLResponse(_seo_landing_page(db, "promocje"))
+    return _price_landing_html(_seo_landing_page(db, "promocje"))
 
 
 @app.get("/najwieksze-okazje", response_class=HTMLResponse)
 def najwieksze_okazje_page(db: Session = Depends(get_db)):
-    return HTMLResponse(_seo_landing_page(db, "najwieksze-okazje"))
+    return _price_landing_html(_seo_landing_page(db, "najwieksze-okazje"))
 
 
 @app.get("/gry-ponizej-{price}-zl", response_class=HTMLResponse)
@@ -1594,29 +1641,29 @@ def gry_ponizej_page(price: int, db: Session = Depends(get_db)):
 def gry_pc_do_price_page(price: int, db: Session = Depends(get_db)):
     if price not in BUDGET_PRICES:
         raise HTTPException(status_code=404, detail="Nie znaleziono")
-    return HTMLResponse(_seo_landing_page(db, budget_canonical_slug(price)))
+    return _price_landing_html(_seo_landing_page(db, budget_canonical_slug(price)))
 
 
 @app.get("/gry-pc-znizka-{pct}", response_class=HTMLResponse)
 def gry_pc_znizka_page(pct: int, db: Session = Depends(get_db)):
     if pct not in (50, 70, 80, 90):
         raise HTTPException(status_code=404, detail="Nie znaleziono")
-    return HTMLResponse(_seo_landing_page(db, f"gry-pc-znizka-{pct}"))
+    return _price_landing_html(_seo_landing_page(db, f"gry-pc-znizka-{pct}"))
 
 
 @app.get("/gry-rpg", response_class=HTMLResponse)
 def gry_rpg_page(db: Session = Depends(get_db)):
-    return HTMLResponse(_seo_landing_page(db, "gry-rpg"))
+    return _price_landing_html(_seo_landing_page(db, "gry-rpg"))
 
 
 @app.get("/gry-strategie", response_class=HTMLResponse)
 def gry_strategie_page(db: Session = Depends(get_db)):
-    return HTMLResponse(_seo_landing_page(db, "gry-strategie"))
+    return _price_landing_html(_seo_landing_page(db, "gry-strategie"))
 
 
 @app.get("/gry-co-op", response_class=HTMLResponse)
 def gry_co_op_page(db: Session = Depends(get_db)):
-    return HTMLResponse(_seo_landing_page(db, "gry-co-op"))
+    return _price_landing_html(_seo_landing_page(db, "gry-co-op"))
 
 
 @app.get("/najtansze-gry-steam", response_class=HTMLResponse)

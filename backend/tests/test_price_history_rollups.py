@@ -10,7 +10,9 @@ from app.models.models import Base, Game, Offer
 
 
 @pytest.fixture
-def db() -> Session:
+def db(monkeypatch) -> Session:
+    # Legacy eligibility assertions (pre-PE peer filter).
+    monkeypatch.setenv("PRICE_ENGINE_V2", "0")
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     session = sessionmaker(bind=engine)()

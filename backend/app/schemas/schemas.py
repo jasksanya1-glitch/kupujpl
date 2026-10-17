@@ -68,12 +68,14 @@ class GameResponse(GameBase):
     avg_best_price_30d: Optional[float] = None
     lowest_ever_label: Optional[str] = None
     at_historical_low: bool = False
+    history_points: Optional[int] = None
     steam_price_pln: Optional[float] = None
     savings_pln: Optional[float] = None
     savings_pct: Optional[int] = None
     is_free: bool = False
     related_dlc: List["GameListResponse"] = []
     parent_game: Optional["GameListResponse"] = None
+    best_offer_id: Optional[int] = None
 
     class Config:
         from_attributes = True

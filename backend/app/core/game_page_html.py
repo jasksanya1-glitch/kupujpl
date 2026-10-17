@@ -148,6 +148,8 @@ def game_interactive_html(
             steam_price_pln=steam_price_pln,
             savings_pct=savings_pct,
             at_historical_low=at_historical_low,
+            history_points=history_points,
+            offer_verified=True if price_confirmed is None else bool(price_confirmed),
         )
         verdict = worth_buy_html(worth) if not is_free else ""
         buy_btn = ""
@@ -163,11 +165,20 @@ def game_interactive_html(
                 f'rel="noopener noreferrer sponsored" target="_blank" '
                 f'data-i18n="game.buy_cheapest">Kup najtaniej</a>'
             )
+        if price_confirmed:
+            price_label = (
+                '<span class="game-page-answer-label" data-i18n="game.confirmed_best">'
+                "Najniższa potwierdzona</span> "
+            )
+        else:
+            price_label = (
+                '<span class="game-page-answer-label" data-i18n="game.from">od</span> '
+            )
         answer_html = (
             '<div class="game-page-answer" id="gp-answer">'
             '<div class="game-page-answer-row">'
             '<div class="game-page-answer-price">'
-            '<span class="game-page-answer-label" data-i18n="game.from">od</span> '
+            f"{price_label}"
             f'<strong id="gp-best-price">{best_price_pln:.2f} zł</strong>'
             f'<span class="game-page-answer-shop"> · {shop}</span>'
             "</div>"
@@ -233,9 +244,11 @@ def game_interactive_html(
 
     history_meta = ""
     if lowest_ever_pln:
-        history_meta = f"Najniższa w historii: {lowest_ever_pln:.2f} zł"
+        history_meta = f"Najniższa potwierdzona w historii: {lowest_ever_pln:.2f} zł"
         if avg_best_price_30d:
             history_meta += f" · średnia 30 dni: {avg_best_price_30d:.2f} zł"
+    elif price_confirmed is not None:
+        history_meta = "Za mało potwierdzonych danych historycznych"
 
     chart = price_history_svg(history, title=f"Historia cen {title}", width=720, height=240)
     history_section = ""
@@ -557,6 +570,6 @@ def game_interactive_html(
   <script src="static/site-chat.js?v=3"></script>
   <script src="static/umami-loader.js?v=1"></script>
   <script src="static/core-bundle.js?v=8"></script>
-  <script src="static/game_page.js?v=13"></script>
+  <script src="static/game_page.js?v=14"></script>
 </body>
 </html>"""

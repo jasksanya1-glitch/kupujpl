@@ -240,13 +240,35 @@
         const unverifiedBadge = unverified
             ? '<span class="badge badge-unverified">Niepotwierdzona</span>'
             : '';
+        const reasonLabel = unverified ? unverifiedReasonLabel(o.exclusion_reason || o.exclusionReason) : '';
+        const reasonHtml = reasonLabel
+            ? `<div class="offer-unverified-reason">${escapeHtml(reasonLabel)}</div>`
+            : '';
         const bucket = unverified ? 'unverified' : String(o.price_bucket || 'confirmed');
         return `<div class="offer-row${unverified ? ' offer-row-unverified' : ''}" data-shop-kind="${kind}" data-offer-id="${Number(o.id)}" data-freshness="${escapeHtml(freshStatus)}" data-price-bucket="${escapeHtml(bucket)}">
             <div class="offer-shop"><strong>${escapeHtml(shopLabel(o.shop_name))}</strong>
             <span class="badge">${escapeHtml(trust)}</span>${unverifiedBadge}${regionHtml}${freshHtml}</div>
-            <div class="offer-price">${priceTxt}${checkedHtml}</div>
+            <div class="offer-price">${priceTxt}${checkedHtml}${reasonHtml}</div>
             <a class="btn-buy" href="${escapeHtml(go)}" rel="noopener noreferrer sponsored" target="_blank" aria-label="${escapeHtml(tt('offer.buy'))}">${escapeHtml(tt('offer.buy'))}</a>
         </div>`;
+    }
+
+    function unverifiedReasonLabel(reason) {
+        const key = String(reason || '').toLowerCase();
+        const map = {
+            stale: 'Cena może być nieaktualna — nie wpływa na cenę główną.',
+            price_anomaly: 'Cena wymaga dodatkowej weryfikacji.',
+            peer_outlier: 'Cena odbiega od innych ofert — wymaga potwierdzenia.',
+            freshness: 'Oferta dawno nie była sprawdzana.',
+            edition_mismatch: 'Edycja produktu nie jest w pełni potwierdzona.',
+            low_confidence: 'Dopasowanie produktu nie jest w pełni potwierdzone.',
+            url_invalid: 'Link wymaga potwierdzenia.',
+            insufficient_data: 'Za mało danych do pełnego potwierdzenia oferty.',
+            not_eligible: 'Oferta nie spełnia kryteriów potwierdzonej ceny.',
+        };
+        if (map[key]) return map[key];
+        if (!key) return 'Brak pełnego potwierdzenia zgodności oferty.';
+        return 'Brak pełnego potwierdzenia zgodności oferty.';
     }
 
     function renderOffers(offers, game, unverifiedOffers) {
@@ -285,7 +307,7 @@
             html +=
                 '<div class="offers-unverified" id="gp-offers-unverified">' +
                 '<h3 class="offers-unverified-title">Oferty niezweryfikowane</h3>' +
-                '<p class="offers-unverified-note">Te ceny nie wpływają na cenę główną — brak potwierdzenia zgodności produktu, regionu lub świeżości.</p>' +
+                '<p class="offers-unverified-note">Mogą być tańsze, ale nie ustalają „Najniższej potwierdzonej” — brak potwierdzenia produktu, edycji, regionu lub świeżości ceny.</p>' +
                 unverified.map((o) => offerRowHtml(o, { unverified: true })).join('') +
                 '</div>';
         }
@@ -342,9 +364,21 @@
             parts.push([steamScore, 0.25]);
             parts.push([clamp(pct * 1.35, 0, 100), 0.15]);
         }
+        if (game && game.price_confirmed === false) {
+            return {
+                score: 40,
+                tier: 'wait',
+                emoji: '🔴',
+                label: 'POCZEKAJ',
+                reason: 'Oferta nie jest wystarczająco zweryfikowana, by rekomendować zakup.',
+            };
+        }
         if (!parts.length) return null;
         const tw = parts.reduce((s, x) => s + x[1], 0);
-        const score = Math.round(parts.reduce((s, x) => s + x[0] * x[1], 0) / tw);
+        let score = Math.round(parts.reduce((s, x) => s + x[0] * x[1], 0) / tw);
+        const histPts = game?.history_points != null ? Number(game.history_points) : null;
+        const thinHistory = histPts != null && histPts < 3;
+        if (thinHistory && score >= 75) score = Math.min(score, 74);
         let tier, emoji, label, reason;
         if (score >= 75) {
             tier = 'buy'; emoji = '🟢'; label = 'KUP TERAZ';
@@ -354,7 +388,8 @@
             else reason = 'Cena jest bardzo dobra względem dostępnych sygnałów.';
         } else if (score >= 45) {
             tier = 'maybe'; emoji = '🟡'; label = 'MOŻESZ POCZEKAĆ';
-            if (avg30 && price > avg30 * 1.03) reason = 'Cena jest przeciętna — drożej niż średnia z 30 dni.';
+            if (thinHistory) reason = 'Za mało potwierdzonej historii cen, by rekomendować zakup teraz.';
+            else if (avg30 && price > avg30 * 1.03) reason = 'Cena jest przeciętna — drożej niż średnia z 30 dni.';
             else if (savingsPct != null && savingsPct < 15) reason = 'Różnica vs Steam jest umiarkowana — warto obserwować.';
             else reason = 'Cena jest OK, ale nie rewelacyjna — możesz poczekać na lepszy moment.';
         } else {
@@ -427,7 +462,9 @@
         const el = document.getElementById('gp-history-meta');
         if (!el) return;
         if (!game?.lowest_ever_pln) {
-            el.textContent = '';
+            el.textContent = game?.price_confirmed
+                ? (tt('game.history_insufficient') || 'Za mało potwierdzonych danych historycznych')
+                : '';
             return;
         }
         const low = formatPrice(game.lowest_ever_pln);

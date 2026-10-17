@@ -596,31 +596,32 @@ def rejected_offers_from_result(
 def unverified_offers_from_result(
     engine_result: PriceEngineResult | None,
 ) -> list[tuple[Offer, str | None]]:
-    """In-stock excluded rows that are identity-plausible but not confirmed.
+    """Buyable-with-warning rows: stale and excluded-but-plausible.
 
-    REJECTED rows (wrong game/SKU/edition/bad URL) are omitted — they must not
-    appear as buyable unverified offers.
+    When confirmed offers exist, stale rows move here (not into the main
+    confirmed list) so a cheaper outdated price cannot look like a peer of
+    Najniższa potwierdzona. REJECTED wrong-SKU rows are omitted.
     """
     if engine_result is None:
         return []
-    display_ids = {
-        o.id
-        for o in list(engine_result.confirmed_offers) + list(engine_result.stale_offers)
-    }
+    confirmed_ids = {o.id for o in engine_result.confirmed_offers}
     out: list[tuple[Offer, str | None]] = []
     seen: set[int] = set()
     for row in engine_result.rows or []:
         offer = row.offer
-        if offer is None or offer.id in display_ids or offer.id in seen:
+        if offer is None or offer.id in seen or offer.id in confirmed_ids:
             continue
-        if row.bucket != "excluded":
-            continue
-        if offer_row_display_tier(row) == "rejected":
+        if offer_row_display_tier(row) != "unverified":
             continue
         if not offer.in_stock or offer.price_pln is None or offer.price_pln <= 0:
             continue
         reason = row.exclusion_reason
-        reason_s = reason.value if hasattr(reason, "value") else (str(reason) if reason else None)
+        if reason is None and row.bucket == "stale":
+            reason_s = "stale"
+        else:
+            reason_s = (
+                reason.value if hasattr(reason, "value") else (str(reason) if reason else None)
+            )
         seen.add(offer.id)
         out.append((offer, reason_s))
     out.sort(key=lambda item: float(item[0].price_pln or 0))

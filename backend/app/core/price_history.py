@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from statistics import median
 
@@ -16,10 +17,12 @@ from app.core.game_offer_selection import (
 )
 from app.core.offer_quality import (
     BEST_PRICE_MIN_CONFIDENCE,
+    KEYSHOP_CONFIRMED_STEAM_RATIO,
     STEAM_PRICE_RATIO_FLOOR,
     is_peer_price_outlier,
     offer_eligible_for_best_price,
 )
+from app.core.price_engine_config import price_engine_v2_enabled
 from app.models.models import Game, Offer, PriceSnapshot
 from app.parsers.shop_scan_config import get_display_shops
 
@@ -29,6 +32,21 @@ RETENTION_DAYS = 90
 PRICE_EPSILON = 0.009
 # Default shopping region for catalogue history / rollups (matches SSR + SEO).
 HISTORY_SHOPPING_REGION = "pl"
+# Historical lows use the confirmed keyshop floor (stricter than raw STEAM_PRICE_RATIO_FLOOR).
+HISTORY_STEAM_RATIO_FLOOR = KEYSHOP_CONFIRMED_STEAM_RATIO
+
+
+@dataclass(frozen=True)
+class TrustedHistoryRollup:
+    """PE-aware history figures for display / Worth Buy (no DB mutation required)."""
+
+    lowest_ever_pln: float | None
+    lowest_ever_at: datetime | None
+    avg_best_price_30d: float | None
+    valid_snapshot_count: int
+    insufficient_data: bool
+    # Stored Game.lowest_ever_pln when it fails the trusted filter (audit / UI note).
+    discarded_stored_low_pln: float | None = None
 
 
 def _steam_price_for_game(
@@ -69,6 +87,14 @@ def _eligible_offers(
         .all()
     )
     visible = [o for o in rows if offer_visible_for_shopping_region(o, region)]
+    if price_engine_v2_enabled():
+        from app.core.price_engine import evaluate_game_prices
+
+        result = evaluate_game_prices(game, visible, region=region)
+        # Confirmed only — never let price_anomaly / wrong-edition drive rollups.
+        if result.confirmed_offers:
+            return list(result.confirmed_offers)
+        return list(result.stale_offers)
     steam = _steam_price_for_game(db, game_id, region=region)
     peer_prices = [float(o.price_pln) for o in visible if o.price_pln]
     return [
@@ -103,7 +129,10 @@ def _snapshot_price_ok(
 ) -> bool:
     if price <= 0:
         return False
-    if steam_price is not None and steam_price >= 5 and price / steam_price < STEAM_PRICE_RATIO_FLOOR:
+    # History uses the confirmed keyshop floor so pre-V2 junk (e.g. 2.29 vs Steam 15)
+    # cannot remain the "najniższa w historii" after matching fixes.
+    floor = HISTORY_STEAM_RATIO_FLOOR if price_engine_v2_enabled() else STEAM_PRICE_RATIO_FLOOR
+    if steam_price is not None and steam_price >= 5 and price / steam_price < floor:
         return False
     others = list(peer_prices)
     try:
@@ -191,29 +220,39 @@ def record_offer_price_change(
     update_game_price_rollups(db, game_id)
 
 
-def update_game_price_rollups(
-    db: Session, game_id: int, *, region: str = HISTORY_SHOPPING_REGION
-) -> None:
-    game = db.query(Game).filter(Game.id == game_id).first()
-    if not game:
-        return
+def compute_trusted_history_rollups(
+    db: Session,
+    game: Game,
+    *,
+    region: str = HISTORY_SHOPPING_REGION,
+) -> TrustedHistoryRollup:
+    """Compute PE-filtered lowest_ever / avg_30d without writing the Game row.
+
+    Pre-V2 snapshots that fail the confirmed steam ratio or peer outlier checks
+    are excluded from the trusted historical minimum used by Worth Buy and UI.
+    """
     if bool(getattr(game, "is_free", False)):
-        game.avg_best_price_30d = None
-        game.lowest_ever_pln = None
-        game.lowest_ever_at = None
-        return
+        return TrustedHistoryRollup(
+            lowest_ever_pln=None,
+            lowest_ever_at=None,
+            avg_best_price_30d=None,
+            valid_snapshot_count=0,
+            insufficient_data=True,
+            discarded_stored_low_pln=float(game.lowest_ever_pln)
+            if game.lowest_ever_pln is not None
+            else None,
+        )
     region = normalize_shopping_region(region)
     now = datetime.utcnow()
     since_30 = now - timedelta(days=30)
-    # Snapshots may still contain Steam US / junk shops — filter by region shop set.
     display = list(display_shops_for_game(game, region=region))
-    steam = _steam_price_for_game(db, game_id, region=region)
-    peer_now = _eligible_offer_prices(db, game_id, region=region)
+    steam = _steam_price_for_game(db, game.id, region=region)
+    peer_now = _eligible_offer_prices(db, game.id, region=region)
 
     snaps = (
         db.query(PriceSnapshot)
         .filter(
-            PriceSnapshot.game_id == game_id,
+            PriceSnapshot.game_id == game.id,
             PriceSnapshot.in_stock.is_(True),
             PriceSnapshot.shop_name.in_(display),
             PriceSnapshot.price_pln > 0,
@@ -243,25 +282,80 @@ def update_game_price_rollups(
         if prev is None or price < prev:
             best_by_day[day] = price
 
-    if best_by_day:
-        game.avg_best_price_30d = round(sum(best_by_day.values()) / len(best_by_day), 2)
-    else:
-        game.avg_best_price_30d = None
-
+    avg_30 = (
+        round(sum(best_by_day.values()) / len(best_by_day), 2) if best_by_day else None
+    )
     snap_lowest = min((float(s.price_pln) for s in valid_snaps), default=None)
     current_best = min(peer_now) if peer_now else None
     candidates = [x for x in [snap_lowest, current_best] if x is not None]
+    lowest: float | None = None
+    lowest_at: datetime | None = None
     if candidates:
-        game.lowest_ever_pln = round(min(candidates), 2)
-        lowest_at = None
+        lowest = round(min(candidates), 2)
         for snap in valid_snaps:
-            if float(snap.price_pln) <= game.lowest_ever_pln + PRICE_EPSILON:
+            if float(snap.price_pln) <= lowest + PRICE_EPSILON:
                 if lowest_at is None or (snap.recorded_at and snap.recorded_at < lowest_at):
                     lowest_at = snap.recorded_at
-        game.lowest_ever_at = lowest_at or now
-    else:
-        game.lowest_ever_pln = None
-        game.lowest_ever_at = None
+        lowest_at = lowest_at or now
+
+    stored = float(game.lowest_ever_pln) if game.lowest_ever_pln is not None else None
+    discarded = None
+    if stored is not None and (lowest is None or stored < lowest - PRICE_EPSILON):
+        discarded = stored
+
+    return TrustedHistoryRollup(
+        lowest_ever_pln=lowest,
+        lowest_ever_at=lowest_at,
+        avg_best_price_30d=avg_30,
+        valid_snapshot_count=len(valid_snaps),
+        insufficient_data=lowest is None,
+        discarded_stored_low_pln=discarded,
+    )
+
+
+def update_game_price_rollups(
+    db: Session, game_id: int, *, region: str = HISTORY_SHOPPING_REGION
+) -> None:
+    game = db.query(Game).filter(Game.id == game_id).first()
+    if not game:
+        return
+    rollup = compute_trusted_history_rollups(db, game, region=region)
+    game.avg_best_price_30d = rollup.avg_best_price_30d
+    game.lowest_ever_pln = rollup.lowest_ever_pln
+    game.lowest_ever_at = rollup.lowest_ever_at
+
+
+def trusted_history_display(
+    db: Session,
+    game: Game,
+    *,
+    current_best: float | None,
+    region: str = HISTORY_SHOPPING_REGION,
+) -> tuple[float | None, float | None, str | None, bool, int]:
+    """Return (lowest_ever, avg_30d, label, at_historical_low, valid_snap_count)."""
+    if price_engine_v2_enabled():
+        rollup = compute_trusted_history_rollups(db, game, region=region)
+        # Temporary view object for label helper without mutating Game.
+        class _HistView:
+            lowest_ever_pln = rollup.lowest_ever_pln
+            lowest_ever_at = rollup.lowest_ever_at
+
+        label = lowest_ever_label_pl(_HistView(), current_best)  # type: ignore[arg-type]
+        return (
+            rollup.lowest_ever_pln,
+            rollup.avg_best_price_30d,
+            label,
+            bool(label),
+            rollup.valid_snapshot_count,
+        )
+    label = lowest_ever_label_pl(game, current_best)
+    return (
+        game.lowest_ever_pln,
+        game.avg_best_price_30d,
+        label,
+        bool(label),
+        0,
+    )
 
 
 def prune_old_snapshots(db: Session, *, days: int = RETENTION_DAYS) -> int:
