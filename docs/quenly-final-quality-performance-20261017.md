@@ -144,4 +144,13 @@ DNS / canonical / scanners: unchanged (except existing G2A RLock from prior pass
 
 ## Git commit hashes
 
-*(filled after local commit on stabilization branch)*
+| Hash | Message |
+|------|---------|
+| `cbac0ee` | Fix Quenly quality: PE matching tiers, green pytest, mobile LCP assets |
+| `b7d90c2` | Place news and deal-hunter panel below the desktop game catalog (prior) |
+
+Full: `cbac0eea883950e63aefa65aa57ff609b125e9b6`
+
+### Deployed files (whitelist)
+
+See `/opt/backups/quenly-quality-release-20261017-170753/WHITELIST.txt` and `runtime-sha256.txt`.
