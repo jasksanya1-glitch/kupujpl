@@ -220,6 +220,51 @@ def record_offer_price_change(
     update_game_price_rollups(db, game_id)
 
 
+def _poison_prices_from_engine(
+    db: Session,
+    game: Game,
+    *,
+    region: str = HISTORY_SHOPPING_REGION,
+) -> set[float]:
+    """Live offer prices that PE currently treats as wrong-SKU / anomaly.
+
+    Matching those amounts in old snapshots keeps poisoned historical lows
+    (e.g. ULTRAKILL Gamivo 21.43) out of trusted history without deleting rows.
+    """
+    if not price_engine_v2_enabled():
+        return set()
+    from app.core.price_engine import evaluate_game_prices
+
+    region = normalize_shopping_region(region)
+    allowed = display_shops_for_game(game, region=region)
+    rows = [
+        o
+        for o in (game.offers or [])
+        if o.price_pln
+        and o.price_pln > 0
+        and o.shop_name in allowed
+        and offer_visible_for_shopping_region(o, region)
+    ]
+    if not rows:
+        return set()
+    result = evaluate_game_prices(game, rows, region=region)
+    poison: set[float] = set()
+    for row in result.rows or []:
+        reason = row.exclusion_reason
+        if reason not in {
+            "price_anomaly",
+            "match_mismatch",
+            "edition_mismatch",
+            "url_invalid",
+        }:
+            continue
+        offer = row.offer
+        if offer is None or not offer.price_pln:
+            continue
+        poison.add(round(float(offer.price_pln), 2))
+    return poison
+
+
 def compute_trusted_history_rollups(
     db: Session,
     game: Game,
@@ -248,6 +293,7 @@ def compute_trusted_history_rollups(
     display = list(display_shops_for_game(game, region=region))
     steam = _steam_price_for_game(db, game.id, region=region)
     peer_now = _eligible_offer_prices(db, game.id, region=region)
+    poison = _poison_prices_from_engine(db, game, region=region)
 
     snaps = (
         db.query(PriceSnapshot)
@@ -266,11 +312,14 @@ def compute_trusted_history_rollups(
         if filtered:
             peer_base = filtered
 
-    valid_snaps = [
-        s
-        for s in snaps
-        if _snapshot_price_ok(float(s.price_pln), peer_prices=peer_base, steam_price=steam)
-    ]
+    valid_snaps = []
+    for s in snaps:
+        price = float(s.price_pln)
+        if round(price, 2) in poison:
+            continue
+        if not _snapshot_price_ok(price, peer_prices=peer_base, steam_price=steam):
+            continue
+        valid_snaps.append(s)
 
     best_by_day: dict[str, float] = {}
     for snap in valid_snaps:
@@ -434,6 +483,9 @@ def get_price_history(
         display = [s for s in display if s != "Steam"]
     steam = _steam_price_for_game(db, game_id, region=region)
     peer_now = _eligible_offer_prices(db, game_id, region=region)
+    poison: set[float] = set()
+    if game is not None:
+        poison = _poison_prices_from_engine(db, game, region=region)
     snaps = (
         db.query(PriceSnapshot)
         .filter(
@@ -449,6 +501,8 @@ def get_price_history(
     best_by_day: dict[str, float] = {}
     for snap in snaps:
         price = float(snap.price_pln)
+        if round(price, 2) in poison:
+            continue
         if not _snapshot_price_ok(price, peer_prices=peer_base, steam_price=steam):
             continue
         day = str(snap.recorded_at.date()) if snap.recorded_at else None
