@@ -47,7 +47,7 @@
     <meta name="twitter:title" content="Quenly.pl — Porównywarka cen gier PC">
     <meta name="twitter:description" content="Porównaj ceny gier PC __IN_STORES__. Znajdź najtańszą ofertę.">
     <link rel="stylesheet" href="static/style.css?v=99">
-    <link rel="stylesheet" href="static/mobile-concept4.css?v=20">
+    <link rel="stylesheet" href="static/mobile-concept4.css?v=21">
     <link rel="stylesheet" href="static/desktop-concept3.css?v=22">
     <link rel="stylesheet" href="static/theme-cozy-orange-app.css?v=18">
 </head>
@@ -301,6 +301,18 @@
             </template>
 
             <div class="d3-mid" id="d3-mid">
+            <section id="home-feeds" class="home-feeds" aria-label="Okazje">
+                <section id="feed-wishlist" class="home-feed-block" hidden></section>
+                <section id="feed-new-deals" class="home-feed-block" hidden></section>
+                <section id="feed-hist-lows" class="home-feed-block" hidden></section>
+                <section id="feed-giveaways" class="home-feed-block" hidden></section>
+                <section id="feed-freebies" class="home-feed-block" hidden></section>
+            </section>
+
+            <section id="home-sections" class="sections">
+                <div class="loading-spinner"></div>
+            </section>
+
             <section id="home-news" class="home-news" aria-labelledby="home-news-title" hidden>
                 <header class="home-news-head">
                     <h2 id="home-news-title" data-i18n="home.news_title">Aktualności i promocje</h2>
@@ -354,18 +366,6 @@
                         </ul>
                     </aside>
                 </div>
-            </section>
-
-            <section id="home-feeds" class="home-feeds" aria-label="Okazje">
-                <section id="feed-wishlist" class="home-feed-block" hidden></section>
-                <section id="feed-new-deals" class="home-feed-block" hidden></section>
-                <section id="feed-hist-lows" class="home-feed-block" hidden></section>
-                <section id="feed-giveaways" class="home-feed-block" hidden></section>
-                <section id="feed-freebies" class="home-feed-block" hidden></section>
-            </section>
-
-            <section id="home-sections" class="sections">
-                <div class="loading-spinner"></div>
             </section>
             </div>
 

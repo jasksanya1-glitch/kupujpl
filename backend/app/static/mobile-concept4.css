@@ -379,7 +379,7 @@
         border: 1px solid var(--mobile-border);
     }
 
-    /* —— Shell / order: hero → cats → featured → news → catalog → promo → faq —— */
+    /* —— Shell / order: hero → cats → featured → catalog → news → promo → faq —— */
     .layout-split .split-shell {
         display: flex;
         flex-direction: column;
@@ -453,15 +453,6 @@
         margin: 0 var(--mobile-pad) 8px;
     }
 
-    #home-news {
-        order: 4;
-        margin-left: var(--mobile-pad);
-        margin-right: var(--mobile-pad);
-        max-width: calc(100% - (var(--mobile-pad) * 2));
-        min-width: 0;
-        overflow: hidden;
-    }
-
     #home-feeds,
     #home-sections,
     #home-spotlight {
@@ -469,9 +460,18 @@
     }
 
     #catalog-section {
-        order: 5;
+        order: 4;
         margin: 8px var(--mobile-pad) 0;
         display: block !important;
+    }
+
+    #home-news {
+        order: 5;
+        margin-left: var(--mobile-pad);
+        margin-right: var(--mobile-pad);
+        max-width: calc(100% - (var(--mobile-pad) * 2));
+        min-width: 0;
+        overflow: hidden;
     }
 
     .cp-panel-promo {
