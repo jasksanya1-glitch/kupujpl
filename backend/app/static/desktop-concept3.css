@@ -828,12 +828,19 @@
         color: #7ee0a8;
     }
 
-    /* —— News + panel —— */
-    .d3-mid {
+    /* —— News + panel (below catalog on desktop) —— */
+    #d3-mid:not(.d3-mid--after-catalog) {
+        /* Feeds/sections stay in DOM for tablet; hide empty wrapper on desktop home. */
+        display: none !important;
+    }
+
+    .d3-mid.d3-mid--after-catalog,
+    #d3-mid-after {
         display: grid;
         grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
         gap: 16px;
         align-items: start;
+        margin-top: 20px;
     }
 
     .d3-mid .home-feeds,
@@ -1349,7 +1356,8 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .d3-mid {
+    .d3-mid.d3-mid--after-catalog,
+    #d3-mid-after {
         grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.95fr);
     }
 

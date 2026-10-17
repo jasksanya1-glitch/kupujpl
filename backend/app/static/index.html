@@ -48,7 +48,7 @@
     <meta name="twitter:description" content="Porównaj ceny gier PC __IN_STORES__. Znajdź najtańszą ofertę.">
     <link rel="stylesheet" href="static/style.css?v=99">
     <link rel="stylesheet" href="static/mobile-concept4.css?v=21">
-    <link rel="stylesheet" href="static/desktop-concept3.css?v=22">
+    <link rel="stylesheet" href="static/desktop-concept3.css?v=23">
     <link rel="stylesheet" href="static/theme-cozy-orange-app.css?v=18">
 </head>
 <body class="layout-split theme-cozy-orange" data-i18n-title="title.home">
@@ -312,7 +312,33 @@
             <section id="home-sections" class="sections">
                 <div class="loading-spinner"></div>
             </section>
+            </div>
 
+            <section id="catalog-section" class="catalog" hidden>
+                <header class="catalog-head">
+                    <div class="catalog-head-text">
+                        <h2 id="games-heading" data-i18n="catalog.all_games">Wszystkie gry</h2>
+                        <p id="games-subtitle" data-i18n="catalog.full">Pełny katalog</p>
+                    </div>
+                    <div class="m-sort-tabs d3-sort-tabs" id="m-sort-tabs" role="tablist" data-i18n-aria="sort.aria" aria-label="Sortowanie katalogu">
+                        <button type="button" role="tab" aria-selected="true" data-sort="rating" data-i18n="sort.bestsellers">Bestsellery</button>
+                        <button type="button" role="tab" aria-selected="false" data-sort="release" data-i18n="sort.release">Najnowsze</button>
+                        <button type="button" role="tab" aria-selected="false" data-sort="price_asc" data-i18n="sort.price_asc_short">Cena rosnąco</button>
+                        <button type="button" role="tab" aria-selected="false" data-sort="price_desc" data-i18n="sort.price_desc_short">Cena malejąco</button>
+                        <button type="button" role="tab" aria-selected="false" data-sort="" data-i18n="sort.relevance">Domyślnie</button>
+                    </div>
+                    <div id="catalog-sort-slot"></div>
+                </header>
+                <div id="games-grid" class="grid">
+                    <div class="loading-spinner"></div>
+                </div>
+                <footer class="catalog-foot">
+                    <p id="games-meta" class="meta"></p>
+                    <button type="button" id="load-more" class="btn btn-outline" hidden data-i18n="catalog.load_more">Załaduj więcej</button>
+                </footer>
+            </section>
+
+            <div class="d3-mid d3-mid--after-catalog" id="d3-mid-after">
             <section id="home-news" class="home-news" aria-labelledby="home-news-title" hidden>
                 <header class="home-news-head">
                     <h2 id="home-news-title" data-i18n="home.news_title">Aktualności i promocje</h2>
@@ -368,30 +394,6 @@
                 </div>
             </section>
             </div>
-
-            <section id="catalog-section" class="catalog" hidden>
-                <header class="catalog-head">
-                    <div class="catalog-head-text">
-                        <h2 id="games-heading" data-i18n="catalog.all_games">Wszystkie gry</h2>
-                        <p id="games-subtitle" data-i18n="catalog.full">Pełny katalog</p>
-                    </div>
-                    <div class="m-sort-tabs d3-sort-tabs" id="m-sort-tabs" role="tablist" data-i18n-aria="sort.aria" aria-label="Sortowanie katalogu">
-                        <button type="button" role="tab" aria-selected="true" data-sort="rating" data-i18n="sort.bestsellers">Bestsellery</button>
-                        <button type="button" role="tab" aria-selected="false" data-sort="release" data-i18n="sort.release">Najnowsze</button>
-                        <button type="button" role="tab" aria-selected="false" data-sort="price_asc" data-i18n="sort.price_asc_short">Cena rosnąco</button>
-                        <button type="button" role="tab" aria-selected="false" data-sort="price_desc" data-i18n="sort.price_desc_short">Cena malejąco</button>
-                        <button type="button" role="tab" aria-selected="false" data-sort="" data-i18n="sort.relevance">Domyślnie</button>
-                    </div>
-                    <div id="catalog-sort-slot"></div>
-                </header>
-                <div id="games-grid" class="grid">
-                    <div class="loading-spinner"></div>
-                </div>
-                <footer class="catalog-foot">
-                    <p id="games-meta" class="meta"></p>
-                    <button type="button" id="load-more" class="btn btn-outline" hidden data-i18n="catalog.load_more">Załaduj więcej</button>
-                </footer>
-            </section>
 
             <section class="cp-faq" aria-labelledby="cp-faq-title">
                 <p class="cp-kicker" data-i18n="faq.kicker">Poradnik · FAQ</p>
