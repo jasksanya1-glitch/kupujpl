@@ -199,6 +199,8 @@ def ensure_sqlite_schema() -> None:
         ("is_coming_soon", "BOOLEAN"),
         ("steam_recommendations", "INTEGER"),
         ("steam_enriched", "BOOLEAN DEFAULT 0"),
+        ("has_polish_interface", "BOOLEAN"),
+        ("has_polish_audio", "BOOLEAN"),
     ]
     for name, col_type in patches:
         if name not in game_cols:
@@ -338,3 +340,33 @@ def ensure_sqlite_schema() -> None:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE site_sessions ADD COLUMN client_agent VARCHAR(32)"))
             logger.info("Added site_sessions.client_agent column")
+
+
+# Scanner Reliability V2 — offer verification columns (already present on production).
+_OFFER_V2_COLUMNS = [
+    ("last_attempt_at", "DATETIME"),
+    ("last_verified_at", "DATETIME"),
+    ("last_price_changed_at", "DATETIME"),
+    ("last_check_status", "VARCHAR(32)"),
+    ("price_source", "VARCHAR(64)"),
+]
+
+
+def rollback_offers_verification_columns() -> list[str]:
+    """Best-effort DROP of V2 verification columns (SQLite 3.35+)."""
+    insp = inspect(engine)
+    if not insp.has_table("offers"):
+        return []
+    existing = {c["name"] for c in insp.get_columns("offers")}
+    dropped: list[str] = []
+    for name, _col_type in _OFFER_V2_COLUMNS:
+        if name not in existing:
+            continue
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE offers DROP COLUMN {name}"))
+            dropped.append(name)
+            logger.info("Dropped offers.%s", name)
+        except Exception as exc:
+            logger.warning("Could not drop offers.%s: %s", name, exc)
+    return dropped

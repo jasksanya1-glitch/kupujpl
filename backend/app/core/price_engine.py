@@ -1,6 +1,19 @@
 """Unified verified price evaluation for catalog, game page, deals, and API."""
 from __future__ import annotations
 
+
+from decimal import Decimal, ROUND_HALF_UP
+
+from app.core.price_engine_config import price_engine_v2_enabled
+
+
+def money(value: float | None) -> Decimal | None:
+    """Round PLN amounts to 2dp (HALF_UP)."""
+    if value is None:
+        return None
+    return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
@@ -212,12 +225,27 @@ def get_best_verified_offer(
 
 
 def evaluate_game_prices(
-    game: Game,
-    offers: list[Offer],
+    game: Game | object,
+    offers: list[Offer] | Game | None = None,
+    offers_list: list[Offer] | None = None,
     *,
     region: str = "pl",
     now: datetime | None = None,
+    require_verification: bool | None = None,
 ) -> PriceEngineResult:
+    # Compat: tests historically called evaluate_game_prices(db, game[, offers]).
+    _ = require_verification  # accepted for API stability; PE uses freshness/match gates
+    if offers is not None and not isinstance(offers, list) and hasattr(game, "query"):
+        db = game
+        game = offers  # type: ignore[assignment]
+        if offers_list is not None:
+            offers = offers_list
+        else:
+            offers = list(db.query(Offer).filter(Offer.game_id == game.id).all())
+    elif offers is None and hasattr(game, "offers"):
+        offers = list(getattr(game, "offers") or [])
+    elif offers is None:
+        offers = []
     region = normalize_shopping_region(region)
     now = now or datetime.utcnow()
     allowed = display_shops_for_game(game, region=region)

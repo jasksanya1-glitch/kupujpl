@@ -76,6 +76,12 @@ class Offer(Base):
     in_stock = Column(Boolean, default=True)
     match_confidence = Column(Float, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Scanner Reliability V2 verification timestamps (nullable; columns already on prod DB)
+    last_attempt_at = Column(DateTime, nullable=True)
+    last_verified_at = Column(DateTime, nullable=True)
+    last_price_changed_at = Column(DateTime, nullable=True)
+    last_check_status = Column(String(32), nullable=True)
+    price_source = Column(String(64), nullable=True)
 
     game = relationship("Game", back_populates="offers")
 

@@ -66,8 +66,8 @@ def main() -> int:
 
         # Filters / sort (best-effort read-only UI presence)
         for sel, name in [
-            ("#sort-select, select[name='sort'], [data-sort], .sort-select", "sort_control"),
-            ("#filter-platform, [data-filter], .filters, .cozy-filters", "filter_control"),
+            ("#sort-select, select[name='sort'], [data-sort], .sort-select, .catalog-sort-select", "sort_control"),
+            ("#m-promo-chips, .m-promo-chips, .m-promo-chip, #m-sort-tabs, .m-sort-tabs", "filter_control"),
         ]:
             loc = page.locator(sel)
             check(name, loc.count() > 0, f"selector={sel}")

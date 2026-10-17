@@ -149,9 +149,15 @@ def game_interactive_html(
             savings_pct=savings_pct,
             at_historical_low=at_historical_low,
         )
-        verdict = worth_buy_html(worth)
+        verdict = worth_buy_html(worth) if not is_free else ""
         buy_btn = ""
-        if buy_href:
+        if is_free and free_play_url:
+            label = html.escape(free_play_label or "Graj za darmo")
+            buy_btn = (
+                f'<a class="btn-buy game-page-answer-buy" href="{html.escape(free_play_url)}" '
+                f'rel="noopener noreferrer" target="_blank">{label}</a>'
+            )
+        elif buy_href:
             buy_btn = (
                 f'<a class="btn-buy game-page-answer-buy" href="{buy_href}" '
                 f'rel="noopener noreferrer sponsored" target="_blank" '

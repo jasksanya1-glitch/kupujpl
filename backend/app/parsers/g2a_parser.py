@@ -34,7 +34,7 @@ _G2A_HEADERS = {
     "Sec-Fetch-User": "?1",
 }
 
-_G2A_LOCK = threading.Lock()
+_G2A_LOCK = threading.RLock()
 _G2A_LAST_REQUEST = 0.0
 _G2A_CONSECUTIVE_403 = 0
 _G2A_WARMED = False
