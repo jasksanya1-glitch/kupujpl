@@ -1,0 +1,112 @@
+{
+  "base": "https://kupujpl.pl/games",
+  "checks": [
+    {
+      "name": "home_cozy",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "search_input",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "search_results",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "sort_control",
+      "ok": true,
+      "detail": "selector=#sort-select, select[name='sort'], [data-sort], .sort-select, .catalog-sort-select"
+    },
+    {
+      "name": "filter_control",
+      "ok": true,
+      "detail": "selector=#m-promo-chips, .m-promo-chips, .m-promo-chip, #m-sort-tabs, .m-sort-tabs"
+    },
+    {
+      "name": "game_open",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "game_offers_ssr",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "go_links",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "offers_api_status",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "best_price_confirmed_band",
+      "ok": true,
+      "detail": "199.99"
+    },
+    {
+      "name": "confirmed_offers_present",
+      "ok": true,
+      "detail": "n=2"
+    },
+    {
+      "name": "unverified_field_present",
+      "ok": true,
+      "detail": "keys_has=True n=2"
+    },
+    {
+      "name": "no_offer_id_overlap",
+      "ok": true,
+      "detail": "set()"
+    },
+    {
+      "name": "login_page",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "register_page",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "name": "favorite_button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "alert_button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile_no_h_overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile_nav",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "site_chat_widget_present_or_absent_ok",
+      "ok": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "no_critical_js_errors",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "errors": [],
+  "js_errors": []
+}
