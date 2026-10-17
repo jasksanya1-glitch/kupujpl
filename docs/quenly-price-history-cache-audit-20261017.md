@@ -120,12 +120,22 @@ Matching, confirmed-best parity, and display separation were verified for the fo
 
 ### Git
 - Branch: `fix/quenly-production-stabilization-20261017`
-- Checkpoint commit: _(filled after commit)_
+- Checkpoint commits: `cf465b6` (display/history/UI), follow-up poison-price filter on `price_history.py`
 
 ### Backup / rollback
-- Backup: `/opt/kupujpl-games/backups/pre-price-audit-20261017/` (code copies + `database.db` copy if created)
+- Backup: `/opt/kupujpl-games/backups/pre-price-audit-20261017-211643/` (whitelist file copies + `database.db.bak`, sha256 prefix `4f9db104938b3230`)
 - Rollback: restore whitelist files from that backup dir; `systemctl restart kupujpl-games.service`
 - **No** full rsync, **no** `rsync --delete`, **no** mass history DELETE
+
+### Post-deploy smoke (API)
+| Game | Confirmed best | Unverified cheaper | Trusted lowest |
+|------|----------------|--------------------|----------------|
+| Satisfactory | IG 97.94 | Gamivo 93.25 stale | 93.25 (stale historical, not anomaly) |
+| ULTRAKILL | IG 33.20 | Gamivo 21.43 anomaly | **30.79** (21.43 excluded) |
+| Guacamelee | Kinguin 4.80 | Gamivo 2.29 insufficient | **4.80** |
+| Rogue Trader | Epic 199.99 | Kinguin 33.46 anomaly; GOG rejected | 199.99 |
+
+`/promocje`: `Cache-Control: no-cache, must-revalidate`; Quenly branding; no Rogue 8.99.
 
 ---
 
