@@ -91,12 +91,18 @@ def parse_update(update: dict) -> tuple[str | None, str | None, str | None]:
 def handle_telegram_update(db, update: dict) -> None:
     """Process /start and /watch commands + site-chat replies."""
     from app.core.price_alerts import ensure_telegram_link_token, set_favorite_alert
-    from app.core.site_chat import (
-        try_handle_callback,
-        try_handle_odp_command,
-        try_handle_telegram_reply,
-    )
     from app.models.models import Game, User
+
+    try:
+        from app.core.site_chat import (
+            try_handle_callback,
+            try_handle_odp_command,
+            try_handle_telegram_reply,
+        )
+    except ImportError:
+        try_handle_callback = None  # type: ignore[assignment]
+        try_handle_odp_command = None  # type: ignore[assignment]
+        try_handle_telegram_reply = None  # type: ignore[assignment]
 
     # TEMP: discover a channel's numeric chat id for the deals auto-post setup.
     for _k in ("my_chat_member", "channel_post", "chat_member"):
@@ -107,25 +113,29 @@ def handle_telegram_update(db, update: dict) -> None:
                 _k, _ch.get("id"), _ch.get("type"), _ch.get("title"), _ch.get("username"),
             )
 
-    # Inline buttons (Odpowiedz / Anuluj)
-    try:
-        if try_handle_callback(db, update):
-            return
-    except Exception as exc:
-        logger.warning("site chat callback failed: %s", exc)
+    # Inline buttons — no-op until site_chat module is restored
+    if try_handle_callback is not None:
+        try:
+            if try_handle_callback(db, update):
+                return
+        except Exception as exc:
+            logger.warning("site chat callback failed: %s", exc)
 
-    # Owner reply / pending text reply → publish on website
-    try:
-        if try_handle_telegram_reply(db, update):
-            return
-    except Exception as exc:
-        logger.warning("site chat reply handler failed: %s", exc)
+    if try_handle_telegram_reply is not None:
+        try:
+            if try_handle_telegram_reply(db, update):
+                return
+        except Exception as exc:
+            logger.warning("site chat reply handler failed: %s", exc)
 
     chat_id, cmd, args = parse_update(update)
     if not chat_id:
         return
 
     if cmd in ("/odp", "/czat"):
+        if try_handle_odp_command is None:
+            logger.info("site chat /odp ignored — module unavailable")
+            return
         try:
             if try_handle_odp_command(db, chat_id, args):
                 return

@@ -1,18 +1,27 @@
-"""Minimal site-chat API stubs until full site_chat module is restored.
+"""Site Chat API — honest unavailable until app.core.site_chat is restored.
 
-Production includes these handlers to stop /api/site-chat 404 noise from site-chat.js.
-Writes are intentionally rejected (no persistence).
+Do not persist messages. Do not return ok:true on writes.
+Frontend must show unavailable state (see site-chat.js).
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
+
+_UNAVAILABLE = {
+    "ok": False,
+    "available": False,
+    "error": "chat_unavailable",
+    "messages": [],
+    "detail": "Site chat is temporarily unavailable. Messages are not accepted or stored.",
+}
 
 
 @router.get("/api/site-chat")
 def api_site_chat_list(limit: int = 50, after_id: int | None = None):
-    return {"ok": True, "messages": []}
+    return JSONResponse(status_code=503, content=_UNAVAILABLE)
 
 
 @router.post("/api/site-chat")
@@ -21,4 +30,4 @@ async def api_site_chat_post(request: Request):
         await request.json()
     except Exception:
         pass
-    return {"ok": False, "error": "chat_temporarily_unavailable"}
+    return JSONResponse(status_code=503, content=_UNAVAILABLE)
