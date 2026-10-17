@@ -395,7 +395,7 @@ def game_interactive_html(
   <link rel="stylesheet" href="static/style.css?v=99">
   <link rel="stylesheet" href="static/mobile-concept4.css?v=20">
   <link rel="stylesheet" href="static/desktop-concept3.css?v=22">
-  <link rel="stylesheet" href="static/theme-cozy-orange-app.css?v=18">
+  <link rel="stylesheet" href="static/theme-cozy-orange-app.css?v=23">
   <style>
     .game-page{{padding:8px 14px 48px;max-width:1100px!important;margin:0 auto!important;width:100%;box-sizing:border-box}}
     .game-breadcrumb{{font-size:12px;margin:0 0 6px;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
@@ -485,7 +485,7 @@ def game_interactive_html(
 <body class="layout-split theme-cozy-orange game-page-body">
   <header class="header">
     <div class="wrap header-inner">
-      <a href="{home}" class="brand"><img class="brand-logo" src="static/brand/quenly/quenly-logo.png?v=3" alt="Quenly.pl" width="200" height="50"><span class="brand-tagline">GRAJ WIĘCEJ. PŁAĆ MNIEJ.</span></a>
+      <a href="{home}" class="brand"><picture><source type="image/webp" srcset="static/brand/quenly/quenly-logo-w400.webp?v=5"><img class="brand-logo" src="static/brand/quenly/quenly-logo-w400.png?v=5" alt="Quenly.pl" width="126" height="52" decoding="async"></picture><span class="brand-tagline">GRAJ WIĘCEJ. PŁAĆ MNIEJ.</span></a>
       <a class="header-info-btn" href="{home}" data-i18n="game.back">← Katalog</a>
       <nav id="auth-nav" class="auth-nav"></nav>
     </div>

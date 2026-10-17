@@ -69,9 +69,22 @@ html, body {
   backdrop-filter: blur(14px);
 }
 .brand-logo {
-  height: 40px !important;
-  width: auto !important;
-  max-width: 200px;
+  /* Fixed box reserves space before decode (CLS). Aspect ≈ 400×165 asset. */
+  height: 52px !important;
+  width: 126px !important;
+  max-width: 220px;
+  object-fit: contain;
+  object-position: left center;
+  flex-shrink: 0;
+}
+.brand {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+}
+/* Soft reserve: avoid huge empty min-heights (they inflate CLS when content is shorter). */
+#games-grid.grid:empty {
+  min-height: 240px;
 }
 .brand-tagline { display: none !important; }
 .d3-nav-link,

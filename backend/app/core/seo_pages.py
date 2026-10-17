@@ -435,7 +435,7 @@ def _sitemap_news_xml_impl(db: Session | None, own: bool = False) -> str:
             parts.append(f"    <loc>{xml_escape(loc)}</loc>")
             parts.append("    <news:news>")
             parts.append("      <news:publication>")
-            parts.append("        <news:name>KupujPL Games</news:name>")
+            parts.append("        <news:name>Quenly</news:name>")
             parts.append("        <news:language>pl</news:language>")
             parts.append("      </news:publication>")
             parts.append(f"      <news:publication_date>{pub_iso}</news:publication_date>")
@@ -479,7 +479,7 @@ def blog_rss_xml(db: Session | None = None) -> str:
                 f'<guid isPermaLink="true">{html.escape(link)}</guid>'
                 f"<pubDate>{format_datetime(pub)}</pubDate>"
                 f"<description>{desc}</description>"
-                f"<author>{html.escape(art.author or 'Redakcja KupujPL Games')}</author>"
+                f"<author>{html.escape(art.author or 'Redakcja Quenly')}</author>"
                 f"{enc}"
                 f"</item>"
             )
@@ -487,9 +487,9 @@ def blog_rss_xml(db: Session | None = None) -> str:
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<rss version="2.0">\n'
             "<channel>\n"
-            "<title>KupujPL Games — Aktualności</title>\n"
+            "<title>Quenly — Aktualności</title>\n"
             f"<link>{SITE_ORIGIN}/blog</link>\n"
-            "<description>Aktualności, promocje i poradniki KupujPL Games</description>\n"
+            "<description>Aktualności, promocje i poradniki Quenly</description>\n"
             "<language>pl</language>\n"
             + "\n".join(items)
             + "\n</channel>\n</rss>\n"
@@ -503,7 +503,7 @@ def not_found_html() -> str:
     return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>404 — nie znaleziono | KupujPL Gry</title>
+<title>404 — nie znaleziono | Quenly.pl</title>
 <meta name="robots" content="noindex, follow">
 <style>{_base_styles()}
   body{{text-align:center;padding-top:8vh}}
@@ -530,7 +530,7 @@ def home_website_schema_json() -> str:
         {
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "name": "KupujPL Gry",
+            "name": "Quenly.pl",
             "url": SITE_ORIGIN + "/",
             "potentialAction": {
                 "@type": "SearchAction",
@@ -547,7 +547,7 @@ def _faq_schema(title: str, slug: str, best_price: float | None, shop: str | Non
     faqs = [
         ("Gdzie najtaniej kupić " + title + "?", f"Najniższa cena to obecnie {price_a}."),
         ("Czy klucze z keyshopów są legalne?", "Tak, jeśli pochodzą z autoryzowanych resellerów. Unikaj podejrzanie tanich ofert."),
-        ("Jak porównać ceny?", "Użyj tabeli ofert poniżej lub pełnego porównania w aplikacji KupujPL."),
+        ("Jak porównać ceny?", "Użyj tabeli ofert poniżej lub pełnego porównania w aplikacji Quenly."),
         ("Czy mogę dostać alert o spadku ceny?", "Tak — zaloguj się, śledź grę i włącz alert e-mail lub Telegram."),
         ("Czy ceny są w PLN?", "Tak, porównujemy ceny w złotówkach polskich."),
     ]
@@ -580,7 +580,7 @@ def price_history_svg(
     height: int = 240,
     title: str = "Wykres historii cen",
 ) -> str:
-    """Crawlable inline SVG price history chart styled for KupujPL themes."""
+    """Crawlable inline SVG price history chart styled for Quenly themes."""
     points = [p for p in (history or []) if p.get("best_price_pln") is not None]
     if len(points) < 2:
         return ""
@@ -926,7 +926,7 @@ def game_landing_html(
             refund = ""
             note = getattr(o, "refund_note_pl", None) or ""
             if note:
-                refund = f'<p class="offer-refund-kupujpl"><strong>KupujPL — zwroty:</strong> {html.escape(note)}</p>'
+                refund = f'<p class="offer-refund-kupujpl"><strong>Quenly — zwroty:</strong> {html.escape(note)}</p>'
             elif o.refund_policy_url:
                 refund = f' <a href="{html.escape(o.refund_policy_url)}" rel="nofollow">Zwroty</a>'
             rows += (
@@ -999,7 +999,7 @@ def game_landing_html(
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "KupujPL Gry", "item": SITE_ORIGIN + "/"},
+                {"@type": "ListItem", "position": 1, "name": "Quenly.pl", "item": SITE_ORIGIN + "/"},
                 {"@type": "ListItem", "position": 2, "name": title, "item": page_url},
             ],
         },
@@ -1011,12 +1011,12 @@ def game_landing_html(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{safe_title} — cena, porównanie sklepów | KupujPL Gry</title>
+  <title>{safe_title} — cena, porównanie sklepów | Quenly.pl</title>
   <meta name="description" content="{meta_desc}">
   <meta name="robots" content="{robots}">
   <link rel="canonical" href="{html.escape(page_url)}">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="{safe_title} — KupujPL Gry">
+  <meta property="og:title" content="{safe_title} — Quenly.pl">
   <meta property="og:description" content="{meta_desc}">
   <meta property="og:image" content="{SITE_ORIGIN}/og/gra/{slug}.png">
   <meta property="og:image:width" content="1200">
@@ -1030,7 +1030,7 @@ def game_landing_html(
   <script type="application/ld+json">{breadcrumb_ld}</script>
 </head>
 <body>
-  <nav><a href="{SITE_ORIGIN}/">KupujPL Gry</a> · <a href="{SITE_ORIGIN}/promocje">Promocje</a> · <a href="{html.escape(spa_url)}">Pełne porównanie (aplikacja)</a></nav>
+  <nav><a href="{SITE_ORIGIN}/">Quenly.pl</a> · <a href="{SITE_ORIGIN}/promocje">Promocje</a> · <a href="{html.escape(spa_url)}">Pełne porównanie (aplikacja)</a></nav>
   <header class="seo-header">
     <img src="{img}" alt="{safe_title}" width="120" height="180" loading="lazy">
     <div>
@@ -1055,17 +1055,18 @@ def game_landing_html(
 
 
 def _site_skin_assets() -> str:
-    """Full KupujPL chrome (style.css + theme) for SEO collection pages."""
+    """Quenly Cozy Orange chrome for SEO collection pages."""
     return f"""
-<link rel="icon" href="{SITE_ORIGIN}/static/favicon.png?v=1" type="image/png">
+<link rel="icon" href="{SITE_ORIGIN}/static/brand/quenly/favicon-32.png?v=4" type="image/png">
 <link rel="stylesheet" href="{SITE_ORIGIN}/static/style.css?v=99">
 <link rel="stylesheet" href="{SITE_ORIGIN}/static/mobile-concept4.css?v=20">
 <link rel="stylesheet" href="{SITE_ORIGIN}/static/desktop-concept3.css?v=22">
-<link rel="stylesheet" href="{SITE_ORIGIN}/static/theme-cozy-orange-app.css?v=17">
+<link rel="stylesheet" href="{SITE_ORIGIN}/static/theme-cozy-orange-app.css?v=23">
 <script>
-(function(){{try{{var k=localStorage.getItem('kupujpl-theme');
-document.documentElement.dataset.theme=(!k||['night','ice','void','matrix'].indexOf(k)<0)?'night':k;
-}}catch(e){{document.documentElement.dataset.theme='night';}}}})();
+(function(){{try{{
+document.documentElement.dataset.theme='night';
+document.documentElement.classList.add('theme-cozy-orange');
+}}catch(e){{}}}})();
 </script>
 <style>
   body.layout-split.seo-collection{{
@@ -1110,8 +1111,11 @@ def _site_skin_header() -> str:
 <header class="header">
   <div class="wrap header-inner">
     <a href="{SITE_ORIGIN}/" class="brand">
-      <span class="brand-name">Kupuj<span class="brand-accent">PL</span></span>
-      <span class="brand-sub">Gry</span>
+      <picture>
+        <source type="image/webp" srcset="{SITE_ORIGIN}/static/brand/quenly/quenly-logo-w400.webp?v=5">
+        <img class="brand-logo" src="{SITE_ORIGIN}/static/brand/quenly/quenly-logo-w400.png?v=5"
+             alt="Quenly.pl" width="126" height="52" decoding="async">
+      </picture>
     </a>
     <nav class="header-info" aria-label="Informacje">
       <a href="{SITE_ORIGIN}/o-nas" class="header-info-btn">O nas</a>
@@ -1193,7 +1197,7 @@ def category_landing_html(*, category, games: list[GameListResponse]) -> str:
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "KupujPL Gry", "item": SITE_ORIGIN + "/"},
+                {"@type": "ListItem", "position": 1, "name": "Quenly.pl", "item": SITE_ORIGIN + "/"},
                 {"@type": "ListItem", "position": 2, "name": "Kategorie", "item": SITE_ORIGIN + "/kategorie"},
                 {"@type": "ListItem", "position": 3, "name": category.name, "item": page_url},
             ],
@@ -1212,12 +1216,12 @@ def category_landing_html(*, category, games: list[GameListResponse]) -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Gry {safe_name} — ceny, porównanie sklepów PC | KupujPL Gry</title>
+<title>Gry {safe_name} — ceny, porównanie sklepów PC | Quenly.pl</title>
 <meta name="description" content="{meta_desc}">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="{can_url}">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Gry {safe_name} — KupujPL Gry">
+<meta property="og:title" content="Gry {safe_name} — Quenly.pl">
 <meta property="og:description" content="{meta_desc}">
 <meta property="og:image" content="{og_image}">
 <meta property="og:url" content="{can_url}">
@@ -1293,7 +1297,7 @@ def deals_landing_html(
             (
                 "Jakie gry PC kupię do 30 zł?",
                 "Na tej liście są tytuły z aktualną najniższą ceną do 30 zł w sklepach "
-                "porównywanych przez KupujPL (Steam, GOG, Epic i marketplace kluczy).",
+                "porównywanych przez Quenly (Steam, GOG, Epic i marketplace kluczy).",
             ),
             (
                 "Czy ceny są w złotówkach?",
@@ -1318,7 +1322,7 @@ def deals_landing_html(
         faqs = [
             (
                 f"Gdzie znaleźć gry PC poniżej {max_price} zł?",
-                f"Na KupujPL filtrujemy oferty i pokazujemy tytuły do {max_price} zł "
+                f"Na Quenly filtrujemy oferty i pokazujemy tytuły do {max_price} zł "
                 "z aktualnym porównaniem sklepów.",
             ),
             (
@@ -1347,7 +1351,7 @@ def deals_landing_html(
         lead = "Aktualne promocje na gry PC z porównaniem cen w 10 sklepach."
         faqs = [
             (
-                "Czy KupujPL sprzedaje gry?",
+                "Czy Quenly sprzedaje gry?",
                 "Nie — jesteśmy porównywarką. Zakupu dokonujesz bezpośrednio w wybranym sklepie.",
             ),
         ]
@@ -1365,7 +1369,7 @@ def deals_landing_html(
         faqs = [
             (
                 f"Jak liczycie zniżkę −{min_savings_pct}%?",
-                "Porównujemy najniższą ofertę w katalogu KupujPL z aktualną ceną Steam w PLN.",
+                "Porównujemy najniższą ofertę w katalogu Quenly z aktualną ceną Steam w PLN.",
             ),
             (
                 "Czy to oficjalne sklepy?",
@@ -1381,7 +1385,7 @@ def deals_landing_html(
         faqs = [
             (
                 "Skąd biorą się kategorie?",
-                "Mapujemy gatunki Steam na katalog KupujPL, potem porównujemy oferty sklepów.",
+                "Mapujemy gatunki Steam na katalog Quenly, potem porównujemy oferty sklepów.",
             ),
         ]
     elif kind == "intent_steam_cheap":
@@ -1426,7 +1430,7 @@ def deals_landing_html(
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "KupujPL Gry", "item": SITE_ORIGIN + "/"},
+                {"@type": "ListItem", "position": 1, "name": "Quenly.pl", "item": SITE_ORIGIN + "/"},
                 {"@type": "ListItem", "position": 2, "name": heading, "item": page_url},
             ],
         },
@@ -1459,8 +1463,8 @@ def deals_landing_html(
     safe_heading = html.escape(heading)
     meta_desc = html.escape(meta_plain)
     exact_title = kind == "budget" and max_price in (10, 20, 30, 50, 100)
-    page_title = safe_heading if exact_title else f"{safe_heading} — porównanie cen | KupujPL Gry"
-    og_title = safe_heading if exact_title else f"{safe_heading} | KupujPL Gry"
+    page_title = safe_heading if exact_title else f"{safe_heading} — porównanie cen | Quenly.pl"
+    og_title = safe_heading if exact_title else f"{safe_heading} | Quenly.pl"
     grid = cards if cards else "<p>Brak gier spełniających kryteria — zajrzyj wkrótce.</p>"
     assets = _site_skin_assets()
     header = _site_skin_header()
@@ -1530,7 +1534,7 @@ def dubbing_landing_html(
             ),
             (
                 "Чому ціни в злотих?",
-                "KupujPL порівнює пропозиції для польського ринку в PLN.",
+                "Quenly порівнює пропозиції для польського ринку в PLN.",
             ),
         ]
         cta = "До каталогу"
@@ -1730,7 +1734,7 @@ def freebies_landing_html(
             "popularne tytuły zawsze darmowe.",
         ),
         (
-            "Czy muszę się rejestrować na KupujPL?",
+            "Czy muszę się rejestrować na Quenly?",
             "Nie. Lista darmowych gier jest publiczna. Konto pomaga tylko przy alertach cen.",
         ),
     ]
@@ -1751,7 +1755,7 @@ def freebies_landing_html(
     return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{safe_heading} | KupujPL Gry</title>
+<title>{safe_heading} | Quenly.pl</title>
 <meta name="description" content="{meta_desc}">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="{html.escape(page_url)}">
@@ -1767,7 +1771,7 @@ def freebies_landing_html(
 <script type="application/ld+json">{item_list_ld}</script>
 <script type="application/ld+json">{faq_ld}</script></head>
 <body>
-<nav><a href="{SITE_ORIGIN}/">KupujPL Gry</a> · <a href="{SITE_ORIGIN}/promocje">Promocje</a></nav>
+<nav><a href="{SITE_ORIGIN}/">Quenly.pl</a> · <a href="{SITE_ORIGIN}/promocje">Promocje</a></nav>
 <h1>{safe_heading}</h1>
 <p class="lead">Na bieżąco śledzimy <strong>darmowe gry Epic Games Store</strong> (free to keep)
 oraz czasowe promocje <strong>Steam</strong>. Weź zanim znikną — lista odświeża się automatycznie.</p>
@@ -1873,20 +1877,20 @@ def blog_index_html(db: Session | None = None) -> str:
         return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aktualności i poradniki — KupujPL Games</title>
-<meta name="description" content="Aktualności o promocjach na gry PC, darmowe gry i poradniki KupujPL Games.">
+<title>Aktualności i poradniki — Quenly</title>
+<meta name="description" content="Aktualności o promocjach na gry PC, darmowe gry i poradniki Quenly.">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="{SITE_ORIGIN}/blog">
-<link rel="alternate" type="application/rss+xml" title="KupujPL RSS" href="{SITE_ORIGIN}/blog/feed.xml">
+<link rel="alternate" type="application/rss+xml" title="Quenly RSS" href="{SITE_ORIGIN}/blog/feed.xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Aktualności i poradniki — KupujPL Games">
-<meta property="og:description" content="Promocje, darmowe gry i poradniki KupujPL.">
+<meta property="og:title" content="Aktualności i poradniki — Quenly">
+<meta property="og:description" content="Promocje, darmowe gry i poradniki Quenly.">
 <meta property="og:image" content="{_BLOG_OG_IMAGE}">
 <meta property="og:url" content="{SITE_ORIGIN}/blog">
 <style>{_base_styles()}{_blog_styles()}</style>
 <script type="application/ld+json">{item_list}</script></head>
 <body>
-<nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Games</a> · <span>Aktualności</span></nav>
+<nav class="crumbs"><a href="{SITE_ORIGIN}/">Quenly</a> · <span>Aktualności</span></nav>
 <h1>Aktualności i poradniki</h1>
 <p class="muted">Promocje, darmowe gry i poradniki o tańszym kupowaniu gier PC.</p>
 <div class="post-list">{cards}</div>
@@ -1926,10 +1930,10 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
                     "datePublished": date,
                     "dateModified": date,
                     "image": _BLOG_OG_IMAGE,
-                    "author": {"@type": "Organization", "name": "Redakcja KupujPL Games"},
+                    "author": {"@type": "Organization", "name": "Redakcja Quenly"},
                     "publisher": {
                         "@type": "Organization",
-                        "name": "KupujPL Games",
+                        "name": "Quenly",
                         "logo": {"@type": "ImageObject", "url": _PUBLISHER_LOGO},
                     },
                     "mainEntityOfPage": page_url,
@@ -1939,7 +1943,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
             return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{html.escape(post["title"])} | KupujPL</title>
+<title>{html.escape(post["title"])} | Quenly</title>
 <meta name="description" content="{html.escape(post.get("description", ""))}">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="{html.escape(page_url)}">
@@ -1952,11 +1956,11 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
 <style>{_base_styles()}{_blog_styles()}</style>
 <script type="application/ld+json">{article_ld}</script></head>
 <body>
-<nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Games</a> · <a href="{SITE_ORIGIN}/blog">Aktualności</a> · <span>{html.escape(post["title"])}</span></nav>
+<nav class="crumbs"><a href="{SITE_ORIGIN}/">Quenly</a> · <a href="{SITE_ORIGIN}/blog">Aktualności</a> · <span>{html.escape(post["title"])}</span></nav>
 <article><h1>{html.escape(post["title"])}</h1>
-<p class="muted">Redakcja KupujPL Games · {html.escape(date)}</p>
+<p class="muted">Redakcja Quenly · {html.escape(date)}</p>
 {safe_body}</article>
-<p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Sprawdź aktualne ceny w KupujPL Games</a></p>
+<p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Sprawdź aktualne ceny w Quenly</a></p>
 </body></html>"""
 
         page_url = art.canonical_url or f"{SITE_ORIGIN}/blog/{art.slug}"
@@ -1978,7 +1982,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
         mod = art.date_modified or pub
         pub_iso = _fmt_iso(pub)
         mod_iso = _fmt_iso(mod)
-        author = art.author or "Redakcja KupujPL Games"
+        author = art.author or "Redakcja Quenly"
         safe_content = sanitize_article_html(art.content)
 
         hero = ""
@@ -2012,10 +2016,10 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
             # Prefer careful wording when we cannot prove market-wide historical min
             low_txt = ""
             if label:
-                low_txt = f"<li>Najniższa cena zarejestrowana przez KupujPL: <strong>{html.escape(label)}</strong></li>"
+                low_txt = f"<li>Najniższa cena zarejestrowana przez Quenly: <strong>{html.escape(label)}</strong></li>"
             elif g.lowest_ever_pln is not None:
                 low_txt = (
-                    f"<li>Jedna z najniższych cen w bazie KupujPL: "
+                    f"<li>Jedna z najniższych cen w bazie Quenly: "
                     f"<strong>{g.lowest_ever_pln:.2f} zł</strong></li>"
                 )
             disc = ""
@@ -2069,7 +2073,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
                 "author": {"@type": "Organization", "name": author},
                 "publisher": {
                     "@type": "Organization",
-                    "name": "KupujPL Games",
+                    "name": "Quenly",
                     "logo": {"@type": "ImageObject", "url": _PUBLISHER_LOGO},
                 },
                 "mainEntityOfPage": {"@type": "WebPage", "@id": page_url},
@@ -2080,7 +2084,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
                 "@context": "https://schema.org",
                 "@type": "BreadcrumbList",
                 "itemListElement": [
-                    {"@type": "ListItem", "position": 1, "name": "KupujPL Games", "item": SITE_ORIGIN + "/"},
+                    {"@type": "ListItem", "position": 1, "name": "Quenly", "item": SITE_ORIGIN + "/"},
                     {"@type": "ListItem", "position": 2, "name": "Aktualności", "item": SITE_ORIGIN + "/blog"},
                     {"@type": "ListItem", "position": 3, "name": art.title, "item": page_url},
                 ],
@@ -2090,7 +2094,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
             {
                 "@context": "https://schema.org",
                 "@type": "Organization",
-                "name": "KupujPL Games",
+                "name": "Quenly",
                 "url": SITE_ORIGIN + "/",
                 "logo": _PUBLISHER_LOGO,
             }
@@ -2107,7 +2111,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
         return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{html.escape(title)} | KupujPL Games</title>
+<title>{html.escape(title)} | Quenly</title>
 <meta name="description" content="{html.escape(desc)}">
 <meta name="robots" content="{robots}">
 <link rel="canonical" href="{html.escape(page_url)}">
@@ -2124,7 +2128,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
 <script type="application/ld+json">{breadcrumb_ld}</script>
 <script type="application/ld+json">{org_ld}</script></head>
 <body>
-<nav class="crumbs"><a href="{SITE_ORIGIN}/">KupujPL Games</a> · <a href="{SITE_ORIGIN}/blog">Aktualności</a> · <span>{html.escape(art.title)}</span></nav>
+<nav class="crumbs"><a href="{SITE_ORIGIN}/">Quenly</a> · <a href="{SITE_ORIGIN}/blog">Aktualności</a> · <span>{html.escape(art.title)}</span></nav>
 <article>
 <h1>{html.escape(art.title)}</h1>
 {lead_html}
@@ -2134,7 +2138,7 @@ def blog_landing_html(slug: str, db: Session | None = None, *, preview: bool = F
 </article>
 {game_block}
 {related}
-<p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Sprawdź aktualne ceny w KupujPL Games</a> · <a href="{SITE_ORIGIN}/blog">← Wszystkie artykuły</a></p>
+<p style="margin-top:24px"><a class="cta" href="{SITE_ORIGIN}/">Sprawdź aktualne ceny w Quenly</a> · <a href="{SITE_ORIGIN}/blog">← Wszystkie artykuły</a></p>
 </body></html>"""
     finally:
         if close:
@@ -2216,7 +2220,7 @@ def price_history_landing_html(
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "KupujPL Gry", "item": SITE_ORIGIN + "/"},
+                {"@type": "ListItem", "position": 1, "name": "Quenly.pl", "item": SITE_ORIGIN + "/"},
                 {"@type": "ListItem", "position": 2, "name": title, "item": game_url},
                 {"@type": "ListItem", "position": 3, "name": "Historia cen", "item": page_url},
             ],
@@ -2226,7 +2230,7 @@ def price_history_landing_html(
     faqs = [
         (
             f"Jaka jest najniższa cena {title} w historii?",
-            f"Według danych KupujPL rekord to {low_txt}.",
+            f"Według danych Quenly rekord to {low_txt}.",
         ),
         (
             f"Ile kosztuje {title} teraz?",
@@ -2234,7 +2238,7 @@ def price_history_landing_html(
         ),
         (
             "Jak czytać wykres historii cen?",
-            "Linia pokazuje najniższą dzienną cenę spośród sklepów w katalogu KupujPL.",
+            "Linia pokazuje najniższą dzienną cenę spośród sklepów w katalogu Quenly.",
         ),
     ]
     faq_ld = _faq_page_schema(faqs)
@@ -2245,7 +2249,7 @@ def price_history_landing_html(
     return f"""<!DOCTYPE html>
 <html lang="pl"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Historia cen {safe_title} — wykres cen PC | KupujPL Gry</title>
+<title>Historia cen {safe_title} — wykres cen PC | Quenly.pl</title>
 <meta name="description" content="{meta_desc}">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="{html.escape(page_url)}">
@@ -2259,7 +2263,7 @@ def price_history_landing_html(
 <script type="application/ld+json">{breadcrumb_ld}</script>
 <script type="application/ld+json">{faq_ld}</script></head>
 <body>
-<nav><a href="{SITE_ORIGIN}/">KupujPL Gry</a> · <a href="{html.escape(game_url)}">{safe_title}</a></nav>
+<nav><a href="{SITE_ORIGIN}/">Quenly.pl</a> · <a href="{html.escape(game_url)}">{safe_title}</a></nav>
 <div class="seo-header">
   <img src="{img}" alt="{safe_title}" width="120" height="56">
   <div>
@@ -2289,7 +2293,7 @@ def intent_guide_landing_html(*, indexable: bool = True, hub_html: str | None = 
     safe_heading = html.escape(heading)
     meta_plain = _clip_text(
         "Gdzie kupić gry PC najtaniej w Polsce — porównaj Steam, GOG, Epic i keyshopy. "
-        "Budżetowe listy, przeceny vs Steam i alerty cenowe na KupujPL.",
+        "Budżetowe listy, przeceny vs Steam i alerty cenowe na Quenly.",
         160,
     )
     meta_desc = html.escape(meta_plain)
@@ -2304,7 +2308,7 @@ def intent_guide_landing_html(*, indexable: bool = True, hub_html: str | None = 
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": [
-                {"@type": "ListItem", "position": 1, "name": "KupujPL Gry", "item": SITE_ORIGIN + "/"},
+                {"@type": "ListItem", "position": 1, "name": "Quenly.pl", "item": SITE_ORIGIN + "/"},
                 {"@type": "ListItem", "position": 2, "name": heading, "item": page_url},
             ],
         },
@@ -2321,7 +2325,7 @@ def intent_guide_landing_html(*, indexable: bool = True, hub_html: str | None = 
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>{safe_heading} — KupujPL Gry</title>
+<title>{safe_heading} — Quenly.pl</title>
 <meta name="description" content="{meta_desc}">
 <meta name="robots" content="{robots}">
 <link rel="canonical" href="{can_url}">
