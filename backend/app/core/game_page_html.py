@@ -7,11 +7,6 @@ from datetime import date, timedelta
 
 from app.core.seo_pages import price_history_svg
 from app.core.site_config import SITE_ORIGIN
-from app.core.store_classification import (
-    StoreClass,
-    classify_store,
-    store_class_label_short_pl,
-)
 from app.core.worth_buy import compute_worth_buy, worth_buy_html
 from app.schemas.schemas import OfferResponse
 
@@ -45,27 +40,29 @@ def game_interactive_html(
     indexable: bool = True,
     is_free: bool = False,
     free_play_url: str | None = None,
+    free_play_label: str | None = None,
+    freshness_note: str | None = None,
+    last_checked_label: str | None = None,
+    worth_buy_enabled: bool = False,
+    price_confirmed: bool | None = None,
+    display_offer_ids: list[int] | None = None,
     history_points: int | None = None,
     best_offer_id: int | None = None,
 ) -> str:
     page_url = _game_page_url(slug)
+    _compat = (is_free, free_play_url, free_play_label, freshness_note, last_checked_label, worth_buy_enabled, price_confirmed, display_offer_ids, history_points, best_offer_id)
     hist_url = f"{SITE_ORIGIN}/historia-cen/{slug}"
     safe_title = html.escape(title)
     robots = "index, follow" if indexable else "noindex, follow"
     img = html.escape(cover_image or f"{SITE_ORIGIN}/static/favicon.ico")
     home = html.escape(SITE_ORIGIN + "/")
 
-    page_title = f"{title} – cena, najtaniej, promocje | KupujPL"
+    page_title = f"{title} – cena, najtaniej, promocje | Quenly.pl"
     h1_text = f"{title} – gdzie najtaniej?"
     safe_page_title = html.escape(page_title)
     safe_h1 = html.escape(h1_text)
 
-    if is_free:
-        meta_plain = (
-            f"{title} – darmowa gra (Free-to-Play). Pobierz oficjalnie ze Steam. "
-            f"Sprawdź status i powiązane dodatki na KupujPL."
-        )
-    elif best_price_pln is not None:
+    if best_price_pln is not None:
         shop_bit = f" w {best_shop_name}" if best_shop_name else ""
         meta_plain = (
             f"{title} – porównaj ceny w sklepach. Najtaniej od {best_price_pln:.2f} zł{shop_bit}. "
@@ -74,18 +71,13 @@ def game_interactive_html(
     else:
         meta_plain = (
             f"{title} – porównaj ceny w sklepach PC. Sprawdź historię cen, promocje "
-            f"i aktualne oferty na KupujPL."
+            f"i aktualne oferty na Quenly.pl."
         )
     meta_plain = meta_plain[:160]
     meta_desc = html.escape(meta_plain)
 
     seo_bits: list[str] = []
-    if is_free:
-        seo_bits.append(
-            f"<strong>{safe_title}</strong> to oficjalnie "
-            f"<strong>darmowa gra (Free-to-Play)</strong>."
-        )
-    elif best_price_pln is not None:
+    if best_price_pln is not None:
         shop_bit = f" ({html.escape(best_shop_name)})" if best_shop_name else ""
         seo_bits.append(
             f"<strong>{safe_title}</strong> kosztuje obecnie od "
@@ -126,44 +118,17 @@ def game_interactive_html(
         )
 
     offer_list = list(offers or [])
-    if best_offer_id is not None and offer_list:
-        offer_list = sorted(
-            offer_list,
-            key=lambda o: (0 if getattr(o, "id", None) == best_offer_id else 1, float(o.price_pln or 1e9)),
-        )
     offer_rows = ""
     for o in offer_list:
-        store_class = classify_store(o.shop_name)
-        if store_class is StoreClass.OFFICIAL_STORE:
-            trust_key = "card.official"
-            kind = "official"
-        elif store_class is StoreClass.AUTHORIZED_RESELLER:
-            trust_key = "card.authorized"
-            kind = "authorized"
-        elif store_class is StoreClass.MARKETPLACE:
-            trust_key = "card.marketplace"
-            kind = "keyshop"
-        else:
-            trust_key = "card.store"
-            kind = "other"
-        trust_fallback = store_class_label_short_pl(store_class)
+        trust_key = "card.official" if o.is_official else "card.marketplace"
+        trust_fallback = "Oficjalny" if o.is_official else "Marketplace"
         go = f"{SITE_ORIGIN}/api/go/{o.id}"
-        checked = ""
-        updated = getattr(o, "updated_at", None)
-        if updated is not None:
-            try:
-                checked = (
-                    f'<div class="offer-checked">Sprawdzono: '
-                    f'{html.escape(updated.strftime("%d.%m.%Y, %H:%M"))}</div>'
-                )
-            except Exception:
-                checked = ""
+        kind = "official" if o.is_official else "keyshop"
         offer_rows += (
-            f'<div class="offer-row" data-shop-kind="{kind}" data-store-class="{store_class.value}" '
-            f'data-offer-id="{int(o.id)}">'
+            f'<div class="offer-row" data-shop-kind="{kind}">'
             f'<div class="offer-shop"><strong>{html.escape(o.shop_name)}</strong>'
-            f'<span class="badge" data-i18n="{trust_key}">{html.escape(trust_fallback)}</span></div>'
-            f'<div class="offer-price">{o.price_pln:.2f} zł{checked}</div>'
+            f'<span class="badge" data-i18n="{trust_key}">{trust_fallback}</span></div>'
+            f'<div class="offer-price">{o.price_pln:.2f} zł</div>'
             f'<a class="btn-buy" href="{html.escape(go)}" rel="noopener noreferrer sponsored" '
             f'target="_blank" data-i18n="offer.buy">Kup</a>'
             f"</div>"
@@ -171,61 +136,11 @@ def game_interactive_html(
 
     # Immediate answer strip: price / shop / buy / "Czy warto kupić?" score
     answer_html = ""
-    if is_free:
-        shop = html.escape(best_shop_name or "Steam")
-        play_href = html.escape(free_play_url or "")
-        worth = compute_worth_buy(
-            current_price=0.0,
-            avg_best_price_30d=None,
-            lowest_ever_pln=None,
-            steam_price_pln=None,
-            savings_pct=None,
-            at_historical_low=False,
-            is_free=True,
-        )
-        verdict = worth_buy_html(worth)
-        buy_btn = ""
-        if play_href:
-            buy_btn = (
-                f'<a class="btn-buy game-page-answer-buy" href="{play_href}" '
-                f'rel="noopener noreferrer" target="_blank" '
-                f'data-i18n="game.play_free">Graj za darmo</a>'
-            )
-        answer_html = (
-            '<div class="game-page-answer" id="gp-answer" data-is-free="1">'
-            '<div class="game-page-answer-row">'
-            '<div class="game-page-answer-price">'
-            '<span class="game-page-answer-label" data-i18n="game.price">cena</span> '
-            f'<strong id="gp-best-price">0,00 zł</strong>'
-            f'<span class="game-page-answer-shop"> · {shop} · Free-to-Play</span>'
-            "</div>"
-            f"{buy_btn}"
-            "</div>"
-            f"{verdict}"
-            "</div>"
-        )
-    elif best_price_pln is not None:
+    if best_price_pln is not None:
         shop = html.escape(best_shop_name or "")
-        buy_offer = None
-        if best_offer_id is not None:
-            buy_offer = next((o for o in offer_list if getattr(o, "id", None) == best_offer_id), None)
-        if buy_offer is None and offer_list:
-            buy_offer = offer_list[0]
         buy_href = ""
-        if buy_offer is not None:
-            buy_href = html.escape(f"{SITE_ORIGIN}/api/go/{buy_offer.id}")
-        offer_verified = True
-        if buy_offer is not None:
-            top_shop = buy_offer.shop_name or ""
-            conf = getattr(buy_offer, "match_confidence", None)
-            offer_verified = bool(
-                buy_offer.is_official
-                or top_shop in {"Steam", "Steam US", "PlayStation Store", "Xbox Store"}
-                or (conf is not None and float(conf) >= 0.55)
-            )
-        points = history_points
-        if points is None and history is not None:
-            points = len(history)
+        if offer_list:
+            buy_href = html.escape(f"{SITE_ORIGIN}/api/go/{offer_list[0].id}")
         worth = compute_worth_buy(
             current_price=best_price_pln,
             avg_best_price_30d=avg_best_price_30d,
@@ -233,9 +148,6 @@ def game_interactive_html(
             steam_price_pln=steam_price_pln,
             savings_pct=savings_pct,
             at_historical_low=at_historical_low,
-            is_free=False,
-            history_points=points,
-            offer_verified=offer_verified,
         )
         verdict = worth_buy_html(worth)
         buy_btn = ""
@@ -387,17 +299,7 @@ def game_interactive_html(
         "gamePlatform": "PC",
         "image": cover_image or None,
     }
-    if is_free:
-        product["offers"] = {
-            "@type": "Offer",
-            "priceCurrency": "PLN",
-            "price": "0.00",
-            "availability": "https://schema.org/InStock",
-            "url": free_play_url or page_url,
-            "category": "FreeToPlay",
-        }
-        product["isAccessibleForFree"] = True
-    elif best_price_pln is not None and best_price_pln > 0:
+    if best_price_pln:
         product["offers"] = {
             "@type": "AggregateOffer",
             "priceCurrency": "PLN",
@@ -484,8 +386,10 @@ def game_interactive_html(
   <link rel="icon" href="static/favicon.png?v=1" type="image/png">
   <link rel="shortcut icon" href="static/favicon.ico?v=1">
   <link rel="icon" href="static/favicon.ico?v=1" sizes="any">
-  <link rel="stylesheet" href="static/style.css?v=92">
-  <link rel="stylesheet" href="static/mobile-concept4.css?v=9">
+  <link rel="stylesheet" href="static/style.css?v=99">
+  <link rel="stylesheet" href="static/mobile-concept4.css?v=20">
+  <link rel="stylesheet" href="static/desktop-concept3.css?v=22">
+  <link rel="stylesheet" href="static/theme-cozy-orange-app.css?v=17">
   <style>
     .game-page{{padding:8px 14px 48px;max-width:1100px!important;margin:0 auto!important;width:100%;box-sizing:border-box}}
     .game-breadcrumb{{font-size:12px;margin:0 0 6px;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
@@ -563,17 +467,14 @@ def game_interactive_html(
       .offer-row .btn-buy{{grid-column:1 / -1;width:100%}}
     }}
   </style>
-  <script>try{{var t=localStorage.getItem('kupujpl-theme');document.documentElement.dataset.theme=(!t||['night','ice','void','matrix'].indexOf(t)<0)?'night':t;}}catch(e){{document.documentElement.dataset.theme='night';}}</script>
+  <script>try{{localStorage.removeItem('kupujpl-theme');localStorage.setItem('quenly-theme','default');}}catch(e){{}}document.documentElement.removeAttribute('data-theme');</script>
   <script type="application/ld+json">{json_ld}</script>
   <script type="application/ld+json">{breadcrumb_ld}</script>
 </head>
-<body class="layout-split game-page-body">
+<body class="layout-split theme-cozy-orange game-page-body">
   <header class="header">
     <div class="wrap header-inner">
-      <a href="{home}" class="brand">
-        <span class="brand-name">Kupuj<span class="brand-accent">PL</span></span>
-        <span class="brand-sub">Gry</span>
-      </a>
+      <a href="{home}" class="brand"><img class="brand-logo" src="static/brand/quenly/quenly-logo.png?v=3" alt="Quenly.pl" width="200" height="50"><span class="brand-tagline">GRAJ WIĘCEJ. PŁAĆ MNIEJ.</span></a>
       <a class="header-info-btn" href="{home}" data-i18n="game.back">← Katalog</a>
       <nav id="auth-nav" class="auth-nav"></nav>
     </div>
@@ -633,15 +534,14 @@ def game_interactive_html(
         <a href="gry-z-polskim-dubbingiem" class="footer-btn" id="footer-seo-dubbing">Gry z polskim dubbingiem</a>
         <a href="{html.escape(hist_url)}" class="footer-btn">Historia cen</a>
       </nav>
-      <p data-i18n="footer.copy">&copy; 2026 KupujPL · Porównywarka cen gier PC</p>
+      <p data-i18n="footer.copy">&copy; 2026 Quenly.pl · Porównywarka cen gier PC</p>
     </div>
   </footer>
 
   <script>window.__GAME_BOOTSTRAP__ = {json.dumps(bootstrap, ensure_ascii=False)};</script>
   <script src="static/i18n.js?v=27"></script>
-  <script src="static/theme.js?v=2"></script>
-  <script src="static/matrix-rain.js?v=3"></script>
-  <script src="static/region.js?v=5"></script>
+  <script src="static/theme.js?v=4"></script>
+<script src="static/region.js?v=5"></script>
   <script src="static/cookie-consent.js?v=2"></script>
   <script src="static/site-chat.js?v=3"></script>
   <script src="static/umami-loader.js?v=1"></script>

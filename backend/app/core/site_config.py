@@ -1,4 +1,4 @@
-"""Public site contact / donate settings (env)."""
+﻿"""Public site contact / donate settings (env)."""
 from __future__ import annotations
 
 import os
@@ -32,3 +32,23 @@ def public_site_info() -> dict[str, str]:
         "donate_label": DONATE_LABEL,
         "site_origin": SITE_ORIGIN,
     }
+
+
+def inter_font_head(static_base: str) -> str:
+    """Self-hosted Inter (Price Radar) вЂ” avoids Google Fonts."""
+    base = static_base.rstrip("/")
+    if not base.startswith("http"):
+        base = f"{SITE_ORIGIN}/{base.lstrip('/')}"
+    return (
+        "<style>"
+        "@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;"
+        f"src:url({base}/fonts/inter-latin.woff2) format('woff2');"
+        "unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,"
+        "U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}"
+        "@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;"
+        f"src:url({base}/fonts/inter-latin-ext-pl.woff2) format('woff2');"
+        "unicode-range:U+0104-0107,U+0118-0119,U+0141-0144,U+015A-015B,U+0179-017C}"
+        "@font-face{font-family:'Inter Fallback';src:local('Arial');size-adjust:107.4%;"
+        "ascent-override:90.2%;descent-override:22.5%;line-gap-override:0%}"
+        "</style>"
+    )

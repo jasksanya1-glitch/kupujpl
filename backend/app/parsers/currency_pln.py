@@ -64,3 +64,13 @@ def money_to_pln(
     if minor_units:
         value = value / 100.0
     return to_pln(value, currency)
+
+
+def fx_snapshot() -> dict[str, object]:
+    """NBP mid rates for approximate foreign display next to PLN (used by /api/fx)."""
+    rates: dict[str, float] = {}
+    for currency in ("USD", "EUR", "GBP", "UAH"):
+        rate = _fetch_rate(currency)
+        if rate is not None:
+            rates[currency] = rate
+    return {"base": "PLN", "rates": rates}
