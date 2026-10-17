@@ -5,7 +5,9 @@ from collections.abc import Iterable, Sequence
 
 from sqlalchemy.orm import Session
 
-from app.core.offer_quality import offer_eligible_for_best_price
+from app.core.f2p_storefronts import prefer_epic_over_steam_for_free
+from app.core.offer_quality import offer_edition_verified, offer_eligible_for_best_price
+from app.core.price_engine_config import price_engine_v2_enabled
 from app.models.models import Game, Offer
 from app.parsers.shop_scan_config import get_display_shops
 
@@ -127,6 +129,10 @@ def best_offers_map(
     ids = list(game_ids)
     if not ids:
         return {}
+    if price_engine_v2_enabled():
+        from app.core.price_engine import best_offers_map_v2
+
+        return best_offers_map_v2(db, ids, region=region, games=games)
     region = normalize_shopping_region(region)
     steam_shop = steam_shop_for_region(region)
     steam_map = steam_offers_map(
@@ -146,7 +152,7 @@ def best_offers_map(
             Offer.game_id.in_(ids),
             Offer.in_stock == True,  # noqa: E712
             Offer.price_pln.isnot(None),
-            Offer.price_pln > 0,
+            Offer.price_pln >= 0,
         )
         .all()
     )
@@ -160,27 +166,53 @@ def best_offers_map(
         allowed = display_shops_for_game(game, region=region)
         if offer.shop_name not in allowed:
             continue
+        # Paid catalog: ignore zero-price noise. Free games keep 0 zł official CTAs.
+        if (offer.price_pln or 0) <= 0 and not bool(getattr(game, "is_free", False)):
+            continue
         by_game.setdefault(offer.game_id, []).append(offer)
 
     best: dict[int, Offer] = {}
     for game_id, game_offers in by_game.items():
         game = games.get(game_id)
-        # Permanent Free-to-Play base games must never surface a paid keyshop
-        # as the catalog / page "best price" (CS2, TF2, etc.).
-        if game is not None and bool(getattr(game, "is_free", False)):
-            continue
+        title = game.title if game else None
+        is_free = bool(getattr(game, "is_free", False)) if game else False
         steam = steam_map.get(game_id)
         steam_price = float(steam.price_pln) if steam and steam.price_pln else None
-        peer_prices = [float(o.price_pln) for o in game_offers if o.price_pln]
+        # Peer cluster = other marketplace/keyshop quotes only (Steam already has
+        # its own sanity floor). Wrong-edition SKUs must not poison the median.
+        peer_prices = [
+            float(o.price_pln)
+            for o in game_offers
+            if o.price_pln
+            and o.price_pln > 0
+            and (o.shop_name or "") not in {"Steam", "Steam US", "PlayStation Store", "Xbox Store"}
+            and offer_edition_verified(o, game_title=title)
+        ]
+        prefer_epic = is_free and prefer_epic_over_steam_for_free(
+            getattr(game, "steam_appid", None) if game else None
+        )
         for offer in game_offers:
             if not offer_eligible_for_best_price(
                 offer,
                 steam_price_pln=steam_price,
                 peer_prices=peer_prices,
+                game_title=title,
+                allow_zero_price=is_free,
             ):
                 continue
+            if prefer_epic and offer.shop_name == "Steam":
+                # Keep Steam visible in tables, but never as primary F2P CTA.
+                continue
             prev = best.get(game_id)
-            if prev is None or offer.price_pln < prev.price_pln:
+            if prev is None:
+                best[game_id] = offer
+                continue
+            if prefer_epic and offer.shop_name == "Epic Games" and prev.shop_name != "Epic Games":
+                best[game_id] = offer
+                continue
+            if prefer_epic and prev.shop_name == "Epic Games" and offer.shop_name != "Epic Games":
+                continue
+            if offer.price_pln < prev.price_pln:
                 best[game_id] = offer
     return best
 

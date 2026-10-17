@@ -922,18 +922,7 @@ def game_landing_html(
     if offers:
         rows = ""
         for o in offers:
-            sc = getattr(o, "store_class", None) or ""
-            if o.trust_label:
-                trust_fallback = o.trust_label
-            elif sc == "OFFICIAL_STORE" or o.is_official:
-                trust_fallback = "Oficjalny"
-            elif sc == "AUTHORIZED_RESELLER":
-                trust_fallback = "Autoryzowany"
-            elif sc == "MARKETPLACE":
-                trust_fallback = "Marketplace"
-            else:
-                trust_fallback = "Sklep"
-            trust = html.escape(trust_fallback)
+            trust = html.escape(o.trust_label or ("Oficjalny" if o.is_official else "Marketplace"))
             refund = ""
             note = getattr(o, "refund_note_pl", None) or ""
             if note:
@@ -1069,8 +1058,10 @@ def _site_skin_assets() -> str:
     """Full KupujPL chrome (style.css + theme) for SEO collection pages."""
     return f"""
 <link rel="icon" href="{SITE_ORIGIN}/static/favicon.png?v=1" type="image/png">
-<link rel="stylesheet" href="{SITE_ORIGIN}/static/style.css?v=92">
-<link rel="stylesheet" href="{SITE_ORIGIN}/static/mobile-concept4.css?v=9">
+<link rel="stylesheet" href="{SITE_ORIGIN}/static/style.css?v=99">
+<link rel="stylesheet" href="{SITE_ORIGIN}/static/mobile-concept4.css?v=20">
+<link rel="stylesheet" href="{SITE_ORIGIN}/static/desktop-concept3.css?v=22">
+<link rel="stylesheet" href="{SITE_ORIGIN}/static/theme-cozy-orange-app.css?v=17">
 <script>
 (function(){{try{{var k=localStorage.getItem('kupujpl-theme');
 document.documentElement.dataset.theme=(!k||['night','ice','void','matrix'].indexOf(k)<0)?'night':k;
@@ -1136,8 +1127,7 @@ def _site_skin_header() -> str:
 def _site_skin_scripts() -> str:
     return f"""
 <script src="{SITE_ORIGIN}/static/i18n.js?v=28"></script>
-<script src="{SITE_ORIGIN}/static/theme.js?v=2"></script>
-<script src="{SITE_ORIGIN}/static/matrix-rain.js?v=3"></script>
+<script src="{SITE_ORIGIN}/static/theme.js?v=4"></script>
 <script src="{SITE_ORIGIN}/static/cookie-consent.js?v=2"></script>
 <script src="{SITE_ORIGIN}/static/core-bundle.js?v=12"></script>
 """
@@ -1236,7 +1226,7 @@ def category_landing_html(*, category, games: list[GameListResponse]) -> str:
 <script type="application/ld+json">{item_list_ld}</script>
 <script type="application/ld+json">{breadcrumb_ld}</script>
 </head>
-<body class="layout-split seo-collection">
+<body class="layout-split theme-cozy-orange seo-collection">
 {header}
 <main class="seo-main">
   <p class="seo-nav-mini"><a href="{SITE_ORIGIN}/">← Katalog</a> · <a href="{SITE_ORIGIN}/promocje">Promocje</a></p>
@@ -1354,7 +1344,7 @@ def deals_landing_html(
             f"Promocje na gry PC{cheap_bit} — porównaj przecenione tytuły w polskich sklepach.",
             160,
         )
-        lead = "Aktualne promocje na gry PC z porównaniem cen w sklepach oficjalnych i marketplace'ach."
+        lead = "Aktualne promocje na gry PC z porównaniem cen w 10 sklepach."
         faqs = [
             (
                 "Czy KupujPL sprzedaje gry?",
@@ -1496,7 +1486,7 @@ def deals_landing_html(
 <script type="application/ld+json">{breadcrumb_ld}</script>
 <script type="application/ld+json">{faq_ld}</script>
 </head>
-<body class="layout-split seo-collection">
+<body class="layout-split theme-cozy-orange seo-collection">
 {header}
 <main class="seo-main">
   <p class="seo-nav-mini"><a href="{SITE_ORIGIN}/">← Katalog</a> · <a href="{SITE_ORIGIN}/promocje">Promocje</a></p>
@@ -1633,7 +1623,7 @@ def dubbing_landing_html(
 <script type="application/ld+json">{item_list_ld}</script>
 <script type="application/ld+json">{faq_ld}</script>
 </head>
-<body class="layout-split seo-collection">
+<body class="layout-split theme-cozy-orange seo-collection">
 {header}
 <main class="seo-main">
   <p class="seo-nav-mini"><a href="{SITE_ORIGIN}/">← Katalog</a> · <a href="{alt_url}">{related_esc}</a></p>
@@ -1771,6 +1761,8 @@ def freebies_landing_html(
 <meta property="og:image" content="{og_image}">
 <meta property="og:url" content="{html.escape(page_url)}">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#ff9320">
+<link rel="stylesheet" href="{SITE_ORIGIN}/static/theme-cozy-orange-app.css?v=17">
 <style>{_base_styles()}</style>
 <script type="application/ld+json">{item_list_ld}</script>
 <script type="application/ld+json">{faq_ld}</script></head>
@@ -2343,7 +2335,7 @@ def intent_guide_landing_html(*, indexable: bool = True, hub_html: str | None = 
 </style>
 <script type="application/ld+json">{breadcrumb_ld}</script>
 </head>
-<body class="layout-split seo-collection">
+<body class="layout-split theme-cozy-orange seo-collection">
 {header}
 <main class="seo-main">
   <p class="seo-nav-mini"><a href="{SITE_ORIGIN}/">← Katalog</a> · <a href="{SITE_ORIGIN}/promocje">Promocje</a></p>
