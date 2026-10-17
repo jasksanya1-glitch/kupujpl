@@ -33,7 +33,14 @@ from app.core.offer_freshness import (
     format_last_checked_pl,
     freshness_warning_pl,
 )
-from app.core.offer_quality import offer_edition_verified, offer_eligible_for_best_price
+from app.core.offer_quality import (
+    BEST_PRICE_MIN_CONFIDENCE,
+    is_expensive_vs_steam_reference,
+    is_keyshop_too_cheap_vs_steam,
+    is_peer_price_outlier,
+    offer_edition_verified,
+    offer_eligible_for_best_price,
+)
 from app.core.product_matching import (
     MatchStatus,
     evaluate_offer_freshness_snapshot,
@@ -98,8 +105,8 @@ class PriceEngineResult:
 
     @property
     def has_verified(self) -> bool:
-        """Backward compat: confirmed snapshot for catalog/API."""
-        return self.has_confirmed
+        """Backward compat: confirmed or stale_warning verified min."""
+        return self.best_verified_offer is not None
 
     @property
     def has_match_verified_stale_only(self) -> bool:
@@ -129,6 +136,110 @@ def _peer_prices(game_offers: list[Offer], *, game_title: str | None) -> list[fl
     ]
 
 
+# Exclusion reasons that prove a wrong / unsafe product — never show as buyable.
+_REJECTED_EXCLUSION_REASONS = frozenset(
+    {
+        "url_invalid",
+        "edition_mismatch",
+        "match_mismatch",
+        "peer_outlier",
+        "zero_price_noise",
+        "shop_hidden",
+    }
+)
+
+# Price-only anomalies: identity may still be plausible — UI unverified, not confirmed.
+_UNVERIFIED_PRICE_REASONS = frozenset(
+    {
+        "price_anomaly",
+        "not_eligible",
+        "low_confidence",
+        "insufficient_data",
+        "stale",
+        "out_of_stock",
+    }
+)
+
+
+def _refine_eligibility_exclusion(
+    offer: Offer,
+    *,
+    steam_price: float | None,
+    peer_prices: list[float],
+    game_title: str | None,
+) -> ExclusionReason:
+    """Map failed eligibility to a precise reason for rejected vs unverified."""
+    if not offer_edition_verified(offer, game_title=game_title):
+        return "edition_mismatch"
+    price = offer.price_pln
+    shop = offer.shop_name or ""
+    if price is not None and price > 0:
+        if is_expensive_vs_steam_reference(
+            float(price), steam_price_pln=steam_price, shop_name=shop
+        ):
+            return "price_anomaly"
+        if is_peer_price_outlier(
+            float(price), peer_prices, steam_price_pln=steam_price
+        ):
+            return "price_anomaly"
+        if is_keyshop_too_cheap_vs_steam(
+            float(price),
+            steam_price_pln=steam_price,
+            shop_name=shop,
+            is_official=bool(offer.is_official),
+        ):
+            return "price_anomaly"
+        # Official stores that fail steam floor (e.g. wrong GOG SKU at 8.99 vs 199).
+        if (
+            steam_price is not None
+            and steam_price >= 25.0
+            and float(price) / float(steam_price) < 0.12
+            and shop not in {"Steam", "Steam US", "PlayStation Store", "Xbox Store"}
+        ):
+            return "price_anomaly"
+    conf = offer.match_confidence
+    if conf is None and not offer.is_official and shop not in {"Steam", "Steam US"}:
+        return "insufficient_data"
+    if (
+        conf is not None
+        and conf < BEST_PRICE_MIN_CONFIDENCE
+        and not offer.is_official
+        and shop not in {"Steam", "Steam US"}
+    ):
+        return "low_confidence"
+    return "not_eligible"
+
+
+def offer_row_display_tier(
+    row: PriceEngineOfferRow,
+) -> Literal["confirmed", "unverified", "rejected"]:
+    """Public display bucket: confirmed / unverified (buyable with warning) / rejected."""
+    if row.bucket == "confirmed":
+        return "confirmed"
+    if row.bucket == "stale":
+        return "unverified"
+    reason = row.exclusion_reason
+    if reason in _REJECTED_EXCLUSION_REASONS:
+        return "rejected"
+    if reason == "price_anomaly":
+        # Official store deep undercut is treated as wrong SKU; keyshops stay unverified
+        # (identity may be OK — needs human/price review, not a confirmed buy CTA).
+        if bool(getattr(row.offer, "is_official", False)):
+            return "rejected"
+        return "unverified"
+    match_status = getattr(row, "match_status", None)
+    if match_status == MatchStatus.VERIFIED_MISMATCH:
+        return "rejected"
+    if reason in _UNVERIFIED_PRICE_REASONS or reason is None:
+        return "unverified"
+    return "rejected"
+
+
+_ERROR_CHECK_STATUSES = frozenset(
+    {"error", "http_error", "failed", "fetch_error", "timeout", "blocked"}
+)
+
+
 def _classify_offer_row(
     offer: Offer,
     game: Game,
@@ -142,6 +253,12 @@ def _classify_offer_row(
     )
     fresh = evaluate_offer_freshness_snapshot(offer, now=now)
 
+    status = (getattr(offer, "last_check_status", None) or "").strip().lower()
+    if status in _ERROR_CHECK_STATUSES:
+        return PriceEngineOfferRow(
+            offer, match.status, fresh.status, "excluded", "insufficient_data"
+        )
+
     if match.status == MatchStatus.VERIFIED_MISMATCH:
         reason: ExclusionReason = "match_mismatch"
         if not match.url_ok:
@@ -150,7 +267,10 @@ def _classify_offer_row(
             reason = "price_anomaly"
         elif match.reason == "low_match_confidence":
             reason = "low_confidence"
-        elif not match.edition_ok:
+        elif not match.edition_ok or match.reason in {
+            "edition_or_sku_mismatch",
+            "title_mismatch",
+        }:
             reason = "edition_mismatch"
         return PriceEngineOfferRow(offer, match.status, fresh.status, "excluded", reason)
 
@@ -168,7 +288,13 @@ def _classify_offer_row(
         require_fresh=False,
         allow_zero_price=is_free,
     ):
-        return PriceEngineOfferRow(offer, match.status, fresh.status, "excluded", "not_eligible")
+        refined = _refine_eligibility_exclusion(
+            offer,
+            steam_price=steam_price,
+            peer_prices=peer_prices,
+            game_title=title,
+        )
+        return PriceEngineOfferRow(offer, match.status, fresh.status, "excluded", refined)
 
     if match.status == MatchStatus.VERIFIED_MATCH and fresh.is_confirmed_fresh:
         if offer_is_confirmed_for_display(
@@ -221,7 +347,7 @@ def get_best_verified_offer(
     region: str = "pl",
     now: datetime | None = None,
 ) -> Offer | None:
-    return get_best_confirmed_offer(game, offers, region=region, now=now)
+    return evaluate_game_prices(game, offers, region=region, now=now).best_verified_offer
 
 
 def evaluate_game_prices(
@@ -298,6 +424,20 @@ def evaluate_game_prices(
         float(best_confirmed.price_pln) if best_confirmed and best_confirmed.price_pln is not None else None
     )
 
+    # best_verified: confirmed first; else cheapest still in the stale_warning band
+    # (identity OK, freshness soft-warning). too_old stays out of verified min.
+    stale_warning_offers = [
+        r.offer
+        for r in rows
+        if r.bucket == "stale" and r.freshness_status == "stale_warning"
+    ]
+    best_verified = best_confirmed or _pick_min(stale_warning_offers)
+    best_verified_price = (
+        float(best_verified.price_pln)
+        if best_verified and best_verified.price_pln is not None
+        else None
+    )
+
     last_candidates = [
         o
         for o in deduped
@@ -344,8 +484,8 @@ def evaluate_game_prices(
         snapshot_at=now,
         best_confirmed_offer=best_confirmed,
         best_confirmed_price=best_price,
-        best_verified_offer=best_confirmed,
-        best_verified_price=best_price,
+        best_verified_offer=best_verified,
+        best_verified_price=best_verified_price,
         recommended_offer=recommended,
         recommended_reason=rec_reason,
         last_known_offer=last_known,
@@ -431,10 +571,36 @@ def best_offers_map_v2(
     return out
 
 
+def rejected_offers_from_result(
+    engine_result: PriceEngineResult | None,
+) -> list[tuple[Offer, str | None]]:
+    """Wrong-SKU / bad-URL / edition mismatches — admin diagnostics only, never buyable."""
+    if engine_result is None:
+        return []
+    out: list[tuple[Offer, str | None]] = []
+    seen: set[int] = set()
+    for row in engine_result.rows or []:
+        if offer_row_display_tier(row) != "rejected":
+            continue
+        offer = row.offer
+        if offer is None or offer.id in seen:
+            continue
+        reason = row.exclusion_reason
+        reason_s = reason.value if hasattr(reason, "value") else (str(reason) if reason else None)
+        seen.add(offer.id)
+        out.append((offer, reason_s))
+    out.sort(key=lambda item: float(item[0].price_pln or 0))
+    return out
+
+
 def unverified_offers_from_result(
     engine_result: PriceEngineResult | None,
 ) -> list[tuple[Offer, str | None]]:
-    """In-stock excluded rows for a separate UI category (not used for best price)."""
+    """In-stock excluded rows that are identity-plausible but not confirmed.
+
+    REJECTED rows (wrong game/SKU/edition/bad URL) are omitted — they must not
+    appear as buyable unverified offers.
+    """
     if engine_result is None:
         return []
     display_ids = {
@@ -448,6 +614,8 @@ def unverified_offers_from_result(
         if offer is None or offer.id in display_ids or offer.id in seen:
             continue
         if row.bucket != "excluded":
+            continue
+        if offer_row_display_tier(row) == "rejected":
             continue
         if not offer.in_stock or offer.price_pln is None or offer.price_pln <= 0:
             continue

@@ -130,24 +130,8 @@ _TOKEN_STOP = {
     "en",
     "standard",
     "gift",
-    "deluxe",
-    "ultimate",
-    "complete",
-    "special",
-    "limited",
-    "definitive",
-    "gold",
-    "goty",
-    "anniversary",
-    "enhanced",
-    "collection",
-    "collectors",
-    "collector",
-    "remastered",
-    "hd",
-    "early",
-    "access",
-    "anthology",
+    # Edition tokens intentionally NOT listed here — they must remain distinctive
+    # so "Base Game" ≠ "Base Game Ultimate Edition".
     "icons",
     "iconic",
     "super",
@@ -189,24 +173,7 @@ _ALLOWED_PRODUCT_EXTRAS = {
     "standard",
     "edition",
     "gift",
-    "deluxe",
-    "ultimate",
-    "complete",
-    "special",
-    "limited",
-    "definitive",
-    "gold",
-    "goty",
-    "anniversary",
-    "enhanced",
-    "collection",
-    "collectors",
-    "collector",
-    "remastered",
-    "hd",
-    "early",
-    "access",
-    "anthology",
+    # Do not treat deluxe/ultimate/goty as harmless extras — wrong SKU otherwise.
     "icons",
     "iconic",
     "super",
@@ -246,6 +213,51 @@ def _distinctive_tokens(tokens: set[str]) -> set[str]:
         if t not in _ALLOWED_PRODUCT_EXTRAS and not _is_store_sku_token(t)
     }
 
+
+_EDITION_EXTRA_TOKENS = frozenset(
+    {
+        "deluxe",
+        "ultimate",
+        "complete",
+        "special",
+        "limited",
+        "definitive",
+        "gold",
+        "goty",
+        "anniversary",
+        "enhanced",
+        "collection",
+        "collectors",
+        "collector",
+        "remastered",
+        "remaster",
+        "remake",
+        "hd",
+        "anthology",
+        "bundle",
+        "season",
+        "pass",
+        "legacy",
+        "premium",
+        "account",
+    }
+)
+
+_EDITION_PHRASE_MARKERS = (
+    "ultimate edition",
+    "deluxe edition",
+    "complete edition",
+    "definitive edition",
+    "gold edition",
+    "goty",
+    "game of the year",
+    "season pass",
+    "legacy edition",
+    "premium edition",
+    "collector",
+    "remaster",
+    "remake",
+)
 
 _ROMAN_EDITION = {
     "i": 1,
@@ -318,6 +330,23 @@ def _title_tokens(value: str) -> set[str]:
     return tokens
 
 
+def edition_markers_mismatch(query: str, candidate: str) -> bool:
+    """True when candidate is a different edition/SKU than the catalog game title."""
+    q = (query or "").lower()
+    c = (candidate or "").lower()
+    if not q or not c:
+        return False
+    for phrase in _EDITION_PHRASE_MARKERS:
+        if phrase in c and phrase not in q:
+            return True
+    q_tokens = _title_tokens(query)
+    c_tokens = _title_tokens(candidate)
+    edition_extras = (c_tokens - q_tokens) & _EDITION_EXTRA_TOKENS
+    if edition_extras and not (edition_extras & q_tokens):
+        return True
+    return False
+
+
 def title_mismatch(query: str, candidate: str) -> bool:
     """Reject obvious wrong-game matches (sequel / remake / DLC without intent)."""
     q = (query or "").lower()
@@ -329,6 +358,9 @@ def title_mismatch(query: str, candidate: str) -> bool:
         if any(marker in c for marker in DLC_MARKERS):
             if not any(marker in q for marker in DLC_MARKERS):
                 return True
+
+    if edition_markers_mismatch(query, candidate):
+        return True
 
     q_tokens = _title_tokens(query)
     c_tokens = _title_tokens(candidate)
@@ -778,6 +810,13 @@ def classify_keyshop_product(
                 "score": 0.0,
                 "activation_region": activation,
             }
+    if edition_markers_mismatch(game_title, candidate):
+        return {
+            "valid": False,
+            "reason": "edition_mismatch",
+            "score": 0.0,
+            "activation_region": activation,
+        }
     if title_mismatch(game_title, candidate):
         return {
             "valid": False,

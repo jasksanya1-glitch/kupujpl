@@ -70,6 +70,23 @@ def add_game(db: Session, slug: str, *, platform: str = "pc", title: str | None 
     return game
 
 
+def _shop_url(shop_name: str, game: Game) -> str:
+    slug = (game.slug or "game").replace("_", "-")
+    templates = {
+        "Steam": f"https://store.steampowered.com/app/1/{slug}/",
+        "Steam US": f"https://store.steampowered.com/app/1/{slug}/",
+        "Instant Gaming": f"https://www.instant-gaming.com/pl/{slug}-game/",
+        "GOG": f"https://www.gog.com/game/{slug.replace('-', '_')}",
+        "Epic Games": f"https://store.epicgames.com/pl/p/{slug}",
+        "Fanatical": f"https://www.fanatical.com/pl/game/{slug}",
+        "Kinguin": f"https://www.kinguin.net/pl/{slug}-key",
+        "G2A": f"https://www.g2a.com/pl/{slug}-steam-key",
+        "Gamivo": f"https://www.gamivo.com/product/{slug}",
+        "CDKeys": f"https://www.cdkeys.com/pl/{slug}-pc-steam",
+    }
+    return templates.get(shop_name, f"https://www.kinguin.net/pl/{slug}")
+
+
 def add_offer(
     db: Session,
     game: Game,
@@ -80,7 +97,7 @@ def add_offer(
     is_official: bool = False,
     match_confidence: float | None = None,
     activation_region: str = "eu",
-    affiliate_url: str = "https://example.test/o",
+    affiliate_url: str | None = None,
 ) -> Offer:
     offer = Offer(
         game_id=game.id,
@@ -90,7 +107,7 @@ def add_offer(
         is_official=is_official,
         match_confidence=match_confidence,
         activation_region=activation_region,
-        affiliate_url=affiliate_url,
+        affiliate_url=affiliate_url or _shop_url(shop_name, game),
     )
     db.add(offer)
     db.flush()

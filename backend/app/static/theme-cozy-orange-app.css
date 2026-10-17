@@ -103,12 +103,18 @@ html, body {
   width: 100%;
   line-height: 0;
   background: #070605;
+  /* Reserve ratio up-front to avoid CLS when LCP image decodes. */
+  aspect-ratio: 2161 / 728;
+  max-height: min(58vh, 640px);
+  overflow: hidden;
 }
+.cozy-hero-media picture,
 .cozy-hero-media img {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
-  max-height: min(58vh, 640px);
+}
+.cozy-hero-media img {
   object-fit: cover;
   object-position: 28% 50%;
 }
@@ -377,16 +383,21 @@ h1, h2, h3 { color: var(--cozy-text) !important; }
 
 /* Mobile hero restyle */
 @media (max-width: 767px) {
+  .cozy-hero-media {
+    max-height: 220px;
+    aspect-ratio: 16 / 9;
+  }
   .cozy-hero-inner {
     position: relative;
     left: 0;
     top: 0;
     transform: none;
     max-width: 100%;
-    padding: 20px 16px 24px;
-    margin-top: -40%;
+    padding: 16px 16px 20px;
+    margin-top: 0;
+    background: linear-gradient(180deg, rgba(18, 10, 5, 0.72), var(--cozy-bg));
   }
-  .cozy-hero-media img { max-height: 280px; }
+  .cozy-hero-media img { max-height: none; }
   .cozy-hero h2 { font-size: 1.7rem; }
   .cp-home-hero {
     background: linear-gradient(180deg, #1a120a, var(--cozy-bg)) !important;
@@ -430,7 +441,11 @@ a.btn-buy:not([data-i18n="game.play_free"]),
   border: 0 !important;
   border-radius: 0 !important;
   background-color: transparent !important;
-  background-image: url("brand/quenly/qp-buy-btn.png?v=5") !important;
+  background-image: url("brand/quenly/qp-buy-btn-w440.png?v=6") !important;
+  background-image: image-set(
+    url("brand/quenly/qp-buy-btn-w440.webp?v=6") type("image/webp"),
+    url("brand/quenly/qp-buy-btn-w440.png?v=6") type("image/png")
+  ) !important;
   background-position: center !important;
   background-size: contain !important;
   background-repeat: no-repeat !important;
@@ -455,7 +470,11 @@ a.btn-buy:not([data-i18n="game.play_free"]),
 .modal-savings-cta.btn-buy:hover,
 .d3-card-cta.btn-buy:hover {
   background-color: transparent !important;
-  background-image: url("brand/quenly/qp-buy-btn.png?v=5") !important;
+  background-image: url("brand/quenly/qp-buy-btn-w440.png?v=6") !important;
+  background-image: image-set(
+    url("brand/quenly/qp-buy-btn-w440.webp?v=6") type("image/webp"),
+    url("brand/quenly/qp-buy-btn-w440.png?v=6") type("image/png")
+  ) !important;
   background-position: center !important;
   background-size: contain !important;
   background-repeat: no-repeat !important;

@@ -35,6 +35,70 @@ logger = logging.getLogger("affiliate_feeds")
 _CACHE_DIR = Path(BASE_DIR) / "tmp" / "affiliate_feeds"
 _CACHE_TTL_SEC = int(os.environ.get("AFFILIATE_FEED_CACHE_HOURS", "6")) * 3600
 
+# Negative cache: skip re-hitting feeds that recently failed (404/auth/etc.).
+_FEED_FAIL_BACKOFF_SEC = int(os.environ.get("AFFILIATE_FEED_FAIL_BACKOFF_SEC", "900"))
+_FEED_FAIL_UNTIL: dict[str, float] = {}
+
+
+def _redact_feed_url(url: str) -> str:
+    """Strip API keys from feed URLs before logging."""
+    raw = url or ""
+    redacted = re.sub(
+        r"(apikey/)([^/]+)",
+        r"\1REDACTED",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    redacted = re.sub(
+        r"([?&](?:api_?key|token|auth)=)([^&]+)",
+        r"\1REDACTED",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    return redacted
+
+
+def _fail_marker_path(shop: str) -> Path:
+    safe = re.sub(r"[^a-z0-9]+", "", (shop or "").lower()) or "unknown"
+    return _CACHE_DIR / f"{safe}.fail"
+
+
+def _mark_feed_fail(shop: str, reason: str = "") -> None:
+    until = time.time() + _FEED_FAIL_BACKOFF_SEC
+    _FEED_FAIL_UNTIL[shop] = until
+    try:
+        _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        marker = _fail_marker_path(shop)
+        marker.write_text(f"{until}\n{reason}\n", encoding="utf-8")
+    except OSError:
+        logger.debug("could not write feed fail marker for %s", shop)
+
+
+def _load_fail_marker(shop: str) -> None:
+    marker = _fail_marker_path(shop)
+    if not marker.is_file():
+        return
+    try:
+        first = marker.read_text(encoding="utf-8").splitlines()[0].strip()
+        until = float(first)
+    except (OSError, ValueError, IndexError):
+        return
+    if until > time.time():
+        _FEED_FAIL_UNTIL[shop] = until
+
+
+def _feed_fail_active(shop: str) -> bool:
+    until = _FEED_FAIL_UNTIL.get(shop)
+    if until is None:
+        _load_fail_marker(shop)
+        until = _FEED_FAIL_UNTIL.get(shop)
+    if until is None:
+        return False
+    if until <= time.time():
+        _FEED_FAIL_UNTIL.pop(shop, None)
+        return False
+    return True
+
 _AWIN_LIST_BASE = "https://productdata.awin.com/datafeed/list/apikey"
 _AWIN_DOWNLOAD_BASE = "https://productdata.awin.com/datafeed/download/apikey"
 _AWIN_LEGACY_DOWNLOAD_BASE = "https://legacydatafeeds.awin.com/datafeed/download/apikey"
@@ -832,17 +896,18 @@ def _feed_id(shop: str) -> str | None:
 
 def _download_bytes(url: str) -> tuple[bytes | None, str | None]:
     timeout = 180 if "product-feeder.g2a.com" in url else 45
+    safe_url = _redact_feed_url(url)
     try:
         response = requests.get(url, timeout=timeout, allow_redirects=True)
     except Exception as exc:
-        logger.warning("affiliate feed download failed %s: %s", url[:80], exc)
+        logger.warning("affiliate feed download failed %s: %s", safe_url[:100], exc)
         return None, str(exc)
     if response.status_code != 200:
         body = (response.text or "").strip()[:500]
         logger.warning(
             "affiliate feed HTTP %s for %s: %s",
             response.status_code,
-            response.url[:100],
+            _redact_feed_url(response.url)[:100],
             body,
         )
         return None, body or f"HTTP {response.status_code}"

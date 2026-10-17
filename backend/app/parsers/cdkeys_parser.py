@@ -49,6 +49,8 @@ _KEY_CACHE_TTL_SEC = 6 * 3600
 # the blocked frontends / dead Algolia endpoint for every single game.
 _NO_KEY_BACKOFF_SEC = 3600
 _no_key_until: float = 0.0
+# Circuit breaker after repeated Algolia/frontend failures (tests + ops can force-open).
+_circuit_open_until: float = 0.0
 
 _CONSOLE_MARKERS = (
     "xbox",
@@ -122,11 +124,17 @@ def _key_is_expired(key: str) -> bool:
 def _get_algolia_api_key() -> str | None:
     global _cached_api_key, _cached_api_key_at, _no_key_until
 
+    now = time.time()
+    if now < _circuit_open_until:
+        return None
+
     env_key = os.environ.get("CDKEYS_ALGOLIA_API_KEY", "").strip()
     if env_key:
-        return env_key
+        if _key_is_expired(env_key):
+            logger.warning("CDKeys CDKEYS_ALGOLIA_API_KEY is expired; ignoring")
+        else:
+            return env_key
 
-    now = time.time()
     if _cached_api_key and (now - _cached_api_key_at) < _KEY_CACHE_TTL_SEC:
         if not _key_is_expired(_cached_api_key):
             return _cached_api_key

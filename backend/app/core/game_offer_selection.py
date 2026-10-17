@@ -125,6 +125,7 @@ def best_offers_map(
     *,
     region: str = "pl",
     games: dict[int, Game] | None = None,
+    now=None,
 ) -> dict[int, Offer]:
     ids = list(game_ids)
     if not ids:
@@ -132,7 +133,7 @@ def best_offers_map(
     if price_engine_v2_enabled():
         from app.core.price_engine import best_offers_map_v2
 
-        return best_offers_map_v2(db, ids, region=region, games=games)
+        return best_offers_map_v2(db, ids, region=region, games=games, now=now)
     region = normalize_shopping_region(region)
     steam_shop = steam_shop_for_region(region)
     steam_map = steam_offers_map(

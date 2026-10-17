@@ -9,7 +9,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 BASE = "https://kupujpl.pl/games"
-REPORT = Path(__file__).resolve().parents[2] / "docs" / "e2e-prod-functional-20261017.json"
+REPORT = Path(__file__).resolve().parents[2] / "docs" / "e2e-prod-functional-quality-20261017.json"
 
 
 def _ignore_net(url: str) -> bool:
@@ -102,6 +102,26 @@ def main() -> int:
                 conf_ids = {o["id"] for o in offers}
                 un_ids = {o["id"] for o in unverified}
                 check("no_offer_id_overlap", not (conf_ids & un_ids), str(conf_ids & un_ids))
+            un_shops = {str(o.get("shop_name") or "") for o in unverified}
+            offer_shops = {str(o.get("shop_name") or "") for o in offers}
+            check(
+                "rejected_gog_dawn_of_war_not_buyable",
+                "GOG" not in un_shops and not any(
+                    float(o.get("price_pln") or 0) < 20 and o.get("shop_name") == "GOG"
+                    for o in offers
+                ),
+                f"unverified={sorted(un_shops)} offers={sorted(offer_shops)}",
+            )
+            check(
+                "no_rejected_offers_section",
+                page.locator("#gp-offers-rejected, .offers-rejected").count() == 0,
+            )
+            uv_rows = page.locator(".offer-row-unverified").all_inner_texts()
+            check(
+                "ui_no_gog_in_unverified_rows",
+                not any("GOG" in t and ("8,99" in t or "8.99" in t) for t in uv_rows),
+                f"rows={uv_rows[:4]}",
+            )
 
         # Auth pages read-only
         for path, name in [("/login", "login_page"), ("/register", "register_page")]:

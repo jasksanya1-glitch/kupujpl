@@ -51,6 +51,9 @@ class Game(Base):
     lowest_ever_pln = Column(Float, nullable=True)
     lowest_ever_at = Column(DateTime, nullable=True)
     avg_best_price_30d = Column(Float, nullable=True)
+    # Steam language flags for SEO landing (gry-z-polskim-dubbingiem).
+    has_polish_interface = Column(Boolean, nullable=True)
+    has_polish_audio = Column(Boolean, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     offers = relationship("Offer", back_populates="game", cascade="all, delete-orphan")
