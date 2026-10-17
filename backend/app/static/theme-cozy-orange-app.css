@@ -1,0 +1,814 @@
+/* Quenly Cozy Orange — site theme override.
+   Tokens from design-samples/theme-cozy-orange.html. */
+
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --cozy-bg: #0c0907;
+  --cozy-elevated: #17120e;
+  --cozy-card: #1a1410;
+  --cozy-border: rgba(255, 168, 96, 0.14);
+  --cozy-border-strong: rgba(255, 168, 96, 0.28);
+  --cozy-text: #faf3ea;
+  --cozy-muted: #c4b09a;
+  --cozy-dim: #8a7664;
+  --cozy-accent: #ff9320;
+  --cozy-accent-bright: #ffc46a;
+  --cozy-accent-hover: #ffaa3d;
+  --cozy-accent-soft: rgba(255, 147, 32, 0.18);
+  --cozy-glow: rgba(255, 147, 32, 0.45);
+  --cozy-discount: #7ad45a;
+  --cozy-radius: 12px;
+
+  /* Map into existing app tokens */
+  --bg: var(--cozy-bg);
+  --bg-elevated: var(--cozy-elevated);
+  --surface: var(--cozy-card);
+  --text: var(--cozy-text);
+  --muted: var(--cozy-muted);
+  --brand: var(--cozy-accent);
+  --brand-2: var(--cozy-accent-bright);
+  --accent: var(--cozy-accent);
+  --border: var(--cozy-border);
+  --radius: var(--cozy-radius);
+
+  --d3-blue: var(--cozy-accent);
+  --d3-bg: var(--cozy-bg);
+  --d3-card: var(--cozy-card);
+  --d3-border: var(--cozy-border);
+  --d3-text: var(--cozy-text);
+  --d3-muted: var(--cozy-muted);
+
+  --mobile-primary: var(--cozy-accent);
+  --mobile-bg: var(--cozy-bg);
+  --cp-neon: #ff9320 !important;
+  --cp-cyan: #ffc46a !important;
+  --cp-yellow: #ff9320 !important;
+  --cp-red: #ff9320 !important;
+  --cp-black: #0c0907 !important;
+  --cp-white: #faf3ea !important;
+  --brand: #ff9320 !important;
+  --brand-hover: #ffaa3d !important;
+  --accent: #ff9320 !important;
+  --d3-blue: #ff9320 !important;
+  --d3-blue-2: #ffc46a !important;
+}
+
+html, body {
+  font-family: Outfit, system-ui, sans-serif !important;
+  background:
+    radial-gradient(ellipse 90% 50% at 50% 0%, rgba(255, 140, 40, 0.07), transparent 50%),
+    var(--cozy-bg) !important;
+  color: var(--cozy-text) !important;
+}
+
+/* ---------- Header ---------- */
+.header {
+  background: rgba(14, 9, 5, 0.94) !important;
+  border-bottom: 1px solid var(--cozy-border) !important;
+  backdrop-filter: blur(14px);
+}
+.brand-logo {
+  height: 40px !important;
+  width: auto !important;
+  max-width: 200px;
+}
+.brand-tagline { display: none !important; }
+.d3-nav-link,
+.header a,
+.d3-tool {
+  color: #e8ddd0 !important;
+}
+.d3-nav-link:hover,
+.d3-nav-link.is-active,
+.d3-tool:hover {
+  color: var(--cozy-accent-bright) !important;
+}
+.d3-tool svg { stroke: currentColor; }
+
+/* ---------- Cozy hero (replaces carousel visually) ---------- */
+#d3-hero { display: none !important; }
+
+.cozy-hero {
+  position: relative;
+  display: block !important;
+  overflow: hidden;
+  width: 100%;
+  margin: 0 0 20px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--cozy-border);
+}
+.cozy-hero-media {
+  position: relative;
+  width: 100%;
+  line-height: 0;
+  background: #070605;
+}
+.cozy-hero-media img {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: min(58vh, 640px);
+  object-fit: cover;
+  object-position: 28% 50%;
+}
+.cozy-hero-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(100deg, rgba(18,10,5,0.2) 0%, rgba(18,10,5,0.48) 32%, rgba(18,10,5,0.58) 48%, rgba(18,10,5,0.2) 72%, rgba(18,10,5,0.32) 100%),
+    linear-gradient(180deg, rgba(14,9,5,0.55) 0%, transparent 28%, rgba(20,12,6,0.15) 70%, var(--cozy-bg) 100%),
+    radial-gradient(ellipse 50% 60% at 18% 55%, rgba(255, 140, 40, 0.12), transparent 60%);
+  pointer-events: none;
+}
+.cozy-hero-inner {
+  position: absolute;
+  z-index: 2;
+  left: clamp(16px, 8vw, 120px);
+  top: 54%;
+  transform: translateY(-50%);
+  max-width: min(560px, calc(100% - 32px));
+  padding: 0;
+}
+.cozy-eyebrow {
+  display: inline-block;
+  color: var(--cozy-accent-bright);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  text-shadow: 0 0 28px var(--cozy-glow);
+}
+.cozy-hero h2 {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.65);
+  color: #fff;
+}
+.cozy-hero h2 em {
+  font-style: normal;
+  color: var(--cozy-accent);
+  text-shadow: 0 0 36px var(--cozy-glow);
+}
+.cozy-hero-lead {
+  color: #d2c4b4;
+  font-size: 1rem;
+  margin: 0 0 20px;
+  max-width: 480px;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55);
+}
+.cozy-search {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(10, 8, 6, 0.72);
+  border: 1px solid rgba(255, 160, 70, 0.28);
+  border-radius: var(--cozy-radius);
+  overflow: hidden;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.55), 0 0 48px rgba(255, 140, 26, 0.12);
+  backdrop-filter: blur(16px);
+  max-width: 640px;
+}
+.cozy-search:focus-within {
+  border-color: rgba(255, 160, 60, 0.65);
+  box-shadow: 0 0 0 3px var(--cozy-accent-soft), 0 0 40px rgba(255, 140, 26, 0.2);
+}
+.cozy-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0;
+  color: var(--cozy-text) !important;
+  padding: 14px 14px !important;
+  font-size: 0.98rem !important;
+  box-shadow: none !important;
+}
+.cozy-search input::placeholder { color: var(--cozy-dim); }
+.cozy-search-btn {
+  background: linear-gradient(180deg, #ffc56e 0%, var(--cozy-accent) 55%, #e87810 100%) !important;
+  color: #1f1206 !important;
+  font-weight: 700 !important;
+  padding: 12px 20px !important;
+  margin: 6px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  box-shadow: 0 0 24px rgba(255, 147, 32, 0.35);
+  white-space: nowrap;
+}
+.cozy-search-btn:hover {
+  background: linear-gradient(180deg, #ffd28a 0%, var(--cozy-accent-hover) 55%, #f08818 100%) !important;
+}
+.cozy-store-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.cozy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(12, 9, 6, 0.55);
+  border: 1px solid rgba(255, 160, 70, 0.2);
+  backdrop-filter: blur(10px);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #e8dccf;
+  text-decoration: none;
+}
+.cozy-pill:hover {
+  border-color: rgba(255, 160, 60, 0.55);
+  color: #fff;
+  background: rgba(255, 140, 26, 0.12);
+}
+.cozy-pill img {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  object-fit: contain;
+}
+
+/* Hide duplicate header search on desktop when cozy hero has search */
+@media (min-width: 1024px) {
+  .header .search-wrap { opacity: 0.35; }
+  .header .search-wrap:focus-within { opacity: 1; }
+}
+
+/* ---------- Cards ---------- */
+.game-card,
+.d3-card,
+#games-grid .game-card {
+  background: linear-gradient(180deg, #1e1712 0%, #16110d 100%) !important;
+  border: 1px solid var(--cozy-border) !important;
+  border-radius: var(--cozy-radius) !important;
+  box-shadow: 0 8px 24px rgba(20, 10, 4, 0.35);
+  overflow: hidden;
+}
+.game-card,
+.d3-card,
+#games-grid .game-card {
+  transition: none !important;
+  transform: none !important;
+}
+.game-card:hover,
+.d3-card:hover {
+  border-color: rgba(255, 170, 80, 0.45) !important;
+  box-shadow: 0 8px 24px rgba(20, 10, 4, 0.35) !important;
+  transform: none !important;
+}
+/* Kill cyberpunk sweeping stripe on game cards */
+.game-card::after,
+.d3-card::after,
+#games-grid .game-card::after {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+  background: none !important;
+}
+.game-card .card-body {
+  position: relative;
+  padding-right: 120px !important;
+  padding-bottom: 8px !important;
+}
+.game-card .card-foot {
+  justify-content: flex-start !important;
+}
+.game-card .price,
+.game-card .best-price,
+.d3-card-price,
+.price-now,
+.card-price,
+.card-shop-price,
+.offer-price,
+.seo-price {
+  color: var(--cozy-accent) !important;
+  font-weight: 500 !important;
+  text-shadow: none !important;
+  letter-spacing: 0 !important;
+  margin-left: 0 !important;
+}
+.game-card .old-price,
+.card-old-price,
+.price-old {
+  color: var(--cozy-dim) !important;
+  font-weight: 400 !important;
+  text-shadow: none !important;
+}
+.badge-discount,
+.d3-card-badge,
+.discount-badge {
+  background: var(--cozy-discount) !important;
+  color: #0c1a08 !important;
+  border-radius: 6px !important;
+}
+.btn,
+.game-card .cta,
+button.btn-primary {
+  background: linear-gradient(180deg, #ffc56e 0%, var(--cozy-accent) 55%, #e87810 100%) !important;
+  color: #1f1206 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 14px rgba(255, 147, 32, 0.25);
+  transition: none !important;
+}
+.btn:hover {
+  background: linear-gradient(180deg, #ffd28a 0%, var(--cozy-accent-hover) 55%, #f08818 100%) !important;
+  transition: none !important;
+  transform: none !important;
+  filter: none !important;
+}
+.game-card .d3-card-cta.btn-buy {
+  position: absolute !important;
+  right: 8px !important;
+  bottom: 8px !important;
+  left: auto !important;
+  width: 118px !important;
+  height: 46px !important;
+  z-index: 2;
+}
+
+/* ---------- Categories ---------- */
+.cat,
+.split-cats .cat,
+.d3-cats a,
+.d3-cats button {
+  background: linear-gradient(180deg, #1c1510 0%, #14100c 100%) !important;
+  border: 1px solid var(--cozy-border) !important;
+  color: #d4c4b2 !important;
+  border-radius: 999px !important;
+}
+.cat.active,
+.cat.is-active,
+.split-cats .cat.active {
+  background: linear-gradient(180deg, #ffc56e 0%, var(--cozy-accent) 55%, #e87810 100%) !important;
+  color: #1f1206 !important;
+  border-color: var(--cozy-accent) !important;
+  box-shadow: 0 0 18px rgba(255, 147, 32, 0.3);
+}
+
+/* ---------- Sidebar / panels ---------- */
+.split-left,
+.m-drawer-panel,
+.panel-cp-aside {
+  background: var(--cozy-elevated) !important;
+  border-color: var(--cozy-border) !important;
+}
+.split-left-title,
+.section-title,
+h1, h2, h3 { color: var(--cozy-text) !important; }
+
+.d3-discover-card {
+  background: linear-gradient(165deg, #1e1712 0%, #16110d 100%) !important;
+  border: 1px solid var(--cozy-border) !important;
+  border-radius: var(--cozy-radius) !important;
+}
+.d3-discover-card:hover {
+  border-color: rgba(255, 170, 80, 0.45) !important;
+}
+
+/* Mobile hero restyle */
+@media (max-width: 767px) {
+  .cozy-hero-inner {
+    position: relative;
+    left: 0;
+    top: 0;
+    transform: none;
+    max-width: 100%;
+    padding: 20px 16px 24px;
+    margin-top: -40%;
+  }
+  .cozy-hero-media img { max-height: 280px; }
+  .cozy-hero h2 { font-size: 1.7rem; }
+  .cp-home-hero {
+    background: linear-gradient(180deg, #1a120a, var(--cozy-bg)) !important;
+  }
+  .m-hero-accent { color: var(--cozy-accent) !important; }
+  .m-hero-search button {
+    background: linear-gradient(180deg, #ffc56e, var(--cozy-accent)) !important;
+    color: #1f1206 !important;
+  }
+}
+
+/* Links & focus */
+a { color: var(--cozy-accent-bright); }
+a:hover { color: var(--cozy-accent); }
+:focus-visible {
+  outline: 2px solid var(--cozy-accent) !important;
+  outline-offset: 2px;
+}
+
+/* ---------- QP Buy button (replaces text Kup) ---------- */
+@keyframes cozyBuyPulse {
+  0%, 100% {
+    filter: brightness(1) drop-shadow(0 0 0 rgba(255, 147, 32, 0));
+    transform: scale(1);
+  }
+  50% {
+    filter: brightness(1.12) drop-shadow(0 0 12px rgba(255, 147, 32, 0.55));
+    transform: scale(1.06);
+  }
+}
+.btn-buy:not([data-i18n="game.play_free"]),
+a.btn-buy:not([data-i18n="game.play_free"]),
+.modal-savings-cta.btn-buy {
+  display: inline-block !important;
+  box-sizing: border-box !important;
+  width: 168px !important;
+  max-width: 100% !important;
+  height: 64px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  background-image: url("brand/quenly/qp-buy-btn.png?v=5") !important;
+  background-position: center !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  text-indent: -9999px !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: filter 0.2s ease, transform 0.2s ease !important;
+  transform: scale(1);
+  transform-origin: center center;
+  clip-path: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+  will-change: transform, filter;
+}
+.btn-buy:not([data-i18n="game.play_free"]):hover,
+.btn-buy--best:hover,
+.modal-savings-cta.btn-buy:hover,
+.d3-card-cta.btn-buy:hover {
+  background-color: transparent !important;
+  background-image: url("brand/quenly/qp-buy-btn.png?v=5") !important;
+  background-position: center !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  animation: cozyBuyPulse 0.9s ease-in-out infinite !important;
+  filter: brightness(1.1) drop-shadow(0 0 10px rgba(255, 147, 32, 0.5)) !important;
+  transform: scale(1.05) !important;
+  transition: filter 0.2s ease, transform 0.2s ease !important;
+}
+.btn-buy:not([data-i18n="game.play_free"]):active,
+.d3-card-cta.btn-buy:active {
+  animation: none !important;
+  transform: scale(0.97) !important;
+  filter: brightness(0.96) !important;
+}
+.offer-row .btn-buy:not([data-i18n="game.play_free"]),
+.game-page-answer-buy:not([data-i18n="game.play_free"]) {
+  width: 180px !important;
+  height: 68px !important;
+}
+.btn-buy-disabled {
+  filter: grayscale(0.85) opacity(0.55) !important;
+  pointer-events: none;
+}
+
+/* ---------- Game detail / SSR leftovers ---------- */
+.game-page-answer-price strong,
+.header-info-btn,
+.lang-btn.is-active,
+.region-btn.is-active,
+[aria-pressed="true"].lang-btn {
+  color: inherit;
+}
+.lang-btn.is-active,
+.region-btn.is-active,
+.lang-switch button[aria-pressed="true"],
+.region-switch button[aria-pressed="true"] {
+  background: var(--cozy-accent) !important;
+  color: #1f1206 !important;
+  border-color: var(--cozy-accent) !important;
+}
+.game-page .section-title,
+.game-page h2,
+.offers-title,
+.cp-section-label,
+.night-city-tag,
+.faq-kicker {
+  background: transparent !important;
+  color: var(--cozy-accent-bright) !important;
+  box-shadow: none !important;
+}
+.cp-section-label,
+.faq-kicker,
+.night-city-tag {
+  border: 1px solid var(--cozy-border-strong) !important;
+  border-radius: 6px !important;
+  padding: 2px 8px !important;
+  display: inline-block;
+}
+.m-bottom-nav a.is-active,
+.m-bottom-nav [aria-current="page"] {
+  color: var(--cozy-accent) !important;
+}
+.auth-nav .btn,
+#btn-login,
+a.btn-login {
+  background: linear-gradient(180deg, #ffc56e 0%, var(--cozy-accent) 55%, #e87810 100%) !important;
+  color: #1f1206 !important;
+}
+
+/* ---------- News / Poradnik cards (compact on home) ---------- */
+.home-news-head h2,
+.d3-mid .home-news-head h2 {
+  text-transform: none !important;
+  letter-spacing: -0.02em !important;
+  font-weight: 800 !important;
+  font-size: 1.15rem !important;
+}
+.home-news-all {
+  color: var(--cozy-accent-bright) !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+}
+.home-news-list,
+.d3-mid .home-news-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  grid-template-columns: none !important;
+}
+.home-news-card,
+.d3-mid .home-news-card {
+  display: grid !important;
+  grid-template-columns: 72px minmax(0, 1fr) !important;
+  gap: 10px !important;
+  align-items: center !important;
+  padding: 8px 10px !important;
+  min-height: 0 !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  border: 1px solid var(--cozy-border) !important;
+  background: linear-gradient(165deg, #1c1510, #14100c) !important;
+  color: var(--cozy-text) !important;
+  text-decoration: none !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.home-news-card:hover,
+.d3-mid .home-news-card:hover {
+  border-color: rgba(255, 170, 80, 0.45) !important;
+  transform: none !important;
+  background: linear-gradient(165deg, #221912, #17120e) !important;
+  box-shadow: none !important;
+}
+.home-news-card-thumb,
+.d3-mid .home-news-card-thumb {
+  display: block !important;
+  width: 72px !important;
+  height: 48px !important;
+  aspect-ratio: auto !important;
+  border-radius: 7px !important;
+  overflow: hidden !important;
+  background: #120e0a !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: none !important;
+}
+.home-news-card-thumb img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+.home-news-card-thumb--empty {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(255, 147, 32, 0.35), transparent 60%),
+    linear-gradient(135deg, #1a120a, #0e0a07) !important;
+  position: relative;
+}
+.home-news-card-thumb--empty::after {
+  content: "Q";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: rgba(255, 147, 32, 0.45);
+  line-height: 1;
+}
+.home-news-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 !important;
+  min-width: 0;
+  flex: 1;
+}
+.home-news-card-type,
+.d3-mid .home-news-card-type {
+  margin: 0 !important;
+  padding: 1px 7px !important;
+  width: fit-content !important;
+  border-radius: 999px !important;
+  font-size: 0.62rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  background: rgba(255, 147, 32, 0.16) !important;
+  color: var(--cozy-accent-bright) !important;
+  border: 1px solid rgba(255, 147, 32, 0.28);
+  line-height: 1.4;
+}
+.home-news-card--guide .home-news-card-type {
+  background: linear-gradient(180deg, #ffc56e, #ff9320) !important;
+  color: #1f1206 !important;
+  border-color: transparent;
+}
+.home-news-card--promo .home-news-card-type {
+  background: rgba(255, 100, 60, 0.18) !important;
+  color: #ffb08a !important;
+  border-color: rgba(255, 120, 70, 0.35);
+}
+.home-news-card-title,
+.home-news-card strong,
+.d3-mid .home-news-card strong {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0.84rem !important;
+  font-weight: 650 !important;
+  line-height: 1.3 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--cozy-text) !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.home-news-card-date,
+.d3-mid .home-news-card-date {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0.68rem !important;
+  color: var(--cozy-dim) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.home-news-card-ex,
+.d3-mid .home-news-card-ex {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .home-news-list {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+    scroll-snap-type: none !important;
+  }
+  .home-news-card {
+    flex: none !important;
+    width: 100% !important;
+    min-height: 0 !important;
+  }
+}
+
+/* ---------- FAQ ---------- */
+.cp-faq {
+  margin: 36px 0 16px !important;
+  padding: 22px 20px 8px !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--cozy-border) !important;
+  background: linear-gradient(180deg, #1a1410 0%, #120e0a 100%) !important;
+}
+.cp-faq .cp-kicker {
+  background: transparent !important;
+  color: var(--cozy-accent-bright) !important;
+  border: 1px solid var(--cozy-border-strong) !important;
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  clip-path: none !important;
+}
+.cp-faq > h2 {
+  margin: 10px 0 18px !important;
+  text-transform: none !important;
+  letter-spacing: -0.02em !important;
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem) !important;
+  color: var(--cozy-text) !important;
+}
+.cp-faq-item {
+  border: 1px solid var(--cozy-border) !important;
+  background: rgba(255, 147, 32, 0.04) !important;
+  border-radius: 12px !important;
+  margin-bottom: 10px !important;
+  padding: 0 16px !important;
+}
+.cp-faq-item summary {
+  text-transform: none !important;
+  font-weight: 650 !important;
+  font-size: 0.95rem !important;
+  letter-spacing: 0 !important;
+  color: var(--cozy-text) !important;
+  padding: 14px 0 !important;
+}
+.cp-faq-item summary::after {
+  color: var(--cozy-accent) !important;
+  font-weight: 700;
+}
+.cp-faq-item p {
+  color: var(--cozy-muted) !important;
+  text-transform: none !important;
+  font-size: 0.9rem !important;
+  line-height: 1.55 !important;
+}
+
+/* Discover teasers — kill leftover greens/blues */
+.d3-discover-card .ico,
+.quick-open .ico,
+.split-cats .cat {
+  --cat-green: var(--cozy-accent);
+}
+.d3-discover-card[href*="30"],
+.d3-discover-card .zl-badge {
+  color: var(--cozy-accent) !important;
+}
+
+.d3-nav-link.is-active,
+.d3-nav-link:hover {
+  background: var(--cozy-accent-soft) !important;
+  color: var(--cozy-accent-bright) !important;
+}
+
+.auth-nav .btn-register,
+.auth-nav .btn-register-alert,
+.btn-register,
+.btn-register-alert {
+  background: var(--cozy-accent) !important;
+  border-color: var(--cozy-accent) !important;
+  color: #1a1008 !important;
+}
+.auth-nav .btn-register:hover,
+.btn-register:hover {
+  background: var(--cozy-accent-hover) !important;
+  border-color: var(--cozy-accent-hover) !important;
+  color: #1a1008 !important;
+}
+
+.info-btn,
+.footer-btn,
+.footer-btn--donate {
+  border-color: var(--cozy-accent) !important;
+  color: var(--cozy-accent) !important;
+  background: transparent !important;
+}
+.footer-btn:hover,
+.footer-btn--donate:hover {
+  background: var(--cozy-accent-soft) !important;
+  color: var(--cozy-accent-bright) !important;
+  border-color: var(--cozy-accent-bright) !important;
+}
+
+.d3-discover-promo {
+  background: linear-gradient(135deg, #2a1a0c, #120e0a 70%) !important;
+}
+.d3-discover-promo .d3-discover-icon {
+  background: rgba(255, 147, 32, 0.22) !important;
+  color: var(--cozy-accent-bright) !important;
+}
+.d3-discover-budget {
+  background: linear-gradient(135deg, #24180c, #120e0a 70%) !important;
+}
+.d3-discover-budget .d3-discover-icon {
+  background: rgba(255, 147, 32, 0.2) !important;
+  color: var(--cozy-accent-bright) !important;
+}
+.d3-discover-new .d3-discover-icon,
+.d3-discover-best .d3-discover-icon {
+  background: rgba(255, 147, 32, 0.16) !important;
+  color: var(--cozy-accent-bright) !important;
+}
+
+/* Sort tabs / chips that still used Steam blue */
+.catalog-sort button[aria-selected="true"],
+.catalog-sort .is-active,
+.tabs button[aria-selected="true"],
+.tabs .is-active,
+.sort-tabs button.is-active {
+  background: var(--cozy-accent-soft) !important;
+  color: var(--cozy-accent-bright) !important;
+  border-color: var(--cozy-accent) !important;
+}
