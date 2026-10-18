@@ -149,7 +149,9 @@ Snapshots: `backend/tmp/coverage_snapshots/coverage-YYYY-MM-DD.json`
 
 Branch: `fix/quenly-production-stabilization-20261017`
 
-(See latest commits after this document is committed.)
+| Commit | Message |
+|--------|---------|
+| `5a4315e` | Raise scanner throughput with Tier A/B/C queues and safer verification. |
 
 ---
 
