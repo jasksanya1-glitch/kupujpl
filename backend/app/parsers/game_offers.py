@@ -11,6 +11,7 @@ from app.core.database import SessionLocal
 from app.core.db_retry import commit_with_retry
 from app.core.offer_verification import (
     OOS_LIKE_STATUSES,
+    SEARCH_MISS_STATUSES,
     TRANSIENT_MISS_STATUSES,
     CheckStatus,
     record_attempt,
@@ -356,11 +357,12 @@ def _record_shop_miss(
 ) -> None:
     """Record a scan miss without inventing a verified timestamp or price.
 
-    - unavailable / not_found: mark OOS-like (in_stock=False); keep prior price_pln.
-    - error / timeout / rate_limited / auth_failed / blocked: attempt only —
-      do NOT invent product unavailability on an existing in-stock offer.
-    - Never writes last_verified_at. Never sets price_pln to 0 on existing rows.
-    - Creates at most one stub row per (game, shop) for backoff when no row exists.
+    - unavailable: explicit OOS evidence → in_stock=False; keep prior price_pln.
+    - not_found: search miss → negative-cache attempt only; NEVER OOS a row that
+      already has last_verified_at (offer stays until PE freshness expires).
+    - error / timeout / rate_limited / auth_failed / blocked: attempt only.
+    - Never writes last_verified_at. Never zeros price_pln on existing rows.
+    - Creates at most one stub per (game, shop) when no row exists (backoff).
     """
     if status == "verified":
         status = "error"
@@ -370,23 +372,28 @@ def _record_shop_miss(
         .first()
     )
     source = (shop_name or "shop").lower().replace(" ", "_")
-    mark_oos = status in OOS_LIKE_STATUSES
 
     if existing:
-        if mark_oos:
+        had_verified = getattr(existing, "last_verified_at", None) is not None
+        # Explicit OOS only. Search miss / HTTP failure must not deactivate a
+        # previously verified product — PE V2 staleness handles expiry.
+        if status in OOS_LIKE_STATUSES:
             existing.in_stock = False
-            # Keep last known price_pln — PE excludes OOS; history ignores price<=0.
+        elif status in SEARCH_MISS_STATUSES and not had_verified:
+            # Never-verified stub/row: keep as not sellable for queue backoff.
+            existing.in_stock = False
         record_attempt(existing, status=status, source=source)
         return
 
-    # No row yet: stub only for OOS-like / transient so the queue can back off.
-    # Transient stubs are in_stock=False + price 0 but status≠unavailable.
     stub_url = _MISS_STUB_URLS.get(shop_name)
     if not stub_url:
         return
-    if status not in OOS_LIKE_STATUSES and status not in TRANSIENT_MISS_STATUSES:
+    if (
+        status not in OOS_LIKE_STATUSES
+        and status not in TRANSIENT_MISS_STATUSES
+        and status not in SEARCH_MISS_STATUSES
+    ):
         status = "not_found"
-        mark_oos = True
     official = shop_name in {"Steam", "GOG", "Epic Games", "Fanatical"}
     stub = Offer(
         game_id=game.id,

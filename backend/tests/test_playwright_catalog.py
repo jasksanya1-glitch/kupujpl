@@ -102,11 +102,9 @@ def test_paid_game_page_shows_price_or_honest_empty(browser_page):
 
 def test_rejected_or_unverified_not_mixed_as_confirmed_best(browser_page):
     """Game API should keep unverified_offers separate from confirmed offers."""
-    resp = browser_page.request.get(f"{PROD}/api/games/by-slug/hades-ii")
-    if resp.status == 404:
-        resp = browser_page.request.get(f"{PROD}/api/game/hades-ii")
-    if resp.status != 200:
-        pytest.skip(f"game API unavailable: {resp.status}")
+    # Canonical route is /api/games/{slug} (not /by-slug/ or /api/game/).
+    resp = browser_page.request.get(f"{PROD}/api/games/hades-ii")
+    assert resp.status == 200, f"expected game API 200, got {resp.status}"
     data = resp.json()
     offers = data.get("offers") or []
     unverified = data.get("unverified_offers") or []
@@ -117,3 +115,7 @@ def test_rejected_or_unverified_not_mixed_as_confirmed_best(browser_page):
         bucket = (o.get("price_bucket") or "").lower()
         if bucket:
             assert bucket in {"confirmed", "stale", ""}
+        # Confirmed buyable rows must not be zero-price stubs.
+        if bucket == "confirmed":
+            assert float(o.get("price_pln") or 0) > 0
+            assert o.get("in_stock") is not False

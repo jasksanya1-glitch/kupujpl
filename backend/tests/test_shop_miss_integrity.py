@@ -55,6 +55,64 @@ def test_error_miss_does_not_mark_existing_offer_oos(db: Session):
     assert offer.last_verified_at == verified_at
 
 
+def test_search_miss_does_not_oos_previously_verified_offer(db: Session):
+    """P0: not_found alone must not deactivate a live verified offer."""
+    g = _game(db, slug="search-miss-keeps-verified")
+    offer = Offer(
+        game_id=g.id,
+        shop_name="Instant Gaming",
+        price_pln=55.0,
+        affiliate_url="https://www.instant-gaming.com/pl/3-verified/",
+        is_official=False,
+        in_stock=True,
+    )
+    db.add(offer)
+    db.flush()
+    record_verified_price(offer, price_pln=55.0, source="instant_gaming", previous_price=None)
+    verified_at = offer.last_verified_at
+    assert verified_at is not None
+    _record_shop_miss(db, g, "Instant Gaming", status="not_found")
+    db.commit()
+    db.refresh(offer)
+    assert offer.in_stock is True
+    assert float(offer.price_pln) == 55.0
+    assert offer.last_verified_at == verified_at
+    assert offer.last_check_status == "not_found"
+    # Freshness timestamp unchanged — PE may reclassify as stale/excluded via
+    # normal rules, but must not see a fabricated OOS/zero-price deactivation.
+    assert offer.price_pln > 0 and offer.in_stock
+
+
+def test_timeout_after_confirmed_preserves_history_and_stock(db: Session):
+    g = _game(db, slug="timeout-keeps-history")
+    offer = Offer(
+        game_id=g.id,
+        shop_name="Instant Gaming",
+        price_pln=40.0,
+        affiliate_url="https://www.instant-gaming.com/pl/4-hist/",
+        is_official=False,
+        in_stock=True,
+        match_confidence=1.2,
+    )
+    db.add(offer)
+    db.flush()
+    record_verified_price(offer, price_pln=40.0, source="instant_gaming", previous_price=None)
+    record_offer_price_change(
+        db, game_id=g.id, shop_name="Instant Gaming", price_pln=40.0, in_stock=True
+    )
+    update_game_price_rollups(db, g.id)
+    db.commit()
+    db.refresh(g)
+    low_before = g.lowest_ever_pln
+    _record_shop_miss(db, g, "Instant Gaming", status="timeout")
+    db.commit()
+    db.refresh(offer)
+    db.refresh(g)
+    assert offer.in_stock is True
+    assert float(offer.price_pln) == 40.0
+    assert g.lowest_ever_pln == low_before
+
+
 def test_unavailable_keeps_prior_price_never_zeros_existing(db: Session):
     g = _game(db, slug="oos-keeps-price")
     offer = Offer(

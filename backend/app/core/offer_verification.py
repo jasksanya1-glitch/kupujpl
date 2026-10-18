@@ -37,13 +37,17 @@ VALID_STATUSES: frozenset[str] = frozenset(
     }
 )
 
-# Statuses that mean "no sellable offer right now" (safe to mark in_stock=False).
-OOS_LIKE_STATUSES: frozenset[str] = frozenset({"unavailable", "not_found"})
+# Only explicit OOS evidence may flip in_stock=False on a previously verified offer.
+# Search miss (not_found) is negative-cache only — never definitive unavailability.
+OOS_LIKE_STATUSES: frozenset[str] = frozenset({"unavailable"})
 
 # Transient / infra failures — must not invent product unavailability.
 TRANSIENT_MISS_STATUSES: frozenset[str] = frozenset(
     {"error", "timeout", "rate_limited", "auth_failed", "blocked"}
 )
+
+# Search completed without a match — backoff only; do not OOS prior verified stock.
+SEARCH_MISS_STATUSES: frozenset[str] = frozenset({"not_found"})
 
 
 def scan_v2_enabled() -> bool:
