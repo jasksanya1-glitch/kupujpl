@@ -8,7 +8,10 @@ from app.parsers.shop_scan_queue import (
     _RateLimiter,
     _claim_inflight,
     _release_inflight,
+    set_shop_http_context,
+    shared_shop_limiter,
     shop_budget,
+    shop_http_wait,
 )
 
 
@@ -53,3 +56,37 @@ def test_shop_budgets_do_not_multiply_rps_via_concurrency():
     gog = shop_budget("GOG")
     assert gog.concurrency <= 3
     assert gog.rps <= 2.0
+
+
+def test_shared_limiter_serializes_http_across_threads():
+    """Worker threads must share one limiter — concurrency cannot multiply RPS."""
+    shop = "_test_http_rps_shop"
+    # Force a fresh limiter at 10 rps.
+    lim = _RateLimiter(10.0)
+    import app.parsers.shop_scan_queue as q
+
+    with q._SHOP_LIMITERS_LOCK:
+        q._SHOP_LIMITERS[shop] = lim
+
+    stamps: list[float] = []
+    lock = threading.Lock()
+
+    def hit() -> None:
+        set_shop_http_context(shop)
+        try:
+            shop_http_wait()
+            with lock:
+                stamps.append(time.monotonic())
+        finally:
+            set_shop_http_context(None)
+
+    threads = [threading.Thread(target=hit) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+    stamps.sort()
+    gaps = [stamps[i] - stamps[i - 1] for i in range(1, len(stamps))]
+    assert len(gaps) >= 5
+    assert min(gaps) >= 0.08
+    assert shared_shop_limiter(shop) is lim

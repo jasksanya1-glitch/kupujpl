@@ -90,13 +90,21 @@ _GENERIC_TITLE_TOKENS = frozenset({
 })
 
 
+def _strip_remaster_label(value: str) -> str:
+    """GOG often lists the current SKU as 'Title — Remastered'; strip for match only."""
+    cleaned = re.sub(r"\s*[—–-]\s*Remastered\b", "", value or "", flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+Remastered\b", "", cleaned, flags=re.IGNORECASE)
+    return cleaned.strip()
+
+
 def pick_best_gog_product(title: str, products: list[dict]) -> dict | None:
     best: dict | None = None
     best_score = 0.0
-    title_slug = slugify(title)
+    match_title = _strip_remaster_label(title)
+    title_slug = slugify(match_title)
     title_tokens = {t for t in title_slug.split("-") if len(t) > 2}
     distinctive = {t for t in title_tokens if t not in _GENERIC_TITLE_TOKENS}
-    title_lower = title.lower()
+    title_lower = match_title.lower()
 
     for product in products:
         candidate = product.get("title") or ""
@@ -109,7 +117,8 @@ def pick_best_gog_product(title: str, products: list[dict]) -> dict | None:
             if title_tokens.isdisjoint({"ultimate", "goty", "complete", "definitive"}):
                 continue
 
-        score = title_match_score(title, candidate)
+        # Official store: remaster of the same base title is the current SKU.
+        score = title_match_score(match_title, _strip_remaster_label(candidate))
         if score <= 0:
             continue
         product_slug = slugify(product.get("slug") or "")

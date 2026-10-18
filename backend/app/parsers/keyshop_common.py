@@ -974,6 +974,13 @@ def fetch_url(url: str, *, timeout: int | None = None, prefer_cffi: bool = False
     """GET with optional curl_cffi impersonation and proxy."""
     if timeout is None:
         timeout = _FETCH_TIMEOUT
+    # Respect shared per-shop RPS when called from a scanner worker context.
+    try:
+        from app.parsers.shop_scan_queue import shop_http_wait
+
+        shop_http_wait()
+    except Exception:
+        pass
     proxies = {"http": SHOP_HTTP_PROXY, "https": SHOP_HTTP_PROXY} if SHOP_HTTP_PROXY else None
     try:
         if prefer_cffi and _HAS_CFFI and _cffi_requests is not None:

@@ -349,7 +349,17 @@ def select_stale_game_ids_for_shop(
     q = q.filter(stale_pred)
 
     if use_v2:
-        bad = ("auth_failed", "rate_limited", "blocked")
+        # Include unavailable/error so repeated OOS / no-match (e.g. Instant
+        # Gaming has_stock=0 on popular titles) rotate out for STATUS_BACKOFF_HOURS
+        # instead of starving the rest of the catalog.
+        bad = (
+            "auth_failed",
+            "rate_limited",
+            "blocked",
+            "unavailable",
+            "error",
+            "timeout",
+        )
         q = q.filter(
             (subq.c.last_check_status.is_(None))
             | (~subq.c.last_check_status.in_(bad))
@@ -471,9 +481,39 @@ class _RateLimiter:
             time.sleep(delay)
 
 
+# Shared per-shop limiters — every HTTP call in a shop context must wait here so
+# ThreadPool workers cannot multiply RPS via retries / product-page follow-ups.
+_SHOP_LIMITERS_LOCK = threading.Lock()
+_SHOP_LIMITERS: dict[str, _RateLimiter] = {}
+_HTTP_SHOP_CTX = threading.local()
+
+
+def shared_shop_limiter(shop: str) -> _RateLimiter:
+    with _SHOP_LIMITERS_LOCK:
+        lim = _SHOP_LIMITERS.get(shop)
+        if lim is None:
+            lim = _RateLimiter(shop_budget(shop).rps)
+            _SHOP_LIMITERS[shop] = lim
+        return lim
+
+
+def set_shop_http_context(shop: str | None) -> None:
+    _HTTP_SHOP_CTX.shop = shop
+
+
+def shop_http_wait(shop: str | None = None) -> None:
+    """Block until the next request slot for this shop (thread-safe)."""
+    name = shop or getattr(_HTTP_SHOP_CTX, "shop", None)
+    if not name:
+        return
+    shared_shop_limiter(str(name)).wait()
+
+
 # Per-shop in-flight game IDs — prevent duplicate concurrent scans of same game.
 _INFLIGHT_LOCK = threading.Lock()
 _INFLIGHT: dict[str, set[int]] = {}
+
+
 def _claim_inflight(shop: str, game_id: int) -> bool:
     with _INFLIGHT_LOCK:
         bag = _INFLIGHT.setdefault(shop, set())
@@ -582,7 +622,7 @@ def scan_shop_batch(
                 },
             )
 
-        limiter = _RateLimiter(budget.rps)
+        limiter = shared_shop_limiter(shop)
         counters_lock = threading.Lock()
         checked = 0
         verified = 0
@@ -602,6 +642,9 @@ def scan_shop_batch(
             snap_checked = snap_verified = snap_changed = snap_errors = 0
             snap_last = gid
             try:
+                set_shop_http_context(shop)
+                # Per-request waits happen inside fetch_url / http_pool; one
+                # upfront wait still spaces game starts under the same budget.
                 limiter.wait()
                 if global_sema is not None:
                     global_sema.acquire()
@@ -731,6 +774,7 @@ def scan_shop_batch(
                         },
                     )
             finally:
+                set_shop_http_context(None)
                 _release_inflight(shop, gid)
 
         if workers <= 1:

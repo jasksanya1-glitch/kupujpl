@@ -292,20 +292,56 @@ def _effective_refresh_flags(
     return fill_missing, fast
 
 
+# Placeholder product URLs for miss stubs (in_stock=False, price 0 — excluded by PE V2).
+_MISS_STUB_URLS: dict[str, str] = {
+    "Steam": "https://store.steampowered.com/",
+    "GOG": "https://www.gog.com/",
+    "Epic Games": "https://store.epicgames.com/",
+    "Instant Gaming": "https://www.instant-gaming.com/pl/",
+    "Kinguin": "https://www.kinguin.net/",
+    "G2A": "https://www.g2a.com/",
+    "Gamivo": "https://www.gamivo.com/",
+    "CDKeys": "https://www.cdkeys.com/",
+    "Fanatical": "https://www.fanatical.com/",
+    "Eneba": "https://www.eneba.com/",
+}
+
+
 def _deactivate_shop_offer(db, game: Game, shop_name: str) -> None:
+    """Record a live miss without inventing a verified timestamp.
+
+    Creates an in_stock=False stub when no row exists so the shop queue can
+    apply attempt backoff instead of forever re-picking the same popular
+    no-offer titles (Instant Gaming OOS / GOG not-sold).
+    """
     existing = (
         db.query(Offer)
         .filter(Offer.game_id == game.id, Offer.shop_name == shop_name)
         .first()
     )
+    source = (shop_name or "shop").lower().replace(" ", "_")
     if existing:
         existing.in_stock = False
         # Live lookup returned nothing — mark attempt, do not stamp verified.
-        record_attempt(
-            existing,
-            status="unavailable",
-            source=(shop_name or "shop").lower().replace(" ", "_"),
-        )
+        record_attempt(existing, status="unavailable", source=source)
+        return
+
+    stub_url = _MISS_STUB_URLS.get(shop_name)
+    if not stub_url:
+        return
+    official = shop_name in {"Steam", "GOG", "Epic Games", "Fanatical"}
+    stub = Offer(
+        game_id=game.id,
+        shop_name=shop_name,
+        price_pln=0.0,
+        affiliate_url=stub_url,
+        is_official=official,
+        in_stock=False,
+        match_confidence=0.0,
+    )
+    db.add(stub)
+    db.flush()
+    record_attempt(stub, status="unavailable", source=source)
 
 
 def refresh_offers_for_game(
