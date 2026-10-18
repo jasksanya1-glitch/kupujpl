@@ -170,7 +170,7 @@ No mass DB updates. No PE threshold loosening. No RPS increase. No Cozy Orange c
 
 | Commit | Topic |
 |---|---|
-| *(this pass)* | Slug base-game preference + Steam currency gate + report |
+| `e445954` | Slug base-game preference + Steam currency gate + report |
 
 ---
 
