@@ -178,7 +178,7 @@ This deploy does not invent coverage; it protects PE confirmation after misses a
 | Commit | Topic |
 |---|---|
 | `2761cc8` | Stock: not_found must not OOS verified |
-| *(this change)* | PE: keep confirmed through miss/timeout; freeze updated_at; Tier-C never-listed backoff; report |
+| $h | PE: keep confirmed through miss/timeout; freeze updated_at; Tier-C never-listed backoff; report |
 
 Files:
 
