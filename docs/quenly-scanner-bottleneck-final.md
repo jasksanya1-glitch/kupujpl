@@ -172,7 +172,10 @@ Restarting `kupujpl-games` exposed pre-existing mismatch: `main.py` passed `hist
 
 ## 11. Git commits (local)
 
-See `git log` after commit of this pass. Expected message theme: fix Steam idle/cursor bottleneck, scanner metrics, coverage snapshots, F2P PE gate, worth_buy sync.
+| Commit | Message |
+|--------|---------|
+| `594c753` | Fix Steam scanner idle/cursor starvation and raise verified/hour. |
+| Prior | `65a8772`, `5a4315e`, `d63106e` (throughput / coverage series) |
 
 ---
 
