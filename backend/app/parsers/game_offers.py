@@ -9,7 +9,12 @@ from functools import partial
 
 from app.core.database import SessionLocal
 from app.core.db_retry import commit_with_retry
-from app.core.offer_verification import record_attempt
+from app.core.offer_verification import (
+    OOS_LIKE_STATUSES,
+    TRANSIENT_MISS_STATUSES,
+    CheckStatus,
+    record_attempt,
+)
 from app.models.models import Game, Offer
 from app.parsers.steam_catalog import enrich_game, refresh_steam_offer_for_game
 from app.parsers.gog_parser import search_gog_price
@@ -120,12 +125,27 @@ def _needs_refresh(game: Game) -> bool:
 
 def _unpack_price_result(
     result: tuple | None,
-) -> tuple[str | None, float | None, float | None]:
+) -> tuple[str | None, float | None, float | None, CheckStatus | None]:
+    """Unpack parser result; optional 4th element is miss_status when no offer."""
     if not result:
-        return None, None, None
+        return None, None, None, "not_found"
+    if len(result) >= 4 and result[0] is None and result[1] is None:
+        status = result[3]
+        if status not in (
+            "unavailable",
+            "not_found",
+            "error",
+            "timeout",
+            "rate_limited",
+            "auth_failed",
+            "blocked",
+            "skipped",
+        ):
+            status = "not_found"
+        return None, None, None, status  # type: ignore[return-value]
     if len(result) >= 3:
-        return result[0], result[1], result[2]
-    return result[0], result[1], None
+        return result[0], result[1], result[2], None
+    return result[0], result[1], None, None
 
 
 def _bind_platform_search(search_fn, platform: str):
@@ -138,26 +158,37 @@ def _bind_platform_search(search_fn, platform: str):
 def _fetch_keyshops_parallel(
     title: str,
     shops: tuple[tuple[str, object], ...],
-) -> list[tuple[str, str, float]]:
+) -> tuple[
+    list[tuple[str, str, float, float | None]],
+    dict[str, CheckStatus],
+]:
     if not shops:
-        return []
+        return [], {}
     slug = slugify(title)
     found: list[tuple[str, str, float, float | None]] = []
+    misses: dict[str, CheckStatus] = {}
 
-    def _one(shop_name: str, search_fn) -> tuple[str, str | None, float | None, float | None]:
-        url, price, confidence = _unpack_price_result(search_fn(title, slug))
-        return shop_name, url, price, confidence
+    def _one(
+        shop_name: str, search_fn
+    ) -> tuple[str, str | None, float | None, float | None, CheckStatus | None]:
+        try:
+            url, price, confidence, miss = _unpack_price_result(search_fn(title, slug))
+            return shop_name, url, price, confidence, miss
+        except TimeoutError:
+            return shop_name, None, None, None, "timeout"
+        except Exception as exc:
+            logger.debug("Keyshop fetch error %s: %s", shop_name, exc)
+            return shop_name, None, None, None, "error"
 
     with ThreadPoolExecutor(max_workers=len(shops)) as pool:
         futures = [pool.submit(_one, name, fn) for name, fn in shops]
         for future in as_completed(futures):
-            try:
-                shop_name, url, price, confidence = future.result()
-                if url and price is not None:
-                    found.append((shop_name, url, price, confidence))
-            except Exception as exc:
-                logger.debug("Keyshop fetch error: %s", exc)
-    return found
+            shop_name, url, price, confidence, miss = future.result()
+            if url and price is not None:
+                found.append((shop_name, url, price, confidence))
+            else:
+                misses[shop_name] = miss or "not_found"
+    return found, misses
 
 
 def _shops_to_query(
@@ -201,31 +232,40 @@ def _shops_to_query(
     return pool
 
 
-def _fetch_official_prices(title: str, shops: tuple[tuple[str, object], ...]) -> list[tuple[str, str, float]]:
+def _fetch_official_prices(
+    title: str, shops: tuple[tuple[str, object], ...]
+) -> tuple[list[tuple[str, str, float, float | None]], dict[str, CheckStatus]]:
     if not shops:
-        return []
+        return [], {}
     found: list[tuple[str, str, float, float | None]] = []
+    misses: dict[str, CheckStatus] = {}
     slug = slugify(title)
 
-    def _one(shop_name: str, search_fn) -> tuple[str, str | None, float | None, float | None]:
-        # PlayStation Store accepts optional slug; GOG/Epic take title only.
+    def _one(
+        shop_name: str, search_fn
+    ) -> tuple[str, str | None, float | None, float | None, CheckStatus | None]:
         try:
-            result = search_fn(title, slug)
-        except TypeError:
-            result = search_fn(title)
-        url, price, confidence = _unpack_price_result(result)
-        return shop_name, url, price, confidence
+            try:
+                result = search_fn(title, slug)
+            except TypeError:
+                result = search_fn(title)
+            url, price, confidence, miss = _unpack_price_result(result)
+            return shop_name, url, price, confidence, miss
+        except TimeoutError:
+            return shop_name, None, None, None, "timeout"
+        except Exception as exc:
+            logger.debug("Official store fetch error %s: %s", shop_name, exc)
+            return shop_name, None, None, None, "error"
 
     with ThreadPoolExecutor(max_workers=len(shops)) as pool:
         futures = [pool.submit(_one, name, fn) for name, fn in shops]
         for future in as_completed(futures):
-            try:
-                shop_name, url, price, confidence = future.result()
-                if url and price is not None:
-                    found.append((shop_name, url, price, confidence))
-            except Exception as exc:
-                logger.debug("Official store fetch error: %s", exc)
-    return found
+            shop_name, url, price, confidence, miss = future.result()
+            if url and price is not None:
+                found.append((shop_name, url, price, confidence))
+            else:
+                misses[shop_name] = miss or "not_found"
+    return found, misses
 
 
 def _official_shops_to_query(
@@ -307,28 +347,46 @@ _MISS_STUB_URLS: dict[str, str] = {
 }
 
 
-def _deactivate_shop_offer(db, game: Game, shop_name: str) -> None:
-    """Record a live miss without inventing a verified timestamp.
+def _record_shop_miss(
+    db,
+    game: Game,
+    shop_name: str,
+    *,
+    status: CheckStatus = "not_found",
+) -> None:
+    """Record a scan miss without inventing a verified timestamp or price.
 
-    Creates an in_stock=False stub when no row exists so the shop queue can
-    apply attempt backoff instead of forever re-picking the same popular
-    no-offer titles (Instant Gaming OOS / GOG not-sold).
+    - unavailable / not_found: mark OOS-like (in_stock=False); keep prior price_pln.
+    - error / timeout / rate_limited / auth_failed / blocked: attempt only —
+      do NOT invent product unavailability on an existing in-stock offer.
+    - Never writes last_verified_at. Never sets price_pln to 0 on existing rows.
+    - Creates at most one stub row per (game, shop) for backoff when no row exists.
     """
+    if status == "verified":
+        status = "error"
     existing = (
         db.query(Offer)
         .filter(Offer.game_id == game.id, Offer.shop_name == shop_name)
         .first()
     )
     source = (shop_name or "shop").lower().replace(" ", "_")
+    mark_oos = status in OOS_LIKE_STATUSES
+
     if existing:
-        existing.in_stock = False
-        # Live lookup returned nothing — mark attempt, do not stamp verified.
-        record_attempt(existing, status="unavailable", source=source)
+        if mark_oos:
+            existing.in_stock = False
+            # Keep last known price_pln — PE excludes OOS; history ignores price<=0.
+        record_attempt(existing, status=status, source=source)
         return
 
+    # No row yet: stub only for OOS-like / transient so the queue can back off.
+    # Transient stubs are in_stock=False + price 0 but status≠unavailable.
     stub_url = _MISS_STUB_URLS.get(shop_name)
     if not stub_url:
         return
+    if status not in OOS_LIKE_STATUSES and status not in TRANSIENT_MISS_STATUSES:
+        status = "not_found"
+        mark_oos = True
     official = shop_name in {"Steam", "GOG", "Epic Games", "Fanatical"}
     stub = Offer(
         game_id=game.id,
@@ -341,7 +399,18 @@ def _deactivate_shop_offer(db, game: Game, shop_name: str) -> None:
     )
     db.add(stub)
     db.flush()
-    record_attempt(stub, status="unavailable", source=source)
+    record_attempt(stub, status=status, source=source)
+
+
+def _deactivate_shop_offer(
+    db,
+    game: Game,
+    shop_name: str,
+    *,
+    status: CheckStatus = "not_found",
+) -> None:
+    """Backward-compatible alias for miss recording."""
+    _record_shop_miss(db, game, shop_name, status=status)
 
 
 def refresh_offers_for_game(
@@ -418,12 +487,14 @@ def refresh_offers_for_game(
         return
 
     official_found: list[tuple[str, str, float, float | None]] = []
+    official_misses: dict[str, CheckStatus] = {}
     if official_shops:
-        official_found = _fetch_official_prices(title, official_shops)
+        official_found, official_misses = _fetch_official_prices(title, official_shops)
 
     keyshop_found: list[tuple[str, str, float, float | None]] = []
+    keyshop_misses: dict[str, CheckStatus] = {}
     if keyshops:
-        keyshop_found = _fetch_keyshops_parallel(title, keyshops)
+        keyshop_found, keyshop_misses = _fetch_keyshops_parallel(title, keyshops)
 
     db = SessionLocal()
     try:
@@ -456,9 +527,15 @@ def refresh_offers_for_game(
 
         queried = {name for name, _ in official_shops} | {name for name, _ in keyshops}
         found_all = official_found_names | keyshop_found_names
+        all_misses = {**official_misses, **keyshop_misses}
         for shop_name in queried:
             if shop_name not in found_all:
-                _deactivate_shop_offer(db, game, shop_name)
+                _record_shop_miss(
+                    db,
+                    game,
+                    shop_name,
+                    status=all_misses.get(shop_name, "not_found"),
+                )
 
         commit_with_retry(db)
         still_missing = _missing_shops(game)

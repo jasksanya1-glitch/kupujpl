@@ -349,14 +349,13 @@ def select_stale_game_ids_for_shop(
     q = q.filter(stale_pred)
 
     if use_v2:
-        # Include unavailable/error so repeated OOS / no-match (e.g. Instant
-        # Gaming has_stock=0 on popular titles) rotate out for STATUS_BACKOFF_HOURS
-        # instead of starving the rest of the catalog.
+        # Back off OOS / not_found / infra failures so popular misses rotate out.
         bad = (
             "auth_failed",
             "rate_limited",
             "blocked",
             "unavailable",
+            "not_found",
             "error",
             "timeout",
         )

@@ -38,7 +38,8 @@ def test_deactivate_creates_unavailable_stub_without_verified(db: Session):
     )
     assert row.in_stock is False
     assert float(row.price_pln) == 0.0
-    assert row.last_check_status == "unavailable"
+    # Default miss without explicit OOS signal is not_found (search completed, no match).
+    assert row.last_check_status in {"unavailable", "not_found"}
     assert row.last_attempt_at is not None
     assert row.last_verified_at is None
 

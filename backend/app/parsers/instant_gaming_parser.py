@@ -279,25 +279,43 @@ def search_instant_gaming_price(
     game_slug: str,
     *,
     platform: str = "pc",
-) -> tuple[str | None, float | None, float | None]:
+) -> tuple[str | None, float | None, float | None] | tuple[None, None, None, str]:
+    """Return (url, price, confidence) or (None, None, None, miss_status).
+
+    miss_status distinguishes transport failures from OOS / not-found.
+    """
     search_q = _search_query_for_platform(query, platform)
     search_url = SEARCH_URL.format(query=quote_plus(search_q))
     response = fetch_url(search_url, prefer_cffi=True)
     if response is None:
         logger.warning("Instant Gaming search failed for %s", query)
-        return None, None, None
+        return None, None, None, "error"
+    if response.status_code == 429:
+        logger.warning("Instant Gaming rate limited for %s", query)
+        return None, None, None, "rate_limited"
+    if response.status_code in (401, 403):
+        logger.warning("Instant Gaming blocked HTTP %s for %s", response.status_code, query)
+        return None, None, None, "blocked"
     if response.status_code != 200:
         logger.warning("Instant Gaming search HTTP %s for %s", response.status_code, query)
-        return None, None, None
+        return None, None, None, "error"
 
     best: tuple[float, str, float] | None = None
+    matched_oos = False
     for hit in _parse_search_results(response.text):
         prod_id = hit.get("prod_id")
         seo_name = hit.get("seo_name")
         if not prod_id or not seo_name:
             continue
-        score = _score_hit(hit, query, game_slug, platform=platform)
+        # Score ignoring stock so we can detect explicit OOS matches.
+        stock = hit.get("has_stock", 1)
+        hit_for_score = dict(hit)
+        hit_for_score["has_stock"] = 1
+        score = _score_hit(hit_for_score, query, game_slug, platform=platform)
         if score < MIN_MATCH_SCORE:
+            continue
+        if not stock:
+            matched_oos = True
             continue
         product_base_url = _product_base_url(int(prod_id), str(seo_name))
         price_pln = _product_page_price_pln(product_base_url) or _price_pln(hit)
@@ -308,7 +326,9 @@ def search_instant_gaming_price(
             best = (score, url, price_pln)
 
     if best is None:
-        return None, None, None
+        # Title matched but every stocked listing is empty → unavailable.
+        # No title match at all → not_found (search succeeded).
+        return None, None, None, ("unavailable" if matched_oos else "not_found")
     return best[1], best[2], best[0]
 
 

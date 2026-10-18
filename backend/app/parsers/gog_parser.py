@@ -97,6 +97,33 @@ def _strip_remaster_label(value: str) -> str:
     return cleaned.strip()
 
 
+_GOG_EDITION_MARKERS = (
+    ("ultimate", ("ultimate",)),
+    ("deluxe", ("deluxe",)),
+    ("goty", ("goty", "game of the year")),
+    ("complete", ("complete",)),
+    ("definitive", ("definitive",)),
+    ("gold", ("gold edition", " gold")),
+    ("bundle", ("bundle", "collection")),
+)
+
+
+def _gog_edition_forbidden(query_lower: str, candidate_lower: str) -> bool:
+    """Reject deluxe/GOTY/complete/bundle when the query does not ask for them.
+
+    Remastered is handled separately via ``_strip_remaster_label`` — it is the
+    current GOG SKU for some titles, not a wrong edition upsell.
+    """
+    for _name, markers in _GOG_EDITION_MARKERS:
+        cand_has = any(m in candidate_lower for m in markers)
+        if not cand_has:
+            continue
+        query_has = any(m in query_lower for m in markers)
+        if not query_has:
+            return True
+    return False
+
+
 def pick_best_gog_product(title: str, products: list[dict]) -> dict | None:
     best: dict | None = None
     best_score = 0.0
@@ -109,9 +136,15 @@ def pick_best_gog_product(title: str, products: list[dict]) -> dict | None:
     for product in products:
         candidate = product.get("title") or ""
         lower = candidate.lower()
+        ptype = str(product.get("productType") or product.get("product_type") or "").lower()
+        if ptype in {"dlc", "extra", "bonus"}:
+            continue
         if should_skip_product_title(candidate):
             continue
         if "phantom liberty" in lower and "phantom liberty" not in title_lower:
+            continue
+        # Remaster strip must not open the door to deluxe/GOTY/bundle SKUs.
+        if _gog_edition_forbidden(title_lower, _strip_remaster_label(lower)):
             continue
         if "ultimate edition" in lower and "ultimate" not in title_lower and "edition" not in title_lower:
             if title_tokens.isdisjoint({"ultimate", "goty", "complete", "definitive"}):

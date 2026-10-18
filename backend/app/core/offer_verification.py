@@ -13,12 +13,13 @@ from app.models.models import Offer
 
 CheckStatus = Literal[
     "verified",
-    "unavailable",
+    "unavailable",  # product known / matched but explicitly out of stock
+    "not_found",  # search completed; no matching product (≠ HTTP failure)
     "rate_limited",
     "auth_failed",
     "blocked",
     "timeout",
-    "error",
+    "error",  # transport / parse failure — not proof of OOS
     "skipped",
 ]
 
@@ -26,6 +27,7 @@ VALID_STATUSES: frozenset[str] = frozenset(
     {
         "verified",
         "unavailable",
+        "not_found",
         "rate_limited",
         "auth_failed",
         "blocked",
@@ -33,6 +35,14 @@ VALID_STATUSES: frozenset[str] = frozenset(
         "error",
         "skipped",
     }
+)
+
+# Statuses that mean "no sellable offer right now" (safe to mark in_stock=False).
+OOS_LIKE_STATUSES: frozenset[str] = frozenset({"unavailable", "not_found"})
+
+# Transient / infra failures — must not invent product unavailability.
+TRANSIENT_MISS_STATUSES: frozenset[str] = frozenset(
+    {"error", "timeout", "rate_limited", "auth_failed", "blocked"}
 )
 
 
