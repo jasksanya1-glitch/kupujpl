@@ -137,7 +137,7 @@ Coverage was already rising from prior queue/idle fixes; parallel deploy continu
 
 Local Windows run of the full suite was interrupted by environment `KeyboardInterrupt` after **205 passed, 5 skipped** (no failures observed before interrupt).
 
-Critical regression subset (PE V2 + queues + parallel + store_class + tiers + out-of-order): **passed** in focused runs (`test_price_engine`, `test_scan_parallel_safety`, `test_tier_classification`, `test_store_classification_consistency`, plus reliability/parity modules).
+Critical regression subset (PE V2 + queues + parallel + store_class + tiers + out-of-order + fairness): **31 passed** (`EXIT=0`).
 
 `store_class` on `OfferResponse` — **resolved** (field present; schema test passes).
 
@@ -167,7 +167,7 @@ Local branch `fix/quenly-production-stabilization-20261017` (prior):
 - `6064df3` Fix empty Tier B…
 - `d524631` Record stability-verification…
 
-This performance pass: commit created after report (`parallel scanner within-budget workers + HTTP pool`) — see `git log -1` on the branch after commit.
+This performance pass: `3244e9a` — Optimize shop scanners with within-budget parallel workers and HTTP keep-alive.
 
 ---
 
