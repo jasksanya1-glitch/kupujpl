@@ -23,6 +23,7 @@ from app.core.offer_verification import record_attempt, record_verified_price
 from app.core.steam_media import normalize_cover_url, steam_cover_url
 from app.core.steam_reviews import apply_review_summary_to_game, fetch_review_summary
 from app.models.models import Category, Game, Offer, game_categories
+from app.parsers.currency_pln import money_to_pln
 
 logger = logging.getLogger("steam_catalog")
 
@@ -379,6 +380,36 @@ def _assign_categories(db: Session, game: Game, data: dict) -> None:
             game.categories.append(cat)
 
 
+def _steam_price_overview_to_pln(price_overview: dict) -> tuple[float, float] | None:
+    """Convert Steam price_overview minor units to PLN using explicit currency.
+
+    Never treat an unlabeled amount as PLN. Missing/unknown currency → None
+    (caller records an error attempt; does not invent FX).
+    """
+    currency = (price_overview.get("currency") or "").strip().upper()
+    if not currency:
+        logger.warning("Steam price_overview missing currency — refusing store")
+        return None
+    final_raw = price_overview.get("final")
+    initial_raw = price_overview.get("initial")
+    if final_raw is None:
+        return None
+    price_pln = money_to_pln(final_raw, currency, minor_units=True)
+    if price_pln is None:
+        logger.warning(
+            "Steam currency %s could not be converted to PLN (final=%s)",
+            currency,
+            final_raw,
+        )
+        return None
+    original_price_pln = 0.0
+    if initial_raw is not None:
+        converted_initial = money_to_pln(initial_raw, currency, minor_units=True)
+        if converted_initial is not None:
+            original_price_pln = float(converted_initial)
+    return float(price_pln), float(original_price_pln)
+
+
 def _upsert_steam_offer(
     db: Session, game: Game, appid: int, data: dict, *, shop_name: str = "Steam"
 ) -> None:
@@ -397,8 +428,18 @@ def _upsert_steam_offer(
         price_pln = 0.0
         original_price_pln = 0.0
     else:
-        price_pln = price_overview.get("final", 0) / 100.0
-        original_price_pln = price_overview.get("initial", 0) / 100.0
+        converted = _steam_price_overview_to_pln(price_overview)
+        if converted is None:
+            existing = (
+                db.query(Offer)
+                .filter(Offer.game_id == game.id, Offer.shop_name == "Steam")
+                .first()
+            )
+            if existing:
+                # Do not write a foreign amount as PLN; keep prior verified price.
+                record_attempt(existing, status="error", source="steam")
+            return
+        price_pln, original_price_pln = converted
 
     affiliate_url = f"https://store.steampowered.com/app/{appid}"
     offer = (

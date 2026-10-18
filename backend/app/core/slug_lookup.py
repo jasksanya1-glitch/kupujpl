@@ -41,13 +41,56 @@ def _likely_mistaken_stub(game: Game, slug: str) -> bool:
     return not game.steam_enriched or len(game.offers) == 0
 
 
+_DLC_SLUG_MARKERS = (
+    "-dlc-",
+    "-season-pass",
+    "-soundtrack",
+    "-ost-",
+    "-deluxe-pack",
+    "-voidfarer-pack",
+    "-appearance-pack",
+    "-cosmetic",
+    "-bundle-",
+)
+_DLC_TITLE_MARKERS = (
+    " dlc",
+    "season pass",
+    "soundtrack",
+    " deluxe pack",
+    " voidfarer pack",
+    " appearance pack",
+    " bundle",
+)
+
+
+def _looks_like_dlc_or_addon(game: Game) -> bool:
+    """Heuristic: extended-slug DLC/packs must not win over the base game."""
+    slug = f"-{(game.slug or '').lower()}-"
+    title = f" {(game.title or '').lower()} "
+    if any(m in slug for m in _DLC_SLUG_MARKERS):
+        return True
+    if any(m in title for m in _DLC_TITLE_MARKERS):
+        return True
+    # "Title - Subtitle" Steam DLC naming (base titles rarely use " - ").
+    if " - " in (game.title or ""):
+        return True
+    return False
+
+
 def _pick_best_game(candidates: list[Game]) -> Game:
+    """Prefer the main/base catalog title when a short slug matches a family.
+
+    Never prefer higher Steam appids — DLC/packs often have newer/higher IDs
+    (e.g. Rogue Trader Voidfarer Pack beating the base game).
+    """
     return max(
         candidates,
         key=lambda g: (
             bool(g.steam_enriched),
+            0 if _looks_like_dlc_or_addon(g) else 1,
+            int(getattr(g, "steam_review_count", None) or 0),
+            int(getattr(g, "steam_recommendations", None) or 0),
             len(g.offers),
-            g.steam_appid or 0,
             g.id,
         ),
     )
