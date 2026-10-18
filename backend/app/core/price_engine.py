@@ -41,6 +41,7 @@ from app.core.offer_quality import (
     offer_edition_verified,
     offer_eligible_for_best_price,
 )
+from app.core.offer_verification import verification_timestamp
 from app.core.product_matching import (
     MatchStatus,
     evaluate_offer_freshness_snapshot,
@@ -235,6 +236,10 @@ def offer_row_display_tier(
     return "rejected"
 
 
+# Transport / infra failures. A later failed attempt must NOT drop a still-fresh
+# prior verification — PE freshness on last_verified_at owns expiry.
+# not_found / unavailable are intentionally absent: search miss ≠ hard fail;
+# unavailable already clears in_stock when evidence is explicit.
 _ERROR_CHECK_STATUSES = frozenset(
     {"error", "http_error", "failed", "fetch_error", "timeout", "blocked"}
 )
@@ -261,7 +266,9 @@ def _classify_offer_row(
         )
 
     status = (getattr(offer, "last_check_status", None) or "").strip().lower()
-    if status in _ERROR_CHECK_STATUSES:
+    # Only treat infra errors as fatal when there is no prior verification to trust.
+    # Confirmed → timeout/error/not_found keeps PE confirmed until freshness expires.
+    if status in _ERROR_CHECK_STATUSES and verification_timestamp(offer) is None:
         return PriceEngineOfferRow(
             offer, match.status, fresh.status, "excluded", "insufficient_data"
         )

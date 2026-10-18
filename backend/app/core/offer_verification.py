@@ -108,10 +108,16 @@ def record_attempt(
     source: str | None = None,
     now: datetime | None = None,
 ) -> None:
-    """Record a check attempt. Never sets last_verified_at on failure."""
+    """Record a check attempt. Never sets last_verified_at on failure.
+
+    Also freezes ``updated_at`` so SQLAlchemy ``onupdate`` cannot artificially
+    extend freshness after a search miss / timeout / error.
+    """
     if status not in VALID_STATUSES:
         status = "error"
     ts = now or _utcnow()
+    # Capture before mutating other columns (ORM onupdate would otherwise bump it).
+    prev_updated = getattr(offer, "updated_at", None)
     if hasattr(offer, "last_attempt_at"):
         offer.last_attempt_at = ts
     if hasattr(offer, "last_check_status"):
@@ -120,6 +126,8 @@ def record_attempt(
         # Only stamp source on successful verify; attempts may pass hint.
         if status == "verified":
             offer.price_source = source[:64]
+    if prev_updated is not None and hasattr(offer, "updated_at"):
+        offer.updated_at = prev_updated
 
 
 def record_verified_price(

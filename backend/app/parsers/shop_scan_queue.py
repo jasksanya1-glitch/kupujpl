@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import asc, case, desc, or_
+from sqlalchemy import and_, asc, case, desc, func, or_
 from sqlalchemy.orm import Session
 
 from app.core.database import BASE_DIR, SessionLocal
@@ -48,6 +48,16 @@ REPORT_PATH = Path(BASE_DIR) / "tmp" / "shop_scan_report.json"
 DEFAULT_SHOP_BATCH_DEADLINE_SEC = float(os.environ.get("SCAN_SHOP_BATCH_DEADLINE_SEC", "900"))
 # Backoff before retrying auth_failed / rate_limited / blocked offers.
 STATUS_BACKOFF_HOURS = float(os.environ.get("SCAN_STATUS_BACKOFF_HOURS", "6"))
+# Tier-C never-listed search/OOS misses: longer negative-cache within RPS budget.
+# Cap via env; never infinite — after this window the title re-enters the queue.
+# Tier A/B (reviews >= TIER_B_MIN_REVIEWS) always use STATUS_BACKOFF_HOURS.
+NEVER_LISTED_BACKOFF_HOURS = min(
+    72.0,
+    max(
+        STATUS_BACKOFF_HOURS,
+        float(os.environ.get("SCAN_NEVER_LISTED_BACKOFF_HOURS", "48")),
+    ),
+)
 # Fair scheduling: every Nth pick force oldest eligible (starvation protection).
 STARVATION_EVERY = max(2, int(os.environ.get("SCAN_STARVATION_EVERY", "8")))
 
@@ -285,6 +295,7 @@ def select_stale_game_ids_for_shop(
         hours = env_default
     cutoff = datetime.utcnow() - timedelta(hours=hours)
     backoff_cut = datetime.utcnow() - timedelta(hours=STATUS_BACKOFF_HOURS)
+    never_listed_cut = datetime.utcnow() - timedelta(hours=NEVER_LISTED_BACKOFF_HOURS)
     use_v2 = scan_v2_verification_enabled()
 
     tier_rank = _tier_a_rank_map()
@@ -350,6 +361,9 @@ def select_stale_game_ids_for_shop(
 
     if use_v2:
         # Back off OOS / not_found / infra failures so popular misses rotate out.
+        # Tier-C never-listed not_found/unavailable use a longer adaptive TTL so
+        # Instant Gaming does not burn RPS re-probing titles it never sold.
+        # Previously verified rows and Tier A/B keep the short STATUS_BACKOFF.
         bad = (
             "auth_failed",
             "rate_limited",
@@ -359,11 +373,19 @@ def select_stale_game_ids_for_shop(
             "error",
             "timeout",
         )
+        long_backoff_miss = and_(
+            subq.c.last_verified_at.is_(None),
+            subq.c.last_check_status.in_(("not_found", "unavailable")),
+            func.coalesce(Game.steam_review_count, 0) < TIER_B_MIN_REVIEWS,
+        )
         q = q.filter(
-            (subq.c.last_check_status.is_(None))
-            | (~subq.c.last_check_status.in_(bad))
-            | (subq.c.last_attempt_at.is_(None))
-            | (subq.c.last_attempt_at < backoff_cut)
+            or_(
+                subq.c.last_check_status.is_(None),
+                ~subq.c.last_check_status.in_(bad),
+                subq.c.last_attempt_at.is_(None),
+                and_(long_backoff_miss, subq.c.last_attempt_at < never_listed_cut),
+                and_(~long_backoff_miss, subq.c.last_attempt_at < backoff_cut),
+            )
         )
 
     order = [
