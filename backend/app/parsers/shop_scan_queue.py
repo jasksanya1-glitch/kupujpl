@@ -295,7 +295,18 @@ def select_stale_game_ids_for_shop(
         hours = env_default
     cutoff = datetime.utcnow() - timedelta(hours=hours)
     backoff_cut = datetime.utcnow() - timedelta(hours=STATUS_BACKOFF_HOURS)
-    never_listed_cut = datetime.utcnow() - timedelta(hours=NEVER_LISTED_BACKOFF_HOURS)
+    never_listed_hours = NEVER_LISTED_BACKOFF_HOURS
+    if shop == "Instant Gaming":
+        # Stretch never-listed negative-cache for IG (same RPS) — most attempts
+        # are Tier-C not_found and crush success rate.
+        never_listed_hours = min(
+            72.0,
+            max(
+                NEVER_LISTED_BACKOFF_HOURS,
+                float(os.environ.get("SCAN_IG_NEVER_LISTED_BACKOFF_HOURS", "72")),
+            ),
+        )
+    never_listed_cut = datetime.utcnow() - timedelta(hours=never_listed_hours)
     use_v2 = scan_v2_verification_enabled()
 
     tier_rank = _tier_a_rank_map()
@@ -433,12 +444,20 @@ def select_stale_game_ids_for_shop(
             )
         )
 
+    # Instant Gaming: bias toward Tier A/B within the same RPS budget — Tier C
+    # never-listed titles dominate attempts and crush success rate (~10%).
+    tier_a_pct, tier_b_pct, tier_c_pct = TIER_A_BATCH_PCT, TIER_B_BATCH_PCT, TIER_C_BATCH_PCT
+    if shop == "Instant Gaming":
+        tier_a_pct = max(0, min(100, int(os.environ.get("SCAN_IG_TIER_A_PCT", "70"))))
+        tier_b_pct = max(0, min(100, int(os.environ.get("SCAN_IG_TIER_B_PCT", "20"))))
+        tier_c_pct = max(0, min(100, int(os.environ.get("SCAN_IG_TIER_C_PCT", "10"))))
+
     # Normalize mix percentages.
-    pct_sum = max(1, TIER_A_BATCH_PCT + TIER_B_BATCH_PCT + TIER_C_BATCH_PCT)
+    pct_sum = max(1, tier_a_pct + tier_b_pct + tier_c_pct)
     quota = {
-        "A": max(1, int(round(limit * TIER_A_BATCH_PCT / pct_sum))) if TIER_A_BATCH_PCT else 0,
-        "B": max(1, int(round(limit * TIER_B_BATCH_PCT / pct_sum))) if TIER_B_BATCH_PCT else 0,
-        "C": max(1, int(round(limit * TIER_C_BATCH_PCT / pct_sum))) if TIER_C_BATCH_PCT else 0,
+        "A": max(1, int(round(limit * tier_a_pct / pct_sum))) if tier_a_pct else 0,
+        "B": max(1, int(round(limit * tier_b_pct / pct_sum))) if tier_b_pct else 0,
+        "C": max(1, int(round(limit * tier_c_pct / pct_sum))) if tier_c_pct else 0,
     }
     # Ensure quotas fit limit.
     while sum(quota.values()) > limit:

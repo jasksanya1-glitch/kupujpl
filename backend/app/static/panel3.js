@@ -19,6 +19,7 @@
 
     const STATS_POLL_MS = 120000;
     const TIER_A_POLL_MS = 30000;
+    const SCANNERS_POLL_MS = 8000;
     const NOTIF_TTL_MS = 12000;
     const SS_USER = 'panel3_last_user_id';
     const SS_VISIT = 'panel3_last_visit_id';
@@ -982,18 +983,18 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
     }
 
     const PANEL3_PANES = [
-        'scans', 'shops', 'traffic', 'affiliate', 'users', 'coverage', 'catalog', 'deals', 'system',
+        'scanners', 'scans', 'shops', 'traffic', 'affiliate', 'users', 'coverage', 'catalog', 'deals', 'system',
     ];
     // Absolute path — bare "#pane" + <base href="/games/"> resolves to /games/#pane and drops panel3.
     const PANEL3_PATH = '/games/panel3';
 
     function currentPaneFromHash() {
         const raw = (location.hash || '').replace(/^#/, '').trim().toLowerCase();
-        return PANEL3_PANES.includes(raw) ? raw : 'scans';
+        return PANEL3_PANES.includes(raw) ? raw : 'scanners';
     }
 
     function showPane(paneId, { updateHash } = { updateHash: true }) {
-        const id = PANEL3_PANES.includes(paneId) ? paneId : 'scans';
+        const id = PANEL3_PANES.includes(paneId) ? paneId : 'scanners';
         document.querySelectorAll('.panel3-pane').forEach((pane) => {
             const match = pane.getAttribute('data-pane') === id;
             pane.classList.toggle('is-active', match);
@@ -1013,6 +1014,161 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
             loadDiscoverCandidates().catch(() => {});
             loadDiscoverArticles().catch(() => {});
         }
+        if (id === 'scanners') {
+            pollScanners().catch(() => {});
+        }
+    }
+
+    function fmtAge(sec) {
+        if (sec == null || Number.isNaN(sec)) return '—';
+        if (sec < 60) return Math.round(sec) + ' с';
+        if (sec < 3600) return Math.round(sec / 60) + ' хв';
+        return (sec / 3600).toFixed(1) + ' год';
+    }
+
+    function toneClass(tone) {
+        if (tone === 'ok') return 'panel3-tone--ok';
+        if (tone === 'warn') return 'panel3-tone--warn';
+        if (tone === 'bad') return 'panel3-tone--bad';
+        return '';
+    }
+
+    function fmtScanSpeed(thr) {
+        const gpm = thr && thr.games_per_min != null ? Number(thr.games_per_min) : null;
+        const vpm = thr && thr.verified_per_min != null ? Number(thr.verified_per_min) : null;
+        if (gpm != null && !Number.isNaN(gpm) && gpm > 0) {
+            return `${gpm} ігор/хв`;
+        }
+        if (vpm != null && !Number.isNaN(vpm) && vpm > 0) {
+            return `${vpm} ok/хв`;
+        }
+        return '—';
+    }
+
+    function fmtScanProgress(thr, q) {
+        const checked = thr && thr.checked_total_session != null ? thr.checked_total_session : 0;
+        const verified = thr && thr.verified_total_session != null ? thr.verified_total_session : 0;
+        const left = q && q.left != null ? q.left : null;
+        const queuePart = left == null ? 'черга —' : `черга ${left}${q.capped ? '+' : ''}`;
+        const etaPart = q && q.eta_min != null ? ` · ETA ~${q.eta_min} хв` : '';
+        return {
+            scanned: `проскановано: <strong>${checked}</strong> · ok: <strong>${verified}</strong>`,
+            speed: `швидкість: <strong>${esc(fmtScanSpeed(thr))}</strong>`,
+            queue: `${queuePart}${etaPart}`,
+            hour: `за 1 год: ${thr.verified_1h ?? 0} verified / ${thr.attempts_1h ?? 0} спроб · сесія: ${checked} спроб / ${verified} ok`,
+        };
+    }
+
+    function renderScanners(data) {
+        const summary = data.summary || {};
+        const rows = data.scanners || [];
+        const live = document.getElementById('scanners-live-badge');
+        if (live) {
+            live.hidden = !(summary.really_scanning > 0);
+            live.textContent = summary.really_scanning > 0 ? 'SCANNING' : 'LIVE';
+        }
+        const sessionChecked = rows.reduce((n, s) => n + (Number(s.throughput?.checked_total_session) || 0), 0);
+        const sessionVerified = rows.reduce((n, s) => n + (Number(s.throughput?.verified_total_session) || 0), 0);
+        const speedVals = rows
+            .map((s) => Number(s.throughput?.games_per_min ?? s.throughput?.verified_per_min))
+            .filter((n) => !Number.isNaN(n) && n > 0);
+        const speedSum = speedVals.reduce((a, b) => a + b, 0);
+        const kpis = document.getElementById('scanners-summary-kpis');
+        if (kpis) {
+            kpis.innerHTML = [
+                kpi('реально сканують', `${summary.really_scanning ?? 0}/${summary.total ?? 0}`, summary.headline_ua || '', summary.really_scanning > 0),
+                kpi('проскановано (сесія)', String(sessionChecked), `ok: ${sessionVerified}`),
+                kpi('швидкість разом', speedSum > 0 ? `${Math.round(speedSum * 10) / 10} ігор/хв` : '—'),
+                kpi('авторизація', String(summary.auth_blocked ?? 0)),
+                kpi('деградовано', String(summary.degraded ?? 0)),
+                kpi('пауза', String(summary.paused ?? 0)),
+                kpi('зависли / стоп', `${summary.hung ?? 0} / ${summary.stopped_or_error ?? 0}`),
+            ].join('');
+        }
+        const grid = document.getElementById('scanners-grid');
+        if (!grid) return;
+        if (!rows.length) {
+            grid.innerHTML = '<p class="panel3-muted">Немає даних сканерів (перевірте systemd / SCAN_INDEPENDENT_MODE).</p>';
+            return;
+        }
+        grid.innerHTML = rows.map((s) => {
+            const act = s.activity || {};
+            const thr = s.throughput || {};
+            const q = s.queue || {};
+            const ds = s.data_source || {};
+            const prog = fmtScanProgress(thr, q);
+            const game = (act.current_game && act.current_game.title) || (act.last_game && act.last_game.title) || '—';
+            const badge = s.human_status_code || s.human_status || s.is_active || '—';
+            const dsLine = [
+                ds.primary ? `джерело: ${ds.primary}` : null,
+                ds.fallback ? `fallback: ${ds.fallback}` : null,
+                ds.degraded_reason ? ds.degraded_reason : null,
+                ds.owner_action && s.human_code === 'auth' ? `дія: ${String(ds.owner_action).slice(0, 90)}` : null,
+            ].filter(Boolean).join(' · ');
+            const err = s.last_error ? `<p class="panel3-scanner-err">${esc(String(s.last_error).slice(0, 160))}</p>` : '';
+            return `<article class="panel3-card panel3-scanner-card ${toneClass(s.human_tone)}" data-slug="${esc(s.slug || '')}">
+                <div class="panel3-scanner-head">
+                    <h3>${esc(s.shop || s.slug || '?')}</h3>
+                    <span class="panel3-scanner-badge ${toneClass(s.human_tone)}">${esc(badge)}</span>
+                </div>
+                <p class="panel3-scan-detail">
+                    процес: <strong>${esc(s.process_status || s.is_active || '—')}</strong>
+                    · ${esc(act.phase_ua || act.phase || '—')}
+                    · heartbeat ${fmtAge(s.heartbeat_age_sec)}
+                    · pid ${s.main_pid || '—'}
+                </p>
+                <p class="panel3-scan-detail panel3-muted">${esc(dsLine || 'джерело даних —')}</p>
+                <p class="panel3-scan-detail">зараз: <strong>${esc(game)}</strong></p>
+                <p class="panel3-scan-detail">${prog.scanned}</p>
+                <p class="panel3-scan-detail">${prog.speed} · ${esc(prog.queue)}</p>
+                <p class="panel3-scan-detail panel3-muted">${esc(prog.hour)}</p>
+                <p class="panel3-scan-detail panel3-muted">останній ok: ${esc(s.last_verified_at || '—')} · остання спроба: ${esc(s.last_attempt_at || '—')}</p>
+                ${err}
+                <div class="panel3-scanner-actions">
+                    <button type="button" class="panel3-btn" data-sc-act="restart" data-slug="${esc(s.slug)}">Restart</button>
+                    <button type="button" class="panel3-btn" data-sc-act="resume" data-slug="${esc(s.slug)}">Resume</button>
+                    <button type="button" class="panel3-btn panel3-btn--danger" data-sc-act="pause" data-slug="${esc(s.slug)}">Пауза</button>
+                    <button type="button" class="panel3-btn panel3-btn--danger" data-sc-act="stop" data-slug="${esc(s.slug)}">Stop</button>
+                </div>
+            </article>`;
+        }).join('');
+    }
+
+    async function pollScanners() {
+        const res = await fetch('api/admin/scanners/status', { credentials: 'same-origin' });
+        if (!res.ok) {
+            const grid = document.getElementById('scanners-grid');
+            if (grid) {
+                grid.innerHTML = `<p class="panel3-muted">HTTP ${res.status} — потрібен admin unlock у panel3.</p>`;
+            }
+            return;
+        }
+        renderScanners(await res.json());
+    }
+
+    async function scannersAction(path, slug) {
+        const status = document.getElementById('scanners-action-status');
+        if (status) status.textContent = '…';
+        const res = await adminMutate('api/admin/scanners/' + path, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug: slug || 'all' }),
+        });
+        const text = await res.text();
+        if (status) status.textContent = res.ok ? (path + ' ok') : ('HTTP ' + res.status + ' ' + text.slice(0, 80));
+        await pollScanners();
+    }
+
+    function bindScanners() {
+        document.getElementById('btn-scanners-pause-all')?.addEventListener('click', () => scannersAction('pause', 'all'));
+        document.getElementById('btn-scanners-resume-all')?.addEventListener('click', () => scannersAction('resume', 'all'));
+        document.getElementById('btn-scanners-start-all')?.addEventListener('click', () => scannersAction('start', 'all'));
+        document.getElementById('btn-scanners-restart-all')?.addEventListener('click', () => scannersAction('restart', 'all'));
+        document.getElementById('scanners-grid')?.addEventListener('click', (event) => {
+            const btn = event.target.closest('[data-sc-act]');
+            if (!btn) return;
+            scannersAction(btn.getAttribute('data-sc-act'), btn.getAttribute('data-slug'));
+        });
     }
 
     function bindNav() {
@@ -1021,7 +1177,7 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
         nav.addEventListener('click', (event) => {
             const btn = event.target.closest('.panel3-nav__btn');
             if (!btn) return;
-            showPane(btn.getAttribute('data-pane') || 'scans');
+            showPane(btn.getAttribute('data-pane') || 'scanners');
         });
         window.addEventListener('hashchange', () => {
             showPane(currentPaneFromHash(), { updateHash: false });
@@ -1040,12 +1196,17 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
         bindNav();
         bindStopButtons();
         bindDiscover();
+        bindScanners();
         await loadStats();
         pollEvents().catch(() => {});
         pollTierA().catch(() => {});
+        pollScanners().catch(() => {});
         setInterval(() => pollEvents().catch(() => {}), 20000);
         setInterval(() => loadStats().catch(() => {}), STATS_POLL_MS);
         setInterval(() => pollTierA().catch(() => {}), TIER_A_POLL_MS);
+        setInterval(() => {
+            if (currentPaneFromHash() === 'scanners') pollScanners().catch(() => {});
+        }, SCANNERS_POLL_MS);
     }
 
     boot().catch((err) => {

@@ -29,7 +29,8 @@ ALGOLIA_URL = (
     f"https://{ALGOLIA_APP_ID.lower()}-dsn.algolia.net/1/indexes/{ALGOLIA_INDEX}/query"
 )
 
-# Secured search-only key from cdkeys.com frontend (refreshed from cdkeys.com/).
+# Bundled secured key (expired 2026-06-08). Kept only as a last-resort candidate;
+# live refresh from cdkeys.com / loaded.com replaces it when Cloudflare allows.
 _DEFAULT_ALGOLIA_KEY = (
     "NGE2MWY4Y2Y4NmY4NGNmYWVjY2Q2NjllZmQ0NzQzNmEzMDc0MjEwN2U0ZWUyOTE2ZDBlN2JiMzZkNTRk"
     "OTU4YnRhZ0ZpbHRlcnM9JnZhbGlkVW50aWw9MTc4MDg3NzAyNA=="
@@ -37,8 +38,10 @@ _DEFAULT_ALGOLIA_KEY = (
 
 _FETCH_URLS = (
     f"{BASE}/",
-    "https://www.loaded.com/",
     f"{BASE}/pl/",
+    "https://www.loaded.com/",
+    "https://www.loaded.com/pl/",
+    "https://www.cdkeys.com/pl_pl/",
 )
 
 _cached_api_key: str | None = None
@@ -97,8 +100,12 @@ def _extract_api_key_from_html(html: str) -> str | None:
     for pattern in (
         r'"apiKey"\s*:\s*"([^"]+)"',
         r"'apiKey'\s*:\s*'([^']+)'",
+        r'"algoliaApiKey"\s*:\s*"([^"]+)"',
+        r'"searchApiKey"\s*:\s*"([^"]+)"',
+        r'algolia(?:Search)?ApiKey["\']?\s*[:=]\s*["\']([^"\']+)["\']',
+        r'x-algolia-api-key["\']?\s*[:=]\s*["\']([^"\']+)["\']',
     ):
-        match = re.search(pattern, html)
+        match = re.search(pattern, html, re.I)
         if match and len(match.group(1)) > 40:
             return match.group(1)
     return None
@@ -320,6 +327,16 @@ def _score_hit(title: str, hit: dict) -> float:
     return score
 
 
+def _invalidate_algolia_key(*, backoff_sec: float = 300.0) -> None:
+    """Drop cached Algolia key after 403 / expiry so the next cycle can refresh."""
+    global _cached_api_key, _cached_api_key_at, _no_key_until, _circuit_open_until
+    _cached_api_key = None
+    _cached_api_key_at = 0.0
+    now = time.time()
+    _no_key_until = now + min(float(backoff_sec), float(_NO_KEY_BACKOFF_SEC))
+    _circuit_open_until = now + min(float(backoff_sec), 600.0)
+
+
 def _search_algolia(query: str, *, limit: int = 24) -> list[dict]:
     api_key = _get_algolia_api_key()
     if not api_key:
@@ -341,6 +358,7 @@ def _search_algolia(query: str, *, limit: int = 24) -> list[dict]:
 
     if response.status_code == 403:
         logger.warning("CDKeys Algolia key rejected (403) for %s", query)
+        _invalidate_algolia_key(backoff_sec=300.0)
         return []
     if response.status_code != 200:
         logger.warning("CDKeys Algolia HTTP %s for %s", response.status_code, query)

@@ -101,7 +101,11 @@ def test_steam_upsert_same_price_bumps_verified_at(db: Session):
     db.add(offer)
     db.flush()
     data = {
-        "price_overview": {"final": 10000, "initial": 10000},
+        "price_overview": {
+            "currency": "PLN",
+            "final": 10000,
+            "initial": 10000,
+        },
         "is_free": False,
     }
     _upsert_steam_offer(db, g, 999002, data)

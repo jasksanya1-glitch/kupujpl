@@ -41,17 +41,24 @@ _FEED_FAIL_UNTIL: dict[str, float] = {}
 
 
 def _redact_feed_url(url: str) -> str:
-    """Strip API keys from feed URLs before logging."""
+    """Strip API keys from feed URLs / Awin error bodies before logging."""
     raw = url or ""
     redacted = re.sub(
-        r"(apikey/)([^/]+)",
+        r"(apikey/)([^/\"'\s]+)",
         r"\1REDACTED",
         raw,
         flags=re.IGNORECASE,
     )
     redacted = re.sub(
-        r"([?&](?:api_?key|token|auth)=)([^&]+)",
+        r"([?&](?:api_?key|token|auth)=)([^&\"'\s]+)",
         r"\1REDACTED",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    # Awin sometimes echoes UUID API keys in JSON error paths without the apikey/ prefix.
+    redacted = re.sub(
+        r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+        "REDACTED",
         redacted,
         flags=re.IGNORECASE,
     )
@@ -903,7 +910,7 @@ def _download_bytes(url: str) -> tuple[bytes | None, str | None]:
         logger.warning("affiliate feed download failed %s: %s", safe_url[:100], exc)
         return None, str(exc)
     if response.status_code != 200:
-        body = (response.text or "").strip()[:500]
+        body = _redact_feed_url((response.text or "").strip()[:500])
         logger.warning(
             "affiliate feed HTTP %s for %s: %s",
             response.status_code,
@@ -1237,6 +1244,31 @@ def affiliate_feed_lookup(
     )
 
 
+def discover_merchant_feeds(merchant_id: str) -> list[dict[str, Any]]:
+    """List authorized Awin catalog rows for a merchant (no secrets in output)."""
+    mid = str(merchant_id or "").strip()
+    if not mid:
+        return []
+    entries, err = _fetch_feed_catalog()
+    if err and not entries:
+        return []
+    out: list[dict[str, Any]] = []
+    for entry in entries:
+        if entry.advertiser_id != mid:
+            continue
+        out.append(
+            {
+                "advertiser_id": entry.advertiser_id,
+                "advertiser_name": entry.advertiser_name,
+                "join_status": entry.join_status,
+                "feed_id": entry.feed_id,
+                "joined": _is_joined(entry),
+                "has_download_url": bool(entry.download_url),
+            }
+        )
+    return out
+
+
 def affiliate_feed_status() -> dict[str, Any]:
     catalog, catalog_error = _fetch_feed_catalog()
     out: dict[str, Any] = {
@@ -1249,13 +1281,18 @@ def affiliate_feed_status() -> dict[str, Any]:
         mid = _merchant_id(shop)
         entry = _catalog_entry_for_merchant(mid) if mid else None
         cache = _cache_path(shop)
+        url, resolve_reason = _resolve_download_url(shop)
         out["shops"][shop] = {
             "merchant_id": mid,
             "feed_id": _feed_id(shop) or (entry.feed_id if entry else None),
             "joined": _is_joined(entry) if entry else None,
             "custom_url": bool(_custom_feed_url(shop)),
+            "resolve_ok": bool(url),
+            "resolve_reason": resolve_reason,
             "cache_rows": len(_read_cache_rows(shop)) if cache.is_file() else 0,
             "cache_age_sec": int(time.time() - cache.stat().st_mtime) if cache.is_file() else None,
             "last_error": _last_download_errors.get(shop),
+            "fail_backoff_active": _feed_fail_active(shop),
+            "catalog_matches": discover_merchant_feeds(mid) if mid else [],
         }
     return out

@@ -164,30 +164,139 @@ def record_verified_price(
     return changed
 
 
-def shop_auth_blocker(shop: str) -> str | None:
-    """Return auth_failed reason if shop cannot be scanned usefully right now."""
-    if shop == "CDKeys":
-        try:
+def _affiliate_cache_usable(shop: str) -> bool:
+    """True when an on-disk affiliate feed cache has at least one product row."""
+    try:
+        from app.parsers import affiliate_feeds as af
+
+        cache = af._cache_path(shop)
+        if not cache.is_file():
+            return False
+        return len(af._read_cache_rows(shop)) > 0
+    except Exception:
+        return False
+
+
+def shop_data_source_status(shop: str) -> dict[str, Any]:
+    """Per-source diagnostics for admin UI (never includes secrets)."""
+    out: dict[str, Any] = {
+        "shop": shop,
+        "primary": None,
+        "fallback": None,
+        "block_scan": False,
+        "block_reason": None,
+        "owner_action": None,
+    }
+    try:
+        from app.parsers import affiliate_feeds as af
+
+        if shop == "Fanatical":
+            out["primary"] = "awin_feed"
+            out["fallback"] = None
+            if af._feed_fail_active(shop):
+                out["block_scan"] = True
+                out["block_reason"] = "Fanatical affiliate feed in negative cache"
+                out["owner_action"] = (
+                    "Wait for backoff or refresh Awin Fanatical feed / FID"
+                )
+                return out
+            if _affiliate_cache_usable(shop):
+                return out
+            _url, reason = af._resolve_download_url(shop)
+            out["block_scan"] = True
+            out["block_reason"] = f"Fanatical affiliate feed unavailable ({reason})"
+            if not af._awin_api_key():
+                out["owner_action"] = (
+                    "Set AWIN_DATAFEED_API_KEY in backend .env, then join Fanatical "
+                    "and set AWIN_FEED_FID_FANATICAL from Awin Product Feed List"
+                )
+            elif reason.startswith("not_joined"):
+                out["owner_action"] = (
+                    "Join Fanatical (MID 118821) in Awin → wait for approval → "
+                    "set AWIN_FEED_FID_FANATICAL from Product Feed List"
+                )
+            elif "no_fid" in reason or reason.startswith("awin_mid"):
+                out["owner_action"] = (
+                    "From Awin Product Feed List, copy the Fanatical Feed ID into "
+                    "AWIN_FEED_FID_FANATICAL (never invent FIDs)"
+                )
+            else:
+                last = af._last_download_errors.get(shop) or ""
+                try:
+                    marker = af._fail_marker_path(shop)
+                    if marker.is_file():
+                        last = last or marker.read_text(encoding="utf-8")[:300]
+                except OSError:
+                    pass
+                # FID is configured (awin_fid_*) but no usable cache → download failed.
+                if (
+                    "Feed not found" in last
+                    or "404" in last
+                    or str(reason).startswith("awin_fid_")
+                ):
+                    out["block_reason"] = (
+                        "Fanatical Awin Feed ID invalid/expired (download 404 / no cache)"
+                    )
+                    out["owner_action"] = (
+                        "In Awin → Tools → Product Feeds, open Fanatical, copy the "
+                        "current Feed ID into AWIN_FEED_FID_FANATICAL; confirm the "
+                        "DataFeed API key can list feeds (catalog must not return 401)"
+                    )
+                else:
+                    out["owner_action"] = (
+                        "Verify Awin Fanatical program join + valid Feed ID; "
+                        "ensure DataFeed API key is authorized for feed list/download"
+                    )
+            return out
+
+        if shop == "Kinguin":
+            out["primary"] = "awin_feed"
+            out["fallback"] = "html_search"
+            # HTML fallback is authorized — never pause the whole shop on feed fail.
+            feed_ok = _affiliate_cache_usable(shop) and not af._feed_fail_active(shop)
+            out["feed_ok"] = feed_ok
+            out["html_fallback"] = True
+            if not feed_ok:
+                out["degraded_reason"] = "Awin feed unavailable; HTML search active"
+            return out
+
+        if shop == "CDKeys":
+            out["primary"] = "algolia"
+            out["fallback"] = "awin_feed" if af._merchant_id(shop) or af._custom_feed_urls(shop) else None
             from app.parsers import cdkeys_parser as cd
 
-            if not cd._get_algolia_api_key():
-                return "CDKeys Algolia key missing/expired"
-        except Exception as exc:
-            return f"CDKeys auth check error: {exc}"[:120]
-    # Kinguin has an HTML search fallback — do not pause the whole shop when
-    # the Awin feed is in negative cache. Fanatical is feed-only today.
-    if shop == "Fanatical":
-        try:
-            from app.parsers import affiliate_feeds as af
+            algolia_ok = bool(cd._get_algolia_api_key())
+            feed_ok = _affiliate_cache_usable(shop)
+            out["algolia_ok"] = algolia_ok
+            out["feed_ok"] = feed_ok
+            if algolia_ok or feed_ok:
+                if not algolia_ok and feed_ok:
+                    out["degraded_reason"] = "Algolia key missing; affiliate feed active"
+                return out
+            out["block_scan"] = True
+            out["block_reason"] = "CDKeys Algolia key missing/expired (no feed cache)"
+            out["owner_action"] = (
+                "Set CDKEYS_ALGOLIA_API_KEY to a fresh search-only key from "
+                "cdkeys.com/loaded.com frontend, or provide AWIN_FEED_FID_CDKEYS / "
+                "AFFILIATE_FEED_URL_CDKEYS partner feed"
+            )
+            return out
+    except Exception as exc:
+        out["block_scan"] = True
+        out["block_reason"] = f"{shop} data-source check error: {exc}"[:160]
+    return out
 
-            if af._feed_fail_active(shop):
-                return f"{shop} affiliate feed in negative cache"
-            # Feed-only shop: without an on-disk CSV there is nothing to verify.
-            cache = af._cache_path(shop)
-            if not cache.is_file():
-                return f"{shop} affiliate feed unavailable (no cache; Awin FID invalid)"
-        except Exception as exc:
-            return f"{shop} feed check error: {exc}"[:120]
+
+def shop_auth_blocker(shop: str) -> str | None:
+    """Return auth_failed reason if shop cannot be scanned usefully right now.
+
+    Shops with an authorized fallback (e.g. Kinguin HTML) must return None even
+    when an optional feed is down — admin UI uses shop_data_source_status for
+    DEGRADED vs AUTH_REQUIRED.
+    """
+    status = shop_data_source_status(shop)
+    if status.get("block_scan"):
+        return str(status.get("block_reason") or f"{shop} auth required")[:200]
     return None
 
 
