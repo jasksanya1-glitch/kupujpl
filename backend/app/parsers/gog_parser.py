@@ -3,12 +3,12 @@ import re
 import time
 from urllib.parse import quote_plus
 
-import requests
 from sqlalchemy.orm import Session
 
 from app.core.affiliate import make_affiliate_link
 from app.core.db_retry import commit_with_retry
 from app.models.models import Game, Offer
+from app.parsers.http_pool import session_for
 from app.parsers.keyshop_common import MIN_MATCH_SCORE, should_skip_product_title, title_match_score, slugify
 
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +21,10 @@ HEADERS = {
     ),
     "Accept-Language": "pl-PL,pl;q=0.9",
 }
+
+
+def _http():
+    return session_for("gog", headers=HEADERS)
 
 
 def _gog_search_queries(title: str) -> list[str]:
@@ -50,7 +54,7 @@ def search_gog_catalog(title: str, *, limit: int = 8) -> list[dict]:
     for query in _gog_search_queries(title):
         url = f"https://catalog.gog.com/v1/catalog?limit={limit}&query={quote_plus(query)}"
         try:
-            response = requests.get(url, headers=HEADERS, timeout=12)
+            response = _http().get(url, timeout=12)
             if response.status_code != 200:
                 continue
             for product in response.json().get("products") or []:
@@ -135,7 +139,7 @@ def pick_best_gog_product(title: str, products: list[dict]) -> dict | None:
 def fetch_gog_price_pln(gog_id: str) -> tuple[float | None, float | None]:
     url = f"https://api.gog.com/products/prices?ids={gog_id}&countryCode=PL"
     try:
-        response = requests.get(url, headers=HEADERS, timeout=10)
+        response = _http().get(url, timeout=10)
         if response.status_code == 200:
             items = response.json().get("_embedded", {}).get("items", [])
             if items:

@@ -5,11 +5,11 @@ import logging
 import re
 import time
 
-import requests
 from sqlalchemy.orm import Session
 
 from app.core.db_retry import commit_with_retry
 from app.models.models import Game, Offer
+from app.parsers.http_pool import session_for
 from app.parsers.keyshop_common import (
     MIN_MATCH_SCORE,
     should_skip_product_title,
@@ -33,6 +33,10 @@ HEADERS = {
     "Content-Type": "application/json",
     "Accept-Language": "pl-PL,pl;q=0.9",
 }
+
+
+def _http():
+    return session_for("epic", headers=HEADERS)
 
 _SEARCH_QUERY = """
 query searchStoreQuery($country: String!, $locale: String!, $keywords: String!, $count: Int) {
@@ -98,7 +102,7 @@ def _search_catalog(title: str, *, limit: int = 8) -> list[dict]:
     seen: set[str] = set()
     for query in _search_queries(title):
         try:
-            response = requests.post(
+            response = _http().post(
                 GRAPHQL_URL,
                 json={
                     "query": _SEARCH_QUERY,
@@ -109,7 +113,6 @@ def _search_catalog(title: str, *, limit: int = 8) -> list[dict]:
                         "count": limit,
                     },
                 },
-                headers=HEADERS,
                 timeout=15,
             )
             if response.status_code != 200:

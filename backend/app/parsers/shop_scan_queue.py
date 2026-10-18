@@ -72,8 +72,9 @@ DEFAULT_SHOP_RPS = float(os.environ.get("SCAN_SHOP_RPS", "1.0"))
 # Steam RPS 2.5: measured ~2.0 sustainable; modest bump under load avg < 1 on 8 vCPU.
 _SHOP_LIMITS: dict[str, dict[str, float]] = {
     "Steam": {"concurrency": 3, "rps": 2.5, "method": "api"},
-    "GOG": {"concurrency": 2, "rps": 1.5, "method": "api"},
-    "Epic Games": {"concurrency": 2, "rps": 1.2, "method": "api"},
+    # concurrency > 1 hides HTTP latency under the same RPS budget (shared RateLimiter).
+    "GOG": {"concurrency": 3, "rps": 1.5, "method": "api"},
+    "Epic Games": {"concurrency": 3, "rps": 1.2, "method": "api"},
     "Instant Gaming": {"concurrency": 1, "rps": 0.5, "method": "html_api"},
     "Kinguin": {"concurrency": 2, "rps": 1.0, "method": "feed+html"},
     "Fanatical": {"concurrency": 1, "rps": 0.5, "method": "feed"},
@@ -470,6 +471,25 @@ class _RateLimiter:
             time.sleep(delay)
 
 
+# Per-shop in-flight game IDs — prevent duplicate concurrent scans of same game.
+_INFLIGHT_LOCK = threading.Lock()
+_INFLIGHT: dict[str, set[int]] = {}
+def _claim_inflight(shop: str, game_id: int) -> bool:
+    with _INFLIGHT_LOCK:
+        bag = _INFLIGHT.setdefault(shop, set())
+        if game_id in bag:
+            return False
+        bag.add(game_id)
+        return True
+
+
+def _release_inflight(shop: str, game_id: int) -> None:
+    with _INFLIGHT_LOCK:
+        bag = _INFLIGHT.get(shop)
+        if bag is not None:
+            bag.discard(game_id)
+
+
 def scan_shop_batch(
     shop: str,
     *,
@@ -563,111 +583,184 @@ def scan_shop_batch(
             )
 
         limiter = _RateLimiter(budget.rps)
+        counters_lock = threading.Lock()
         checked = 0
         verified = 0
         price_changed = 0
         errors = 0
         last_id = cursor
         truncated = False
+        workers = max(1, min(int(budget.concurrency), len(game_ids)))
 
-        for gid in game_ids:
+        def _process_one(gid: int) -> None:
+            nonlocal checked, verified, price_changed, errors, last_id
             if time.monotonic() >= deadline:
-                truncated = True
-                break
-            limiter.wait()
-            if global_sema is not None:
-                global_sema.acquire()
+                return
+            if not _claim_inflight(shop, gid):
+                return
+            do_heartbeat = False
+            snap_checked = snap_verified = snap_changed = snap_errors = 0
+            snap_last = gid
             try:
-                before = SessionLocal()
-                try:
-                    prev = (
-                        before.query(Offer)
-                        .filter(Offer.game_id == gid, Offer.shop_name == shop)
-                        .first()
-                    )
-                    prev_verified = (
-                        getattr(prev, "last_verified_at", None) if prev else None
-                    )
-                    prev_price = float(prev.price_pln) if prev and prev.price_pln is not None else None
-                    prev_ts = prev.updated_at if prev else None
-                finally:
-                    before.close()
-                refresh_offers_for_game(
-                    gid,
-                    force=True,
-                    fill_missing=False,
-                    shop_names=frozenset({shop}),
-                )
-                after = SessionLocal()
-                try:
-                    row = (
-                        after.query(Offer)
-                        .filter(Offer.game_id == gid, Offer.shop_name == shop)
-                        .first()
-                    )
-                    now_verified = getattr(row, "last_verified_at", None) if row else None
-                    status = getattr(row, "last_check_status", None) if row else None
-                    is_verified = False
-                    if row and row.in_stock:
-                        if now_verified is not None and now_verified != prev_verified:
-                            is_verified = True
-                        elif (
-                            now_verified is None
-                            and row.updated_at
-                            and row.updated_at != prev_ts
-                            and status in (None, "verified")
-                        ):
-                            # Legacy path before column backfill on this row.
-                            is_verified = True
-                    if is_verified:
-                        verified += 1
-                        if prev_price is not None and row.price_pln is not None:
-                            if abs(float(row.price_pln) - prev_price) > 1e-6:
-                                price_changed += 1
-                        elif prev_price is None and row.price_pln is not None:
-                            price_changed += 1
-                        if stats:
-                            stats.record(shop, "hit")
-                    else:
-                        if stats:
-                            stats.record(shop, "miss")
-                finally:
-                    after.close()
-                checked += 1
-                last_id = max(last_id, gid)
-            except Exception as exc:
-                errors += 1
-                checked += 1
-                last_id = max(last_id, gid)
-                if stats:
-                    stats.record(shop, "error", error=str(exc))
-                logger.warning("shop scan %s game %s failed: %s", shop, gid, exc)
-            finally:
+                limiter.wait()
                 if global_sema is not None:
-                    global_sema.release()
+                    global_sema.acquire()
+                try:
+                    # Short reads; WAL + busy_timeout coordinate concurrent writers
+                    # from refresh_offers_for_game (own SessionLocal per call).
+                    before = SessionLocal()
+                    try:
+                        prev = (
+                            before.query(Offer)
+                            .filter(Offer.game_id == gid, Offer.shop_name == shop)
+                            .first()
+                        )
+                        prev_verified = (
+                            getattr(prev, "last_verified_at", None) if prev else None
+                        )
+                        prev_price = (
+                            float(prev.price_pln)
+                            if prev and prev.price_pln is not None
+                            else None
+                        )
+                        prev_ts = prev.updated_at if prev else None
+                    finally:
+                        before.close()
 
-            if checked % 10 == 0:
-                save_shop_progress(
-                    shop,
-                    {
-                        "phase": "running",
-                        "cursor_game_id": last_id,
-                        "checked": int(progress.get("checked") or 0) + checked,
-                        "verified": int(progress.get("verified") or 0) + verified,
-                        "updated": int(progress.get("updated") or 0) + price_changed,
-                        "errors": int(progress.get("errors") or 0) + errors,
-                        "method": budget.method,
-                    },
-                )
-                write_heartbeat(
-                    phase="shop_batch",
-                    detail={
-                        "shop": shop,
-                        "checked": checked,
-                        "verified": verified,
-                        "batch_limit": limit,
-                    },
-                )
+                    refresh_offers_for_game(
+                        gid,
+                        force=True,
+                        fill_missing=False,
+                        shop_names=frozenset({shop}),
+                    )
+
+                    after = SessionLocal()
+                    try:
+                        row = (
+                            after.query(Offer)
+                            .filter(Offer.game_id == gid, Offer.shop_name == shop)
+                            .first()
+                        )
+                        now_verified = (
+                            getattr(row, "last_verified_at", None) if row else None
+                        )
+                        status = (
+                            getattr(row, "last_check_status", None) if row else None
+                        )
+                        is_verified = False
+                        if row and row.in_stock:
+                            if now_verified is not None and now_verified != prev_verified:
+                                is_verified = True
+                            elif (
+                                now_verified is None
+                                and row.updated_at
+                                and row.updated_at != prev_ts
+                                and status in (None, "verified")
+                            ):
+                                is_verified = True
+                        hit = False
+                        changed = False
+                        if is_verified:
+                            hit = True
+                            if prev_price is not None and row.price_pln is not None:
+                                if abs(float(row.price_pln) - prev_price) > 1e-6:
+                                    changed = True
+                            elif prev_price is None and row.price_pln is not None:
+                                changed = True
+                    finally:
+                        after.close()
+
+                    with counters_lock:
+                        checked += 1
+                        last_id = max(last_id, gid)
+                        if hit:
+                            verified += 1
+                            if changed:
+                                price_changed += 1
+                            if stats:
+                                stats.record(shop, "hit")
+                        else:
+                            if stats:
+                                stats.record(shop, "miss")
+                        do_heartbeat = checked % 10 == 0
+                        snap_checked = checked
+                        snap_verified = verified
+                        snap_changed = price_changed
+                        snap_errors = errors
+                        snap_last = last_id
+                except Exception as exc:
+                    with counters_lock:
+                        errors += 1
+                        checked += 1
+                        last_id = max(last_id, gid)
+                        do_heartbeat = checked % 10 == 0
+                        snap_checked = checked
+                        snap_verified = verified
+                        snap_changed = price_changed
+                        snap_errors = errors
+                        snap_last = last_id
+                    if stats:
+                        stats.record(shop, "error", error=str(exc))
+                    logger.warning("shop scan %s game %s failed: %s", shop, gid, exc)
+                finally:
+                    if global_sema is not None:
+                        global_sema.release()
+
+                if do_heartbeat:
+                    save_shop_progress(
+                        shop,
+                        {
+                            "phase": "running",
+                            "cursor_game_id": snap_last,
+                            "checked": int(progress.get("checked") or 0) + snap_checked,
+                            "verified": int(progress.get("verified") or 0) + snap_verified,
+                            "updated": int(progress.get("updated") or 0) + snap_changed,
+                            "errors": int(progress.get("errors") or 0) + snap_errors,
+                            "method": budget.method,
+                            "workers": workers,
+                        },
+                    )
+                    write_heartbeat(
+                        phase="shop_batch",
+                        detail={
+                            "shop": shop,
+                            "checked": snap_checked,
+                            "verified": snap_verified,
+                            "batch_limit": limit,
+                            "workers": workers,
+                        },
+                    )
+            finally:
+                _release_inflight(shop, gid)
+
+        if workers <= 1:
+            for gid in game_ids:
+                if time.monotonic() >= deadline:
+                    truncated = True
+                    break
+                _process_one(gid)
+        else:
+            # Bounded parallelism within shop RPS — hide HTTP latency, not multiply RPS.
+            pending: set = set()
+            with ThreadPoolExecutor(max_workers=workers, thread_name_prefix=f"scan-{shop[:8]}") as pool:
+                for gid in game_ids:
+                    if time.monotonic() >= deadline:
+                        truncated = True
+                        break
+                    fut = pool.submit(_process_one, gid)
+                    pending.add(fut)
+                    if len(pending) >= workers * 2:
+                        done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                        for finished_fut in done:
+                            finished_fut.result()
+                if pending:
+                    done, still = wait(pending, timeout=max(0.1, deadline - time.monotonic()))
+                    for finished_fut in done:
+                        finished_fut.result()
+                    if still:
+                        truncated = True
+                        for leftover in still:
+                            leftover.cancel()
 
         finished = datetime.utcnow()
         elapsed = round((finished - started).total_seconds(), 2)
@@ -710,13 +803,20 @@ def scan_shop_batch(
                 "verified_per_min": round(60.0 * verified / elapsed, 2) if elapsed else 0.0,
                 "verified_per_hour_est": round(3600.0 * verified / elapsed, 1) if elapsed else 0.0,
                 "method": budget.method,
+                "workers": workers,
+                "rps_budget": budget.rps,
                 "truncated": truncated,
                 "cursor_mode": "disabled_popularity_order",
             },
         )
         write_heartbeat(
             phase="shop_batch",
-            detail={"shop": shop, "checked": checked, "verified": verified},
+            detail={
+                "shop": shop,
+                "checked": checked,
+                "verified": verified,
+                "workers": workers,
+            },
         )
         return out
     finally:
