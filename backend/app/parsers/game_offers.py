@@ -9,6 +9,7 @@ from functools import partial
 
 from app.core.database import SessionLocal
 from app.core.db_retry import commit_with_retry
+from app.core.offer_verification import record_attempt
 from app.models.models import Game, Offer
 from app.parsers.steam_catalog import enrich_game, refresh_steam_offer_for_game
 from app.parsers.gog_parser import search_gog_price
@@ -299,6 +300,12 @@ def _deactivate_shop_offer(db, game: Game, shop_name: str) -> None:
     )
     if existing:
         existing.in_stock = False
+        # Live lookup returned nothing — mark attempt, do not stamp verified.
+        record_attempt(
+            existing,
+            status="unavailable",
+            source=(shop_name or "shop").lower().replace(" ", "_"),
+        )
 
 
 def refresh_offers_for_game(

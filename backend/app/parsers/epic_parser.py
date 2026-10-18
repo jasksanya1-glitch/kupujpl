@@ -8,10 +8,15 @@ import time
 import requests
 from sqlalchemy.orm import Session
 
-from app.core.affiliate import make_affiliate_link
 from app.core.db_retry import commit_with_retry
 from app.models.models import Game, Offer
-from app.parsers.keyshop_common import MIN_MATCH_SCORE, should_skip_product_title, title_match_score, slugify
+from app.parsers.keyshop_common import (
+    MIN_MATCH_SCORE,
+    should_skip_product_title,
+    slugify,
+    title_match_score,
+    upsert_keyshop_offer,
+)
 
 logger = logging.getLogger("epic_parser")
 
@@ -192,36 +197,21 @@ def search_epic_price(title: str) -> tuple[str | None, float | None, float | Non
 
 
 def update_epic_offer_for_game(db: Session, game: Game) -> bool:
+    """Legacy batch import path — must stamp verification like the scan upsert."""
     product_url, price_pln, confidence = search_epic_price(game.title)
     if not product_url or price_pln is None:
         return False
-
-    affiliate_url = make_affiliate_link(product_url, "Epic Games")
-    existing = (
-        db.query(Offer)
-        .filter(Offer.game_id == game.id, Offer.shop_name == "Epic Games")
-        .first()
+    return upsert_keyshop_offer(
+        db,
+        game,
+        "Epic Games",
+        product_url,
+        float(price_pln),
+        is_official=True,
+        match_confidence=confidence,
+        product_title=game.title,
+        live_fetch=True,
     )
-    if existing:
-        existing.price_pln = price_pln
-        existing.affiliate_url = affiliate_url
-        existing.in_stock = True
-        if confidence is not None:
-            existing.match_confidence = confidence
-    else:
-        db.add(
-            Offer(
-                game_id=game.id,
-                shop_name="Epic Games",
-                price_pln=price_pln,
-                original_price_pln=None,
-                affiliate_url=affiliate_url,
-                is_official=True,
-                in_stock=True,
-                match_confidence=confidence,
-            )
-        )
-    return True
 
 
 def import_epic_offers(db: Session, limit: int = 150) -> dict:

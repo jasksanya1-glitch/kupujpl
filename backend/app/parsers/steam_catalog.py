@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.category_visibility import is_hidden_public_category_slug
 from app.core.game_catalog_filter import apply_appdetails_metadata
-from app.core.offer_verification import record_verified_price
+from app.core.offer_verification import record_attempt, record_verified_price
 from app.core.steam_media import normalize_cover_url, steam_cover_url
 from app.core.steam_reviews import apply_review_summary_to_game, fetch_review_summary
 from app.models.models import Category, Game, Offer, game_categories
@@ -372,6 +372,13 @@ def _upsert_steam_offer(
     if not price_overview:
         is_free = data.get("is_free")
         if not is_free:
+            existing = (
+                db.query(Offer)
+                .filter(Offer.game_id == game.id, Offer.shop_name == "Steam")
+                .first()
+            )
+            if existing:
+                record_attempt(existing, status="unavailable", source="steam")
             return
         price_pln = 0.0
         original_price_pln = 0.0
@@ -442,6 +449,14 @@ def refresh_steam_offer_for_game(db: Session, game: Game) -> bool:
         return False
     data = fetch_appdetails(game.steam_appid)
     if not data:
+        existing = (
+            db.query(Offer)
+            .filter(Offer.game_id == game.id, Offer.shop_name == "Steam")
+            .first()
+        )
+        if existing:
+            # Failed live check — never bump last_verified_at.
+            record_attempt(existing, status="error", source="steam")
         return False
     _upsert_steam_offer(db, game, game.steam_appid, data)
     return True
