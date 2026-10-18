@@ -27,6 +27,25 @@ def test_affiliate_outbound_exports_exist():
         assert callable(getattr(affiliate, name))
 
 
+def test_kinguin_fanatical_configured_via_awin_click_wrap(monkeypatch):
+    monkeypatch.setattr(affiliate, "KINGUIN_AFFILIATE_REF", "")
+    monkeypatch.setattr(affiliate, "_AWIN_AFFILIATE_ID", "2936531")
+    monkeypatch.setattr(
+        affiliate,
+        "_AWIN_MID_BY_SHOP",
+        {"kinguin": "125776", "fanatical": "118821", "g2a": "11280", "eneba": "19520"},
+    )
+    assert affiliate.affiliate_link_configured("Kinguin") is True
+    assert affiliate.affiliate_link_configured("Fanatical") is True
+
+
+def test_gog_cdkeys_not_configured_without_env(monkeypatch):
+    monkeypatch.setattr(affiliate, "GOG_AFFILIATE_CODE", "")
+    monkeypatch.setattr(affiliate, "CDKEYS_AFFILIATE_REF", "")
+    assert affiliate.affiliate_link_configured("GOG") is False
+    assert affiliate.affiliate_link_configured("CDKeys") is False
+
+
 def test_resolve_outbound_direct_url(monkeypatch):
     monkeypatch.setattr(affiliate, "_wrap_direct_url_with_awin", lambda url, shop: None)
     monkeypatch.setattr(affiliate, "unwrap_awin_click_url", lambda url, timeout=None: None)

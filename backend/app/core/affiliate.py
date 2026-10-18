@@ -60,20 +60,32 @@ def _is_awin_tracking_url(url: str) -> bool:
 
 
 def affiliate_link_configured(shop_name: str) -> bool:
-    """Return True when we have a real (non-empty) partner id for direct shop links."""
+    """Return True when Quenly can attach partner tracking on outbound buy links.
+
+    Includes direct shop params and Awin cread wrap (publisher ID + merchant MID),
+    not only feed-download credentials.
+    """
     shop = (shop_name or "").lower()
     if shop == "eneba":
-        return bool(ENEBA_PARTNER_ID)
+        return bool(ENEBA_PARTNER_ID) or (
+            bool(_AWIN_AFFILIATE_ID) and bool(_AWIN_MID_BY_SHOP.get("eneba"))
+        )
     if shop == "gog":
         return bool(GOG_AFFILIATE_CODE)
     if shop == "kinguin":
-        return bool(KINGUIN_AFFILIATE_REF)
+        return bool(KINGUIN_AFFILIATE_REF) or (
+            bool(_AWIN_AFFILIATE_ID) and bool(_AWIN_MID_BY_SHOP.get("kinguin"))
+        )
     if shop == "cdkeys":
         return bool(CDKEYS_AFFILIATE_REF)
+    if shop == "fanatical":
+        return bool(_AWIN_AFFILIATE_ID) and bool(_AWIN_MID_BY_SHOP.get("fanatical"))
     if shop == "humble store":
         return bool(HUMBLE_PARTNER_ID)
     if shop == "g2a":
-        return bool(G2A_GOLDMINE_GNAME or G2A_AFFILIATE_ADID)
+        return bool(G2A_GOLDMINE_GNAME or G2A_AFFILIATE_ADID) or (
+            bool(_AWIN_AFFILIATE_ID) and bool(_AWIN_MID_BY_SHOP.get("g2a"))
+        )
     if shop == "instant gaming":
         return bool(INSTANT_GAMING_REF)
     if shop == "gamivo":
