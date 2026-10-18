@@ -125,7 +125,7 @@ No manual timestamp healing. No invented prices.
 
 | Commit | Message |
 |--------|---------|
-| (this pass) | Fix Tier B classification; store_class; contracts; Playwright catalog |
+| `6064df3` | Fix empty Tier B by limiting sellers-cache Tier A to top 1000 |
 | `594c753` / `f7ba7a3` | Prior bottleneck idle/cursor + report |
 
 ---
