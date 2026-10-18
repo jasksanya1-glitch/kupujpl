@@ -176,7 +176,7 @@ Failed requests still do not bump `last_verified_at` (existing integrity tests).
 
 ## 10. Git commits
 
-Local branch `fix/quenly-production-stabilization-20261017` — shop-auth recovery commit (this pass). Prior related: `e445954` (Steam currency / slug), `888043f`.
+Local branch `fix/quenly-production-stabilization-20261017` — **`0264b69`** Restore shop scanner auth status and selection efficiency. Prior related: `e445954` (Steam currency / slug), `888043f`.
 
 ---
 
