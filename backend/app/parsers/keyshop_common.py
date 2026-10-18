@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.affiliate import make_affiliate_link
 from app.core.db_retry import commit_with_retry
+from app.core.offer_verification import record_attempt, record_verified_price
 from app.models.models import Game, Offer
 from app.parsers.currency_pln import money_to_pln, to_pln
 
@@ -1129,6 +1130,7 @@ def upsert_keyshop_offer(
                 row.in_stock = False
                 if row.match_confidence is None or row.match_confidence > 0:
                     row.match_confidence = 0.0
+                record_attempt(row, status="error", source="match_reject")
             return False
         if not region or region == "unknown":
             detected = str(verdict.get("activation_region") or "unknown")
@@ -1172,13 +1174,19 @@ def upsert_keyshop_offer(
         if legacy is not None:
             legacy.activation_region = region
             existing = legacy
+    source = (shop_name or "keyshop").lower().replace(" ", "_")
     if existing:
         prev_price = float(existing.price_pln) if existing.price_pln is not None else None
-        existing.price_pln = price_pln
+        # Always stamp verification time — same price must still count as fresh for PE V2.
+        record_verified_price(
+            existing,
+            price_pln=float(price_pln),
+            source=source,
+            previous_price=prev_price,
+        )
         existing.affiliate_url = affiliate_url
         # Only restock after title match (or ID-backed). Soft-disabled bad rows
         # stay down until classify accepts a new URL/title above.
-        existing.in_stock = True
         existing.activation_region = region
         if match_confidence is not None:
             existing.match_confidence = match_confidence
@@ -1194,22 +1202,27 @@ def upsert_keyshop_offer(
         )
         return True
     else:
-        db.add(
-            Offer(
-                game_id=game.id,
-                shop_name=shop_name,
-                activation_region=region,
-                price_pln=price_pln,
-                original_price_pln=None,
-                affiliate_url=affiliate_url,
-                is_official=is_official,
-                in_stock=True,
-                match_confidence=match_confidence,
-            )
+        offer = Offer(
+            game_id=game.id,
+            shop_name=shop_name,
+            activation_region=region,
+            price_pln=price_pln,
+            original_price_pln=None,
+            affiliate_url=affiliate_url,
+            is_official=is_official,
+            in_stock=True,
+            match_confidence=match_confidence,
+        )
+        db.add(offer)
+        db.flush()
+        record_verified_price(
+            offer,
+            price_pln=float(price_pln),
+            source=source,
+            previous_price=None,
         )
         from app.core.price_history import record_offer_price_change
 
-        db.flush()
         record_offer_price_change(
             db,
             game_id=game.id,

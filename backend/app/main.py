@@ -580,6 +580,19 @@ def _savings_vs_steam(best: Offer | None, steam: Offer | None) -> dict[str, floa
     }
 
 
+def _catalog_price_status(game: Game, best: Offer | None) -> str:
+    """Mutually exclusive catalog card state for Cozy Orange price slot."""
+    if best is not None and best.price_pln is not None:
+        return "confirmed"
+    has_priced = any(
+        o.in_stock and o.price_pln is not None and o.price_pln > 0
+        for o in (game.offers or [])
+    )
+    if has_priced:
+        return "no_confirmed"
+    return "no_offers"
+
+
 def _game_list_item(
     game: Game,
     best: Offer | None,
@@ -611,6 +624,7 @@ def _game_list_item(
         at_historical_low=bool(label),
         deal_age_label=deal_age_label,
         is_free=bool(game.is_free) or (best_price is not None and best_price <= 0.01),
+        price_status=_catalog_price_status(game, best),
     )
 
 

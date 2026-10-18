@@ -16,6 +16,7 @@ from app.core.offer_quality import (
     offer_eligible_for_best_price,
     offer_is_suspicious_outlier,
 )
+from app.core.offer_verification import verification_timestamp
 from app.core.url_validation import validate_offer_url
 from app.models.models import Game, Offer
 from app.parsers.keyshop_common import classify_keyshop_product, product_title_from_url
@@ -61,7 +62,9 @@ def evaluate_offer_freshness_snapshot(
     *,
     now: datetime | None = None,
 ) -> OfferFreshnessSnapshot:
-    fr = evaluate_offer_freshness(offer.updated_at, shop_name=offer.shop_name, now=now)
+    # Prefer last_verified_at when scanners stamp verification (even if price unchanged).
+    ts = verification_timestamp(offer)
+    fr = evaluate_offer_freshness(ts, shop_name=offer.shop_name, now=now)
     return OfferFreshnessSnapshot(
         status=fr.status,
         is_confirmed_fresh=fr.is_confirmed_fresh,

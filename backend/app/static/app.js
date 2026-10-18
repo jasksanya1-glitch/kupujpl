@@ -1248,9 +1248,13 @@ document.addEventListener('DOMContentLoaded', () => {
         card.dataset.slug = game.slug;
 
         const hasPrice = game.best_price_pln != null;
+        const priceStatus = String(game.price_status || (hasPrice ? 'confirmed' : 'no_offers'));
+        const emptyPriceLabel = priceStatus === 'no_confirmed'
+            ? (tt('card.no_confirmed_price') || 'Brak potwierdzonej ceny')
+            : (tt('card.no_offers') || tt('card.check_price') || 'Brak aktualnych ofert');
         const priceHtml = hasPrice
             ? `<span class="card-price">${formatPln(game.best_price_pln, { html: true })}</span>`
-            : `<span class="card-price empty">${tt('card.check_price')}</span>`;
+            : `<span class="card-price empty" data-price-status="${escapeHtml(priceStatus)}">${escapeHtml(emptyPriceLabel)}</span>`;
         const oldPriceHtml = (
             hasPrice
             && game.steam_price_pln != null

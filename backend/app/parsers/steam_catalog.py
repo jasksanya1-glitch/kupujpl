@@ -17,8 +17,9 @@ import requests
 from sqlalchemy.orm import Session
 
 from app.core.category_visibility import is_hidden_public_category_slug
-from app.core.steam_media import normalize_cover_url, steam_cover_url
 from app.core.game_catalog_filter import apply_appdetails_metadata
+from app.core.offer_verification import record_verified_price
+from app.core.steam_media import normalize_cover_url, steam_cover_url
 from app.core.steam_reviews import apply_review_summary_to_game, fetch_review_summary
 from app.models.models import Category, Game, Offer, game_categories
 
@@ -386,12 +387,18 @@ def _upsert_steam_offer(
     )
     if offer:
         prev_price = float(offer.price_pln) if offer.price_pln is not None else None
-        offer.price_pln = price_pln
+        record_verified_price(
+            offer,
+            price_pln=float(price_pln),
+            source="steam",
+            previous_price=prev_price,
+        )
         offer.original_price_pln = original_price_pln
         offer.affiliate_url = affiliate_url
-        offer.in_stock = True
+        offer.is_official = True
         from app.core.price_history import record_offer_price_change
 
+        db.flush()
         record_offer_price_change(
             db,
             game_id=game.id,
@@ -400,19 +407,26 @@ def _upsert_steam_offer(
             previous_price=prev_price,
         )
     else:
-        db.add(
-            Offer(
-                game_id=game.id,
-                shop_name="Steam",
-                price_pln=price_pln,
-                original_price_pln=original_price_pln,
-                affiliate_url=affiliate_url,
-                is_official=True,
-                in_stock=True,
-            )
+        offer = Offer(
+            game_id=game.id,
+            shop_name="Steam",
+            price_pln=price_pln,
+            original_price_pln=original_price_pln,
+            affiliate_url=affiliate_url,
+            is_official=True,
+            in_stock=True,
+        )
+        db.add(offer)
+        db.flush()
+        record_verified_price(
+            offer,
+            price_pln=float(price_pln),
+            source="steam",
+            previous_price=None,
         )
         from app.core.price_history import record_offer_price_change
 
+        db.flush()
         record_offer_price_change(
             db,
             game_id=game.id,

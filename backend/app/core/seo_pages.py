@@ -1130,7 +1130,7 @@ def _site_skin_header() -> str:
 
 def _site_skin_scripts() -> str:
     return f"""
-<script src="{SITE_ORIGIN}/static/i18n.js?v=28"></script>
+<script src="{SITE_ORIGIN}/static/i18n.js?v=29"></script>
 <script src="{SITE_ORIGIN}/static/theme.js?v=4"></script>
 <script src="{SITE_ORIGIN}/static/cookie-consent.js?v=2"></script>
 <script src="{SITE_ORIGIN}/static/core-bundle.js?v=12"></script>
