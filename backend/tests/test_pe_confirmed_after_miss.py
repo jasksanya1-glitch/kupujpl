@@ -184,3 +184,88 @@ def test_tier_a_never_listed_keeps_short_backoff(db, monkeypatch):
     db.commit()
     ids = select_stale_game_ids_for_shop(db, "Instant Gaming", limit=300, after_game_id=0)
     assert g.id in ids
+
+
+def test_legacy_updated_at_not_trusted_after_failed_status(db):
+    """Pre-V2 rows: updated_at must not count as verification after a miss."""
+    from app.core.offer_verification import verification_timestamp
+
+    g = _game(db, slug="legacy-updated-at-trap")
+    offer = Offer(
+        game_id=g.id,
+        shop_name="Instant Gaming",
+        price_pln=12.0,
+        affiliate_url="https://www.instant-gaming.com/pl/legacy-trap-game/",
+        is_official=False,
+        in_stock=True,
+        match_confidence=1.2,
+        updated_at=datetime.utcnow(),
+        last_verified_at=None,
+        last_check_status="not_found",
+    )
+    db.add(offer)
+    db.commit()
+    assert verification_timestamp(offer) is None
+    result = evaluate_game_prices(g, [offer], now=datetime.utcnow())
+    assert result.best_confirmed_offer is None
+
+
+def test_legacy_unset_status_may_use_updated_at(db):
+    from app.core.offer_verification import verification_timestamp
+
+    g = _game(db, slug="legacy-unset-ok")
+    now = datetime.utcnow()
+    offer = Offer(
+        game_id=g.id,
+        shop_name="Steam",
+        price_pln=99.0,
+        affiliate_url=f"https://store.steampowered.com/app/{g.steam_appid}/legacy/",
+        is_official=True,
+        in_stock=True,
+        match_confidence=1.0,
+        updated_at=now,
+        last_verified_at=None,
+        last_check_status=None,
+    )
+    db.add(offer)
+    db.commit()
+    assert verification_timestamp(offer) == now
+    result = evaluate_game_prices(g, [offer], now=now)
+    assert result.best_confirmed_offer is not None
+
+
+def test_wrong_sku_never_confirmed_despite_fresh_timestamp(db):
+    g = _game(db, slug="wrong-sku-deluxe")
+    g.title = "Base Game"
+    db.commit()
+    offer = Offer(
+        game_id=g.id,
+        shop_name="Instant Gaming",
+        price_pln=10.0,
+        affiliate_url="https://www.instant-gaming.com/pl/base-game-deluxe-edition/",
+        is_official=False,
+        in_stock=True,
+        match_confidence=0.2,
+        updated_at=datetime.utcnow(),
+        last_verified_at=datetime.utcnow(),
+        last_check_status="verified",
+    )
+    db.add(offer)
+    db.commit()
+    result = evaluate_game_prices(g, [offer], now=datetime.utcnow())
+    assert result.best_confirmed_offer is None
+
+
+def test_auth_failed_after_success_keeps_confirmed(db):
+    g = _game(db, slug="auth-fail-keeps")
+    offer = _verified_ig(db, g, 44.0)
+    verified_at = offer.last_verified_at
+    _record_shop_miss(db, g, "Instant Gaming", status="auth_failed")
+    db.commit()
+    db.refresh(offer)
+    assert offer.last_verified_at == verified_at
+    assert offer.in_stock is True
+    assert offer.last_check_status == "auth_failed"
+    result = evaluate_game_prices(g, [offer], now=datetime.utcnow())
+    assert result.best_confirmed_offer is not None
+    assert result.best_confirmed_offer.id == offer.id
