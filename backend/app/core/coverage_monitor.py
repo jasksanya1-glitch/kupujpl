@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -12,12 +13,12 @@ from sqlalchemy.orm import Session
 
 from app.core.database import BASE_DIR
 from app.core.price_engine import best_offers_map_v2
-from app.models.models import Favorite, Game, Offer
+from app.models.models import Game, Offer
 from app.parsers.scanner_metrics import load_shop_metrics
 from app.parsers.shop_scan_queue import (
     QUEUE_DIR,
-    TIER_A_MIN_REVIEWS,
-    TIER_B_MIN_REVIEWS,
+    _classify_scan_tier,
+    _favorite_game_ids,
     _tier_a_rank_map,
     load_shop_progress,
 )
@@ -49,12 +50,36 @@ def _hour_key(dt: datetime | None = None) -> str:
     return (dt or _utcnow()).strftime("%Y-%m-%dT%H")
 
 
-def _classify_tier(gid: int, reviews: int, tier_rank: dict[int, int], favs: set[int]) -> str:
-    if gid in tier_rank or gid in favs or reviews >= TIER_A_MIN_REVIEWS:
-        return "A"
-    if reviews >= TIER_B_MIN_REVIEWS:
-        return "B"
-    return "C"
+def _host_load_snapshot() -> dict[str, Any]:
+    """Best-effort CPU/RAM for hourly snapshots (Linux /proc)."""
+    out: dict[str, Any] = {"source": "unavailable"}
+    try:
+        load1, load5, load15 = os.getloadavg()  # type: ignore[attr-defined]
+        out["loadavg"] = [round(load1, 2), round(load5, 2), round(load15, 2)]
+        out["source"] = "getloadavg"
+    except Exception:
+        pass
+    try:
+        meminfo = Path("/proc/meminfo").read_text(encoding="utf-8")
+        kv = {}
+        for line in meminfo.splitlines():
+            if ":" in line:
+                k, v = line.split(":", 1)
+                kv[k.strip()] = v.strip()
+        def _kb(name: str) -> int | None:
+            raw = kv.get(name, "")
+            parts = raw.split()
+            return int(parts[0]) if parts and parts[0].isdigit() else None
+        total = _kb("MemTotal")
+        avail = _kb("MemAvailable")
+        if total and avail is not None:
+            out["mem_total_mb"] = round(total / 1024)
+            out["mem_available_mb"] = round(avail / 1024)
+            out["mem_used_mb"] = round((total - avail) / 1024)
+            out["source"] = "proc"
+    except Exception:
+        pass
+    return out
 
 
 def build_coverage_snapshot(db: Session) -> dict[str, Any]:
@@ -68,10 +93,7 @@ def build_coverage_snapshot(db: Session) -> dict[str, Any]:
     ids = [g.id for g in games]
     confirmed_map = best_offers_map_v2(db, ids) if ids else {}
     tier_rank = _tier_a_rank_map()
-    try:
-        favs = {int(r[0]) for r in db.query(Favorite.game_id).distinct().all() if r and r[0]}
-    except Exception:
-        favs = set()
+    favs = _favorite_game_ids(db)
 
     states = Counter()
     tier_total = Counter()
@@ -81,7 +103,14 @@ def build_coverage_snapshot(db: Session) -> dict[str, Any]:
 
     for g in games:
         reviews = int(g.steam_review_count or 0)
-        tier = _classify_tier(g.id, reviews, tier_rank, favs)
+        recs = int(getattr(g, "steam_recommendations", None) or 0)
+        tier = _classify_scan_tier(
+            g.id,
+            reviews,
+            tier_rank=tier_rank,
+            favorite_ids=favs,
+            recommendations=recs,
+        )
         if bool(getattr(g, "is_free", False)):
             states["free"] += 1
             continue
@@ -149,6 +178,25 @@ def build_coverage_snapshot(db: Session) -> dict[str, Any]:
         metrics = load_shop_metrics(shop)
         err_n = int(prog.get("errors") or 0)
         checked_n = int(prog.get("checked") or 1)
+        msg = str(prog.get("message") or "")
+        # Post-fix idle with cursor_mode disabled should not report false empties.
+        # Count residual "no_stale_games" while cursor_mode still looks legacy.
+        false_empty_hint = (
+            msg == "no_stale_games"
+            and str(prog.get("cursor_mode") or "") != "disabled_popularity_order"
+            and int(prog.get("last_batch_size") or 0) == 0
+        )
+        unique_1h = (
+            db.query(func.count(func.distinct(Offer.game_id)))
+            .filter(
+                Offer.shop_name == shop,
+                Offer.last_verified_at.isnot(None),
+                Offer.last_verified_at >= cut_1,
+                Offer.last_check_status == "verified",
+            )
+            .scalar()
+            or 0
+        )
         shop_rows.append(
             {
                 "shop": shop,
@@ -156,13 +204,17 @@ def build_coverage_snapshot(db: Session) -> dict[str, Any]:
                 "verified_1h": v1,
                 "verified_24h": v24,
                 "verified_72h": v72,
+                "unique_games_verified_1h": unique_1h,
                 "unique_games_verified_24h": unique_24,
                 "stale_backlog_est": stale_backlog,
                 "verified_per_hour_est": vph,
                 "eta_hours_to_clear_backlog": eta_h,
                 "error_rate_lifetime_pct": round(100.0 * err_n / checked_n, 2),
                 "queue_phase": prog.get("phase"),
-                "queue_message": (prog.get("message") or "")[:160],
+                "queue_message": msg[:160],
+                "queue_idle_hint": (prog.get("phase") or "") == "idle",
+                "false_empty_queue_hint": false_empty_hint,
+                "cursor_mode": prog.get("cursor_mode"),
                 "last_batch_verified": prog.get("last_batch_verified"),
                 "last_batch_sec": prog.get("last_batch_sec"),
                 "verified_per_min": prog.get("verified_per_min"),
@@ -218,11 +270,22 @@ def build_coverage_snapshot(db: Session) -> dict[str, Any]:
         },
         "games_with_verification_24h": gained_24h,
         "shops": shop_rows,
+        "false_empty_queue_shops": [
+            r["shop"] for r in shop_rows if r.get("false_empty_queue_hint")
+        ],
+        "host": _host_load_snapshot(),
         "queue_dir": str(QUEUE_DIR),
+        "baseline_ref": {
+            "paid_games": 10414,
+            "paid_confirmed": 2225,
+            "paid_confirmed_pct": 21.37,
+            "note": "bottleneck-final canary baseline 2026-10-18",
+        },
         "note": (
             "Admin-only. confirmed = PE V2 confirmed prices only; "
             "verification counts are separate. Sustained throughput needs "
-            "multi-hour history — single canary is not enough."
+            "multi-hour history — single canary is not enough. "
+            "LONG-TERM status stays PENDING until 48–72h of hourly snapshots exist."
         ),
     }
 

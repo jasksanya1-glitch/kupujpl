@@ -21,6 +21,7 @@ class OfferResponse(OfferBase):
     trust_label: Optional[str] = None
     trust_tier: Optional[str] = None
     trust_note: Optional[str] = None
+    store_class: Optional[str] = None
     refund_policy_url: Optional[str] = None
     refund_note_pl: Optional[str] = None
     refund_note_uk: Optional[str] = None

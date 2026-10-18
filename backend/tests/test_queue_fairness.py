@@ -68,6 +68,16 @@ def test_tier_c_appears_in_mixed_batch(monkeypatch):
         # At least one low-review (Tier C) game must be present
         review_by_id = {g.id: int(g.steam_review_count or 0) for g in games}
         assert any(review_by_id[i] < 500 for i in ids)
+        # Mid-band (800 reviews) must classify as B when not in hot cache
+        from app.parsers.shop_scan_queue import _classify_scan_tier
+
+        mid = next(g for g in games if int(g.steam_review_count or 0) == 800)
+        assert (
+            _classify_scan_tier(
+                mid.id, 800, tier_rank={}, favorite_ids=set()
+            )
+            == "B"
+        )
     finally:
         db.close()
         engine.dispose()

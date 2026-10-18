@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import asc, case, desc
+from sqlalchemy import asc, case, desc, or_
 from sqlalchemy.orm import Session
 
 from app.core.database import BASE_DIR, SessionLocal
@@ -57,6 +57,10 @@ TIER_B_BATCH_PCT = max(0, min(100, int(os.environ.get("SCAN_TIER_B_PCT", "25")))
 TIER_C_BATCH_PCT = max(0, min(100, int(os.environ.get("SCAN_TIER_C_PCT", "20"))))
 TIER_B_MIN_REVIEWS = int(os.environ.get("SCAN_TIER_B_MIN_REVIEWS", "500"))
 TIER_A_MIN_REVIEWS = int(os.environ.get("SCAN_TIER_A_MIN_REVIEWS", "5000"))
+# Only the hottest slice of the Tier-A sellers cache forces Tier A.
+# Using the full 5000-entry cache as Tier A emptied the natural 500–4999
+# review band (Tier B) — ~1178 of ~1183 mid-popularity games were swallowed.
+TIER_A_CACHE_TOP_N = max(0, int(os.environ.get("SCAN_TIER_A_CACHE_TOP_N", "1000")))
 
 # Global caps — keep site responsive on 8 vCPU / 16 GB.
 GLOBAL_API_CONCURRENCY = max(1, int(os.environ.get("SCAN_GLOBAL_API_CONCURRENCY", "6")))
@@ -224,10 +228,32 @@ def _classify_scan_tier(
     *,
     tier_rank: dict[int, int],
     favorite_ids: set[int],
+    recommendations: int | None = None,
 ) -> str:
-    if gid in tier_rank or gid in favorite_ids or reviews >= TIER_A_MIN_REVIEWS:
+    """Mutually exclusive A/B/C by real popularity — not the full sellers list.
+
+    Tier A: favorites, reviews >= TIER_A_MIN_REVIEWS, or rank in the top
+    TIER_A_CACHE_TOP_N of the sellers cache (default 1000, not all 5000).
+    Tier B: popularity score in [TIER_B_MIN_REVIEWS, TIER_A_MIN_REVIEWS).
+    Tier C: everything else (incl. NULL/0 reviews).
+
+    ``recommendations`` (Steam) may raise the popularity score when present so
+    games with thin review counts but strong recs are not stuck in C forever.
+    """
+    rev = int(reviews or 0)
+    recs = int(recommendations or 0)
+    # Soft blend: recommendations are typically larger than review counts;
+    # scale down so they inform but do not dominate the review ladder.
+    popularity = max(rev, recs // 10) if recs > 0 else rev
+
+    if gid in favorite_ids:
         return "A"
-    if reviews >= TIER_B_MIN_REVIEWS:
+    if popularity >= TIER_A_MIN_REVIEWS:
+        return "A"
+    rank = tier_rank.get(gid)
+    if rank is not None and TIER_A_CACHE_TOP_N > 0 and rank < TIER_A_CACHE_TOP_N:
+        return "A"
+    if popularity >= TIER_B_MIN_REVIEWS:
         return "B"
     return "C"
 
@@ -270,11 +296,18 @@ def select_stale_game_ids_for_shop(
         )
     subq = db.query(*offer_cols).filter(Offer.shop_name == shop).subquery()
 
-    q = db.query(Game.id, Game.steam_review_count).outerjoin(subq, Game.id == subq.c.game_id)
+    q = db.query(
+        Game.id, Game.steam_review_count, Game.steam_recommendations
+    ).outerjoin(subq, Game.id == subq.c.game_id)
     if tier_a_only:
-        if not tier_rank:
-            return []
-        q = q.filter(Game.id.in_(set(tier_rank.keys()) | favorite_ids))
+        # Hot slice of sellers cache + favorites + high-review titles.
+        hot_ids = {
+            gid for gid, rank in tier_rank.items() if rank < TIER_A_CACHE_TOP_N
+        } | set(favorite_ids)
+        clauses = [Game.steam_review_count >= TIER_A_MIN_REVIEWS]
+        if hot_ids:
+            clauses.insert(0, Game.id.in_(hot_ids))
+        q = q.filter(or_(*clauses))
 
     if use_v2:
         verified_for_order = case(
@@ -335,20 +368,27 @@ def select_stale_game_ids_for_shop(
     review_by_id: dict[int, int] = {}
     if after_game_id > 0:
         fetched = [
-            (gid, int(reviews or 0))
-            for gid, reviews in q.limit(fetch_n).all()
+            (gid, int(reviews or 0), int(recs or 0))
+            for gid, reviews, recs in q.limit(fetch_n).all()
             if gid > after_game_id
         ]
     else:
-        fetched = [(gid, int(reviews or 0)) for gid, reviews in q.limit(fetch_n).all()]
+        fetched = [
+            (gid, int(reviews or 0), int(recs or 0))
+            for gid, reviews, recs in q.limit(fetch_n).all()
+        ]
     if not fetched:
         return []
 
     buckets: dict[str, list[int]] = {"A": [], "B": [], "C": []}
-    for gid, reviews in fetched:
+    for gid, reviews, recs in fetched:
         review_by_id[gid] = reviews
         tier = _classify_scan_tier(
-            gid, reviews, tier_rank=tier_rank, favorite_ids=favorite_ids
+            gid,
+            reviews,
+            tier_rank=tier_rank,
+            favorite_ids=favorite_ids,
+            recommendations=recs,
         )
         buckets[tier].append(gid)
 
@@ -397,7 +437,7 @@ def select_stale_game_ids_for_shop(
         _take(tier, limit)
 
     if len(out) < limit:
-        leftover = [gid for gid, _ in fetched if gid not in seen]
+        leftover = [gid for gid, _reviews, _recs in fetched if gid not in seen]
         for gid in leftover:
             if len(out) >= limit:
                 break
@@ -406,7 +446,7 @@ def select_stale_game_ids_for_shop(
 
     # Inject every Nth slot as absolute oldest for starvation protection.
     if len(out) >= STARVATION_EVERY and fetched:
-        by_age = [gid for gid, _ in fetched]
+        by_age = [gid for gid, _reviews, _recs in fetched]
         for i in range(STARVATION_EVERY - 1, len(out), STARVATION_EVERY):
             if i < len(by_age):
                 aged = by_age[min(i, len(by_age) - 1)]

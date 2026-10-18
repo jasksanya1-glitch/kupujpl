@@ -800,6 +800,7 @@ def _offer_to_response(
         trust_label=trust["label"] if trust else None,
         trust_tier=trust["tier"] if trust else None,
         trust_note=trust.get("notes_pl") if trust else None,
+        store_class=trust.get("store_class") if trust else None,
         refund_policy_url=trust.get("refund_policy_url") if trust else None,
         refund_note_pl=trust.get("refund_note_pl") if trust else None,
         refund_note_uk=trust.get("refund_note_uk") if trust else None,
