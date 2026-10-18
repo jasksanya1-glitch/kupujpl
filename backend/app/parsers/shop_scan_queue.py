@@ -495,10 +495,13 @@ def scan_shop_batch(
             },
         )
 
+        # Do NOT page by max(game_id): fair mix is popularity-ordered, so an
+        # id cursor skips most of the catalog and falsely reports no_stale_games.
+        # Stale predicate already drops freshly verified rows from the next pick.
         db = SessionLocal()
         try:
             game_ids = select_stale_game_ids_for_shop(
-                db, shop, limit=limit, after_game_id=cursor if not force else 0
+                db, shop, limit=limit, after_game_id=0, tier_a_only=False
             )
         finally:
             db.close()
@@ -512,7 +515,10 @@ def scan_shop_batch(
                     "cursor_game_id": 0,
                     "cycle_finished_at": done_at,
                     "last_batch_size": 0,
+                    "last_batch_verified": 0,
+                    "last_batch_sec": 0.0,
                     "message": "no_stale_games",
+                    "cursor_mode": "disabled_popularity_order",
                 },
             )
 
@@ -625,11 +631,32 @@ def scan_shop_batch(
 
         finished = datetime.utcnow()
         elapsed = round((finished - started).total_seconds(), 2)
+        unchanged = max(0, verified - price_changed)
+        try:
+            from app.parsers.scanner_metrics import record_batch_metrics
+
+            record_batch_metrics(
+                shop,
+                attempted=checked,
+                verified=verified,
+                unique_games=checked,
+                price_unchanged=unchanged,
+                errors=errors,
+                timeouts=0,
+                rate_limit_waits=checked,  # limiter.wait() once per game
+                batch_sec=elapsed,
+                http_requests=checked if shop == "Steam" else checked,
+                http_ok=verified,
+            )
+        except Exception:
+            logger.debug("scanner metrics write failed for %s", shop, exc_info=True)
         out = save_shop_progress(
             shop,
             {
                 "phase": "truncated" if truncated else "running",
-                "cursor_game_id": last_id,
+                # Keep for diagnostics only — not used for selection paging.
+                "cursor_game_id": 0,
+                "last_batch_max_game_id": last_id,
                 "checked": int(progress.get("checked") or 0) + checked,
                 "verified": int(progress.get("verified") or 0) + verified,
                 "updated": int(progress.get("updated") or 0) + price_changed,
@@ -637,11 +664,14 @@ def scan_shop_batch(
                 "last_batch_size": checked,
                 "last_batch_verified": verified,
                 "last_batch_updated": price_changed,
+                "last_batch_unchanged": unchanged,
                 "last_batch_errors": errors,
                 "last_batch_sec": elapsed,
                 "verified_per_min": round(60.0 * verified / elapsed, 2) if elapsed else 0.0,
+                "verified_per_hour_est": round(3600.0 * verified / elapsed, 1) if elapsed else 0.0,
                 "method": budget.method,
                 "truncated": truncated,
+                "cursor_mode": "disabled_popularity_order",
             },
         )
         write_heartbeat(

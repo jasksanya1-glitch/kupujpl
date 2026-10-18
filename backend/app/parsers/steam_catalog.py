@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 import unicodedata
 from datetime import datetime, timezone
@@ -304,15 +305,28 @@ def discover_steam_games(max_pages: int = 250) -> list[dict[str, Any]]:
     return ordered
 
 
+_STEAM_HTTP = threading.local()
+
+
+def _steam_http() -> requests.Session:
+    """Reuse one Session per worker thread (connection pooling, no RPS change)."""
+    sess = getattr(_STEAM_HTTP, "session", None)
+    if sess is None:
+        sess = requests.Session()
+        sess.headers.update(HEADERS)
+        _STEAM_HTTP.session = sess
+    return sess
+
+
 def fetch_appdetails(appid: int, *, cc: str = "pl", lang: str | None = None) -> dict | None:
     lang = lang or ("polish" if cc == "pl" else "english")
+    http = _steam_http()
     for attempt in range(1, 4):
         try:
-            r = requests.get(
+            r = http.get(
                 APPDETAILS_URL,
                 params={"appids": appid, "cc": cc, "l": lang},
                 timeout=25,
-                headers=HEADERS,
             )
             if r.status_code == 429:
                 time.sleep(2.5 * attempt)

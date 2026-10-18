@@ -116,8 +116,15 @@ def record_verified_price(
     previous_price: float | None = None,
     now: datetime | None = None,
 ) -> bool:
-    """Mark a successful price verification. Returns True if price changed."""
+    """Mark a successful price verification. Returns True if price changed.
+
+    Refuses out-of-order writes: if ``now`` is older than the offer's current
+    ``last_verified_at``, leave the row unchanged (no timestamp / price clobber).
+    """
     ts = now or _utcnow()
+    existing_verified = getattr(offer, "last_verified_at", None)
+    if existing_verified is not None and ts < existing_verified:
+        return False
     changed = previous_price is None or abs(float(previous_price) - float(price_pln)) > 1e-6
     offer.price_pln = price_pln
     offer.in_stock = True

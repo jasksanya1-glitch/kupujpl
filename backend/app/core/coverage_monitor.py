@@ -1,4 +1,4 @@
-"""Auth-gated catalog price coverage snapshots (day-over-day compare)."""
+"""Auth-gated catalog price coverage snapshots (hourly + daily)."""
 from __future__ import annotations
 
 import json
@@ -12,10 +12,18 @@ from sqlalchemy.orm import Session
 
 from app.core.database import BASE_DIR
 from app.core.price_engine import best_offers_map_v2
-from app.models.models import Game, Offer
-from app.parsers.shop_scan_queue import QUEUE_DIR, load_shop_progress
+from app.models.models import Favorite, Game, Offer
+from app.parsers.scanner_metrics import load_shop_metrics
+from app.parsers.shop_scan_queue import (
+    QUEUE_DIR,
+    TIER_A_MIN_REVIEWS,
+    TIER_B_MIN_REVIEWS,
+    _tier_a_rank_map,
+    load_shop_progress,
+)
 
 SNAPSHOT_DIR = Path(BASE_DIR) / "tmp" / "coverage_snapshots"
+HOURLY_DIR = SNAPSHOT_DIR / "hourly"
 SHOPS = (
     "Steam",
     "GOG",
@@ -37,21 +45,52 @@ def _day_key(dt: datetime | None = None) -> str:
     return (dt or _utcnow()).strftime("%Y-%m-%d")
 
 
+def _hour_key(dt: datetime | None = None) -> str:
+    return (dt or _utcnow()).strftime("%Y-%m-%dT%H")
+
+
+def _classify_tier(gid: int, reviews: int, tier_rank: dict[int, int], favs: set[int]) -> str:
+    if gid in tier_rank or gid in favs or reviews >= TIER_A_MIN_REVIEWS:
+        return "A"
+    if reviews >= TIER_B_MIN_REVIEWS:
+        return "B"
+    return "C"
+
+
 def build_coverage_snapshot(db: Session) -> dict[str, Any]:
-    """Read-only coverage + scanner effectiveness snapshot."""
+    """Read-only coverage + scanner effectiveness (confirmed ≠ any verify)."""
     now = _utcnow()
+    cut_1 = now - timedelta(hours=1)
     cut_24 = now - timedelta(hours=24)
+    cut_72 = now - timedelta(hours=72)
+
     games = db.query(Game).filter(Game.slug.isnot(None)).all()
     ids = [g.id for g in games]
     confirmed_map = best_offers_map_v2(db, ids) if ids else {}
+    tier_rank = _tier_a_rank_map()
+    try:
+        favs = {int(r[0]) for r in db.query(Favorite.game_id).distinct().all() if r and r[0]}
+    except Exception:
+        favs = set()
 
     states = Counter()
+    tier_total = Counter()
+    tier_confirmed = Counter()
+    paid_total = 0
+    paid_confirmed = 0
+
     for g in games:
+        reviews = int(g.steam_review_count or 0)
+        tier = _classify_tier(g.id, reviews, tier_rank, favs)
         if bool(getattr(g, "is_free", False)):
             states["free"] += 1
             continue
+        paid_total += 1
+        tier_total[tier] += 1
         if confirmed_map.get(g.id) is not None:
             states["has_confirmed"] += 1
+            tier_confirmed[tier] += 1
+            paid_confirmed += 1
             continue
         offs = list(g.offers or [])
         if not offs:
@@ -65,7 +104,6 @@ def build_coverage_snapshot(db: Session) -> dict[str, Any]:
         if not priced:
             states["offers_oos_or_zero"] += 1
         else:
-            # Approximate: without full PE row walk, treat as stale/unconfirmed.
             states["stale_or_unconfirmed"] += 1
 
     total = len(games)
@@ -78,72 +116,143 @@ def build_coverage_snapshot(db: Session) -> dict[str, Any]:
             .scalar()
             or 0
         )
-        v24 = (
-            db.query(func.count(Offer.id))
+
+        def _vcount(cut: datetime) -> int:
+            return (
+                db.query(func.count(Offer.id))
+                .filter(
+                    Offer.shop_name == shop,
+                    Offer.last_verified_at.isnot(None),
+                    Offer.last_verified_at >= cut,
+                    Offer.last_check_status == "verified",
+                )
+                .scalar()
+                or 0
+            )
+
+        v1, v24, v72 = _vcount(cut_1), _vcount(cut_24), _vcount(cut_72)
+        unique_24 = (
+            db.query(func.count(func.distinct(Offer.game_id)))
             .filter(
                 Offer.shop_name == shop,
                 Offer.last_verified_at.isnot(None),
                 Offer.last_verified_at >= cut_24,
+                Offer.last_check_status == "verified",
             )
             .scalar()
             or 0
         )
+        stale_backlog = max(0, in_stock - v24)
+        vph = round(v24 / 24.0, 2)
+        eta_h = round(stale_backlog / vph, 1) if vph > 0 else None
         prog = load_shop_progress(shop)
+        metrics = load_shop_metrics(shop)
+        err_n = int(prog.get("errors") or 0)
+        checked_n = int(prog.get("checked") or 1)
         shop_rows.append(
             {
                 "shop": shop,
                 "in_stock_priced": in_stock,
-                "verified_last_24h": v24,
-                "verified_per_hour_est": round(v24 / 24.0, 2),
+                "verified_1h": v1,
+                "verified_24h": v24,
+                "verified_72h": v72,
+                "unique_games_verified_24h": unique_24,
+                "stale_backlog_est": stale_backlog,
+                "verified_per_hour_est": vph,
+                "eta_hours_to_clear_backlog": eta_h,
+                "error_rate_lifetime_pct": round(100.0 * err_n / checked_n, 2),
                 "queue_phase": prog.get("phase"),
-                "queue_checked": prog.get("checked"),
-                "queue_verified": prog.get("verified"),
                 "queue_message": (prog.get("message") or "")[:160],
                 "last_batch_verified": prog.get("last_batch_verified"),
                 "last_batch_sec": prog.get("last_batch_sec"),
                 "verified_per_min": prog.get("verified_per_min"),
+                "verified_per_hour_batch": prog.get("verified_per_hour_est"),
+                "live_metrics": metrics,
             }
         )
 
     gained_24h = (
         db.query(func.count(func.distinct(Offer.game_id)))
-        .filter(Offer.last_verified_at.isnot(None), Offer.last_verified_at >= cut_24)
+        .filter(
+            Offer.last_verified_at.isnot(None),
+            Offer.last_verified_at >= cut_24,
+            Offer.last_check_status == "verified",
+        )
         .scalar()
         or 0
     )
 
+    def _tier_pct(t: str) -> float:
+        tot = int(tier_total.get(t) or 0)
+        conf = int(tier_confirmed.get(t) or 0)
+        return round(100.0 * conf / tot, 2) if tot else 0.0
+
     return {
         "generated_at": now.isoformat() + "Z",
         "day": _day_key(now),
+        "hour": _hour_key(now),
         "total_games": total,
         "has_confirmed": confirmed,
-        "confirmed_pct": round(100.0 * confirmed / total, 2) if total else 0.0,
+        "confirmed_pct_all_games": round(100.0 * confirmed / total, 2) if total else 0.0,
+        "paid_games": paid_total,
+        "paid_confirmed": paid_confirmed,
+        "paid_confirmed_pct": round(100.0 * paid_confirmed / paid_total, 2) if paid_total else 0.0,
+        "f2p_excluded": int(states.get("free", 0)),
         "states": dict(states),
+        "tier_coverage": {
+            "A": {
+                "games": int(tier_total["A"]),
+                "confirmed": int(tier_confirmed["A"]),
+                "pct": _tier_pct("A"),
+            },
+            "B": {
+                "games": int(tier_total["B"]),
+                "confirmed": int(tier_confirmed["B"]),
+                "pct": _tier_pct("B"),
+            },
+            "C": {
+                "games": int(tier_total["C"]),
+                "confirmed": int(tier_confirmed["C"]),
+                "pct": _tier_pct("C"),
+            },
+        },
         "games_with_verification_24h": gained_24h,
         "shops": shop_rows,
         "queue_dir": str(QUEUE_DIR),
-        "note": "Admin-only; PE V2 confirmed coverage is authoritative for public catalog.",
+        "note": (
+            "Admin-only. confirmed = PE V2 confirmed prices only; "
+            "verification counts are separate. Sustained throughput needs "
+            "multi-hour history — single canary is not enough."
+        ),
     }
 
 
-def save_coverage_snapshot(db: Session) -> dict[str, Any]:
+def save_coverage_snapshot(db: Session, *, hourly: bool = True) -> dict[str, Any]:
     snap = build_coverage_snapshot(db)
     SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
-    path = SNAPSHOT_DIR / f"coverage-{snap['day']}.json"
-    # Keep last write of the day (overwrite) plus timestamped copy.
-    path.write_text(json.dumps(snap, indent=2, ensure_ascii=False), encoding="utf-8")
-    ts_path = SNAPSHOT_DIR / f"coverage-{snap['day']}-{now_stamp()}.json"
-    ts_path.write_text(json.dumps(snap, indent=2, ensure_ascii=False), encoding="utf-8")
-    snap["saved_to"] = str(path)
+    day_path = SNAPSHOT_DIR / f"coverage-{snap['day']}.json"
+    day_path.write_text(json.dumps(snap, indent=2, ensure_ascii=False), encoding="utf-8")
+    if hourly:
+        HOURLY_DIR.mkdir(parents=True, exist_ok=True)
+        hour_path = HOURLY_DIR / f"coverage-{snap['hour']}.json"
+        hour_path.write_text(json.dumps(snap, indent=2, ensure_ascii=False), encoding="utf-8")
+        snap["hourly_saved_to"] = str(hour_path)
+    snap["saved_to"] = str(day_path)
     return snap
-
-
-def now_stamp() -> str:
-    return _utcnow().strftime("%H%M%S")
 
 
 def load_day_snapshot(day: str) -> dict[str, Any] | None:
     path = SNAPSHOT_DIR / f"coverage-{day}.json"
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def load_hour_snapshot(hour: str) -> dict[str, Any] | None:
+    path = HOURLY_DIR / f"coverage-{hour}.json"
     if not path.is_file():
         return None
     try:
@@ -166,8 +275,10 @@ def compare_coverage_days(db: Session, day_a: str, day_b: str | None = None) -> 
         "confirmed_a": a.get("has_confirmed"),
         "confirmed_b": b.get("has_confirmed"),
         "confirmed_delta": int(b.get("has_confirmed") or 0) - int(a.get("has_confirmed") or 0),
-        "pct_a": a.get("confirmed_pct"),
-        "pct_b": b.get("confirmed_pct"),
+        "paid_pct_a": a.get("paid_confirmed_pct"),
+        "paid_pct_b": b.get("paid_confirmed_pct"),
+        "tier_a": a.get("tier_coverage"),
+        "tier_b": b.get("tier_coverage"),
         "states_a": a.get("states"),
         "states_b": b.get("states"),
     }

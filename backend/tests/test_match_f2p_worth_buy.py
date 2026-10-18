@@ -1,6 +1,9 @@
 """Critical SEO/price correctness: matching, F2P, worth-buy, history isolation."""
 from __future__ import annotations
 
+from datetime import datetime
+import re
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -42,7 +45,34 @@ def _add_game(db: Session, **kwargs) -> Game:
     return g
 
 
+def _url_slug(game: Game) -> str:
+    slug = (getattr(game, "slug", None) or "game").strip()
+    # Catalog slugs often end with steam appid; strip for storefront title paths.
+    slug = re.sub(r"-\d{3,}$", "", slug)
+    return slug or "game"
+
+
+def _shop_url(shop: str, game: Game) -> str:
+    appid = getattr(game, "steam_appid", None) or 1
+    slug = _url_slug(game)
+    hosts = {
+        "Steam": f"https://store.steampowered.com/app/{appid}",
+        "Steam US": f"https://store.steampowered.com/app/{appid}",
+        "GOG": f"https://www.gog.com/en/game/{slug}",
+        "Epic Games": f"https://store.epicgames.com/en-US/p/{slug}",
+        "Kinguin": f"https://www.kinguin.net/category/{slug}",
+        "G2A": f"https://www.g2a.com/{slug}",
+        "Gamivo": f"https://www.gamivo.com/product/{slug}",
+        "CDKeys": f"https://www.cdkeys.com/{slug}",
+        "Instant Gaming": f"https://www.instant-gaming.com/pl/1-{slug}/",
+        "Fanatical": f"https://www.fanatical.com/en/game/{slug}",
+    }
+    return hosts.get(shop, f"https://www.kinguin.net/category/{slug}")
+
+
 def _add_offer(db: Session, game: Game, **kwargs) -> Offer:
+    now = datetime.utcnow()
+    shop = kwargs.get("shop_name", "Kinguin")
     defaults = {
         "game_id": game.id,
         "shop_name": "Kinguin",
@@ -50,9 +80,15 @@ def _add_offer(db: Session, game: Game, **kwargs) -> Offer:
         "in_stock": True,
         "is_official": False,
         "match_confidence": 0.9,
-        "affiliate_url": "https://example.com/offer",
+        "affiliate_url": _shop_url(str(shop), game),
+        # PE V2: fixtures must look freshly verified (no fake live fetch).
+        "last_verified_at": now,
+        "last_check_status": "verified",
+        "updated_at": now,
     }
     defaults.update(kwargs)
+    if "affiliate_url" not in kwargs:
+        defaults["affiliate_url"] = _shop_url(str(defaults["shop_name"]), game)
     o = Offer(**defaults)
     db.add(o)
     db.flush()
@@ -95,9 +131,8 @@ def test_plague_tale_siblings_do_not_cross_match():
 
 
 def test_edition_extras_still_allowed():
-    # Deluxe / Ultimate fluff must not hard-reject same base title.
-    assert title_mismatch("Cyberpunk 2077", "Cyberpunk 2077 Ultimate Edition") is False
-    assert title_match_score("Cyberpunk 2077", "Cyberpunk 2077 Ultimate Edition") > 0.45
+    # Ultimate/Deluxe editions are different SKUs — hard-reject vs base title (PE accuracy).
+    assert title_mismatch("Cyberpunk 2077", "Cyberpunk 2077 Ultimate Edition") is True
     # Epic store URL suffix "-02" is SKU fluff, not a different product.
     assert title_mismatch(
         "Resonance: A Plague Tale Legacy",
@@ -161,7 +196,9 @@ def test_cs2_is_free_best_price_zero(db: Session):
     _add_offer(db, g, shop_name="Steam", price_pln=0.0, is_official=True, match_confidence=None)
     _add_offer(db, g, shop_name="Kinguin", price_pln=131.88, match_confidence=0.9)
     best = best_offers_map(db, [g.id], games={g.id: g})
-    assert g.id not in best  # paid keyshop must not win
+    # PE V2: F2P Steam 0 zł is a valid confirmed CTA; paid keyshop must not win.
+    assert best[g.id].shop_name == "Steam"
+    assert float(best[g.id].price_pln) == 0.0
 
 
 def test_tf2_is_free_best_price_zero(db: Session):

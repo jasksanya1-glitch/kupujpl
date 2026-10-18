@@ -253,6 +253,13 @@ def _classify_offer_row(
     )
     fresh = evaluate_offer_freshness_snapshot(offer, now=now)
 
+    # F2P catalog titles: paid marketplace quotes must never become confirmed best.
+    # Official free CTAs (0 zł Steam/Epic) remain eligible via allow_zero_price.
+    if bool(getattr(game, "is_free", False)) and float(offer.price_pln or 0) > 0:
+        return PriceEngineOfferRow(
+            offer, match.status, fresh.status, "excluded", "not_eligible"
+        )
+
     status = (getattr(offer, "last_check_status", None) or "").strip().lower()
     if status in _ERROR_CHECK_STATUSES:
         return PriceEngineOfferRow(

@@ -157,10 +157,33 @@ def run_shop_loop(
             result.get("last_batch_sec"),
         )
 
-        # Empty queue → longer idle; productive batch → short idle.
-        if attempted == 0 or phase in {"idle", "auth_failed"}:
-            _idle_sleep(max(idle_sec, 60.0))
+        # Empty queue: brief pause then retry (stale set refills as offers age).
+        # Do NOT sleep 60s — that was the Steam verified/hour killer after cursor
+        # wrap falsely reported no_stale_games. Auth failures still back off hard.
+        if phase == "auth_failed":
+            try:
+                from app.parsers.scanner_metrics import record_idle
+
+                record_idle(shop, auth_idle_sec)
+            except Exception:
+                pass
+            _idle_sleep(auth_idle_sec)
+        elif attempted == 0 or phase == "idle":
+            empty_idle = min(max(idle_sec, 5.0), 15.0)
+            try:
+                from app.parsers.scanner_metrics import record_idle
+
+                record_idle(shop, empty_idle)
+            except Exception:
+                pass
+            _idle_sleep(empty_idle)
         else:
+            try:
+                from app.parsers.scanner_metrics import record_idle
+
+                record_idle(shop, idle_sec)
+            except Exception:
+                pass
             _idle_sleep(idle_sec)
 
     write_heartbeat(phase="scanner_stop", detail={"shop": shop, "cycles": cycles})

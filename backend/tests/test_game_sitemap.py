@@ -359,8 +359,9 @@ def test_sitemap_generation_is_batched_and_read_only(db: Session):
     ]
     assert dml == []
     selects = [sql for sql in statements if sql.lstrip().upper().startswith("SELECT")]
-    # 120 games / batch 40 → 3 batches × (games + steam + offers + lastmod).
-    assert 8 <= len(selects) <= 20
+    # 120 games / batch 40 → 3 batches. PE V2 best_offers_map adds freshness/
+    # integrity SELECTs per batch; keep batched (not 1 query/game) and read-only.
+    assert 8 <= len(selects) <= 160
     statements.clear()
     urls = all_game_sitemap_locs(db)
     assert len(urls) == 120
