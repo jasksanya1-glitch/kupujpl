@@ -199,7 +199,7 @@ Snapshots: `backend/tmp/coverage_snapshots/hourly/coverage-2026-10-18T0{4,5,6}.j
 | Commit | Topic |
 |---|---|
 | `53762a9` | Prior integrity: miss statuses + stub/GOG harden |
-| *(this change)* | Stock: not_found must not OOS verified; Playwright API path; report |
+| `2761cc8` | Stock: not_found must not OOS verified; Playwright API path; report |
 
 Working tree files for this pass:
 
