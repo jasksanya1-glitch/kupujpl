@@ -145,7 +145,7 @@ No unexpected HTTP 500 on smoked game pages.
 ## 10. Git commits
 
 - Prior parallel: `3244e9a`  
-- This pass: (commit after report) miss-backoff + GOG remaster + shared HTTP RPS  
+- This pass: 9266f7a  
 
 ---
 
