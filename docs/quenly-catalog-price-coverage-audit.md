@@ -224,9 +224,11 @@ Complete 100-row table with shops/raw prices: see `tmp/sample100_md.txt` and `tm
 
 Branch: `fix/quenly-production-stabilization-20261017`
 
-Commit created for this audit (message below in git log after commit step):
+| Commit | Message |
+|--------|---------|
+| `d63106e` | Fix catalog confirmed-price coverage without loosening PE V2. |
 
-- Coverage stamp + catalog `price_status` + popular scan priority + report.
+Includes: verification stamp on upsert, popular scan queue, catalog `price_status` + Cozy Orange empty labels, upsert regression test, this report.
 
 ---
 
