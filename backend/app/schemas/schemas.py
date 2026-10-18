@@ -109,7 +109,7 @@ class GameListResponse(BaseModel):
     deal_age_label: Optional[str] = None
     offers_updated_at: Optional[datetime] = None
     is_free: bool = False
-    # Catalog card state: confirmed | no_confirmed | no_offers
+    # Catalog card state: confirmed | no_confirmed | no_offers | free
     price_status: Optional[str] = None
 
     class Config:

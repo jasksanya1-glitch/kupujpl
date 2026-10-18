@@ -110,3 +110,53 @@ def test_steam_upsert_same_price_bumps_verified_at(db: Session):
     assert offer.last_verified_at > old
     assert offer.last_check_status == "verified"
     assert float(offer.price_pln) == pytest.approx(100.0)
+
+
+def test_keyshop_replay_does_not_stamp_verification(db: Session, monkeypatch):
+    monkeypatch.setattr(
+        "app.parsers.keyshop_common.make_affiliate_link",
+        lambda url, shop: url,
+    )
+    g = Game(
+        title="Replay Stamp",
+        slug="replay-stamp-999003",
+        steam_appid=999003,
+        steam_app_type="game",
+        platform="pc",
+        is_free=False,
+        steam_enriched=True,
+    )
+    db.add(g)
+    db.flush()
+    old = datetime.utcnow() - timedelta(days=2)
+    offer = Offer(
+        game_id=g.id,
+        shop_name="Instant Gaming",
+        price_pln=40.0,
+        affiliate_url="https://www.instant-gaming.com/pl/replay-stamp/",
+        is_official=False,
+        in_stock=True,
+        match_confidence=1.5,
+        activation_region="global",
+        updated_at=old,
+        last_verified_at=old,
+        last_check_status="verified",
+    )
+    db.add(offer)
+    db.flush()
+    ok = upsert_keyshop_offer(
+        db,
+        g,
+        "Instant Gaming",
+        "https://www.instant-gaming.com/pl/replay-stamp/",
+        42.0,
+        match_confidence=1.5,
+        activation_region="global",
+        product_title="Replay Stamp",
+        live_fetch=False,
+    )
+    assert ok is True
+    db.refresh(offer)
+    assert float(offer.price_pln) == pytest.approx(42.0)
+    assert offer.last_verified_at == old
+    assert offer.last_check_status == "skipped"

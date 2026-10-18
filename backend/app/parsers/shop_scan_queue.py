@@ -29,7 +29,8 @@ from app.core.offer_verification import (
     scan_v2_verification_enabled,
     shop_auth_blocker,
 )
-from app.models.models import Game, Offer
+from app.core.offer_freshness import fresh_hours_for_shop
+from app.models.models import Favorite, Game, Offer
 from app.parsers.game_offers import refresh_offers_for_game
 from app.parsers.shop_scan_config import get_active_scan_shops, get_shops_for_worker
 from app.parsers.shop_scan_stats import ShopScanStats
@@ -50,6 +51,13 @@ STATUS_BACKOFF_HOURS = float(os.environ.get("SCAN_STATUS_BACKOFF_HOURS", "6"))
 # Fair scheduling: every Nth pick force oldest eligible (starvation protection).
 STARVATION_EVERY = max(2, int(os.environ.get("SCAN_STARVATION_EVERY", "8")))
 
+# Tier mix for catalog-wide recovery (must sum ~100). Tier A never starves Tier C.
+TIER_A_BATCH_PCT = max(0, min(100, int(os.environ.get("SCAN_TIER_A_PCT", "55"))))
+TIER_B_BATCH_PCT = max(0, min(100, int(os.environ.get("SCAN_TIER_B_PCT", "25"))))
+TIER_C_BATCH_PCT = max(0, min(100, int(os.environ.get("SCAN_TIER_C_PCT", "20"))))
+TIER_B_MIN_REVIEWS = int(os.environ.get("SCAN_TIER_B_MIN_REVIEWS", "500"))
+TIER_A_MIN_REVIEWS = int(os.environ.get("SCAN_TIER_A_MIN_REVIEWS", "5000"))
+
 # Global caps — keep site responsive on 8 vCPU / 16 GB.
 GLOBAL_API_CONCURRENCY = max(1, int(os.environ.get("SCAN_GLOBAL_API_CONCURRENCY", "6")))
 PLAYWRIGHT_PAGES = max(0, int(os.environ.get("SCAN_PLAYWRIGHT_PAGES", "0")))  # reserved
@@ -57,15 +65,16 @@ DEFAULT_SHOP_CONCURRENCY = max(1, int(os.environ.get("SCAN_SHOP_CONCURRENCY", "2
 DEFAULT_SHOP_RPS = float(os.environ.get("SCAN_SHOP_RPS", "1.0"))
 
 # Official / feed / Algolia shops can go a bit faster; HTML keyshops stay conservative.
+# Steam RPS 2.5: measured ~2.0 sustainable; modest bump under load avg < 1 on 8 vCPU.
 _SHOP_LIMITS: dict[str, dict[str, float]] = {
-    "Steam": {"concurrency": 3, "rps": 2.0, "method": "api"},
+    "Steam": {"concurrency": 3, "rps": 2.5, "method": "api"},
     "GOG": {"concurrency": 2, "rps": 1.5, "method": "api"},
-    "Epic Games": {"concurrency": 2, "rps": 1.0, "method": "api"},
+    "Epic Games": {"concurrency": 2, "rps": 1.2, "method": "api"},
     "Instant Gaming": {"concurrency": 1, "rps": 0.5, "method": "html_api"},
-    "Kinguin": {"concurrency": 2, "rps": 1.0, "method": "feed+api"},
+    "Kinguin": {"concurrency": 2, "rps": 1.0, "method": "feed+html"},
     "Fanatical": {"concurrency": 1, "rps": 0.5, "method": "feed"},
-    "G2A": {"concurrency": 1, "rps": 0.4, "method": "feed+html"},
-    "Gamivo": {"concurrency": 1, "rps": 0.4, "method": "feed"},
+    "G2A": {"concurrency": 1, "rps": 0.5, "method": "feed+html"},
+    "Gamivo": {"concurrency": 1, "rps": 0.5, "method": "feed"},
     "CDKeys": {"concurrency": 1, "rps": 0.5, "method": "algolia"},
     "Eneba": {"concurrency": 1, "rps": 0.3, "method": "html"},
 }
@@ -189,6 +198,40 @@ def release_shop_lock(shop: str) -> None:
     _shop_lock_path(shop).unlink(missing_ok=True)
 
 
+def _tier_a_rank_map() -> dict[int, int]:
+    cache = load_tier_a_cache()
+    games = cache.get("games") or []
+    rank: dict[int, int] = {}
+    for idx, g in enumerate(games):
+        gid = g.get("game_id")
+        if gid is None:
+            continue
+        rank[int(gid)] = idx
+    return rank
+
+
+def _favorite_game_ids(db: Session) -> set[int]:
+    try:
+        rows = db.query(Favorite.game_id).distinct().all()
+        return {int(r[0]) for r in rows if r and r[0] is not None}
+    except Exception:
+        return set()
+
+
+def _classify_scan_tier(
+    gid: int,
+    reviews: int,
+    *,
+    tier_rank: dict[int, int],
+    favorite_ids: set[int],
+) -> str:
+    if gid in tier_rank or gid in favorite_ids or reviews >= TIER_A_MIN_REVIEWS:
+        return "A"
+    if reviews >= TIER_B_MIN_REVIEWS:
+        return "B"
+    return "C"
+
+
 def select_stale_game_ids_for_shop(
     db: Session,
     shop: str,
@@ -196,40 +239,30 @@ def select_stale_game_ids_for_shop(
     limit: int,
     after_game_id: int = 0,
     stale_hours: float | None = None,
-    tier_a_only: bool = True,
+    tier_a_only: bool = False,
 ) -> list[int]:
-    """Fair stale selection: in-stock unverified first, starvation protection.
+    """Fair stale selection across Tier A/B/C with aging / starvation protection.
 
-    Uses last_verified_at when V2 columns exist; skips offers in auth/rate
-    backoff windows so the cursor does not loop forever on doomed rows.
+    Default is a mixed catalog queue (not Tier-A-only). Uses last_verified_at when
+    V2 columns exist; never invents verification timestamps. Rows with NULL
+    last_verified_at and last_check_status not verified are always eligible
+    (legacy upserts that never stamped verification).
     """
-    hours = float(
-        stale_hours
-        if stale_hours is not None
-        else os.environ.get("SCAN_STALE_HOURS", "24")
-    )
+    # Align re-verify slightly inside PE fresh window so confirmed prices do not
+    # expire between cycles (Steam/GOG/Epic default 36h → scan at 30h).
+    if stale_hours is not None:
+        hours = float(stale_hours)
+    else:
+        pe_fresh = float(fresh_hours_for_shop(shop))
+        env_default = float(os.environ.get("SCAN_STALE_HOURS", str(max(12.0, pe_fresh * 0.85))))
+        hours = env_default
     cutoff = datetime.utcnow() - timedelta(hours=hours)
     backoff_cut = datetime.utcnow() - timedelta(hours=STATUS_BACKOFF_HOURS)
     use_v2 = scan_v2_verification_enabled()
 
-    tier_ids: set[int] | None = None
-    tier_rank: dict[int, int] = {}
-    if tier_a_only:
-        cache = load_tier_a_cache()
-        games = cache.get("games") or []
-        tier_ids = set()
-        for idx, g in enumerate(games):
-            gid = g.get("game_id")
-            if gid is None:
-                continue
-            gid_i = int(gid)
-            tier_ids.add(gid_i)
-            # Lower index = higher demand / popularity in Tier A list.
-            tier_rank[gid_i] = idx
-        if not tier_ids:
-            return []
+    tier_rank = _tier_a_rank_map()
+    favorite_ids = _favorite_game_ids(db)
 
-    # Pull offer fields needed for fair ordering / backoff.
     offer_cols = [Offer.game_id, Offer.updated_at, Offer.in_stock]
     if use_v2:
         offer_cols.extend(
@@ -238,19 +271,30 @@ def select_stale_game_ids_for_shop(
     subq = db.query(*offer_cols).filter(Offer.shop_name == shop).subquery()
 
     q = db.query(Game.id, Game.steam_review_count).outerjoin(subq, Game.id == subq.c.game_id)
-    if tier_ids is not None:
-        q = q.filter(Game.id.in_(tier_ids))
+    if tier_a_only:
+        if not tier_rank:
+            return []
+        q = q.filter(Game.id.in_(set(tier_rank.keys()) | favorite_ids))
 
-    # Legacy rows have NULL last_verified_at — fall back to updated_at for
-    # eligibility only (no invented DB backfill of last_verified_at).
     if use_v2:
         verified_for_order = case(
             (subq.c.last_verified_at.isnot(None), subq.c.last_verified_at),
             else_=subq.c.updated_at,
         )
+        # Failed checks with NULL verification must re-enter the queue even if
+        # updated_at was touched. Successful legacy rows (status verified/unset)
+        # use updated_at age only — never invent last_verified_at here.
+        failed_unchecked = (
+            (subq.c.last_verified_at.is_(None))
+            & (subq.c.last_check_status.isnot(None))
+            & (subq.c.last_check_status != "")
+            & (subq.c.last_check_status != "verified")
+            & (subq.c.last_check_status != "skipped")
+        )
         stale_pred = (
             (subq.c.game_id.is_(None))
             | (subq.c.in_stock.is_(False))
+            | failed_unchecked
             | (
                 (subq.c.last_verified_at.is_(None))
                 & ((subq.c.updated_at.is_(None)) | (subq.c.updated_at < cutoff))
@@ -271,7 +315,6 @@ def select_stale_game_ids_for_shop(
     q = q.filter(stale_pred)
 
     if use_v2:
-        # Skip recent failed attempts that cannot succeed until backoff expires.
         bad = ("auth_failed", "rate_limited", "blocked")
         q = q.filter(
             (subq.c.last_check_status.is_(None))
@@ -280,7 +323,6 @@ def select_stale_game_ids_for_shop(
             | (subq.c.last_attempt_at < backoff_cut)
         )
 
-    # Prefer in-stock stale; popular games first; then oldest verification.
     order = [
         case((subq.c.in_stock.is_(True), 0), else_=1),
         desc(Game.steam_review_count),
@@ -289,7 +331,7 @@ def select_stale_game_ids_for_shop(
     ]
     q = q.order_by(*order)
 
-    fetch_n = max(limit * 4, limit + STARVATION_EVERY)
+    fetch_n = max(limit * 6, limit + STARVATION_EVERY * 3, 120)
     review_by_id: dict[int, int] = {}
     if after_game_id > 0:
         fetched = [
@@ -299,53 +341,78 @@ def select_stale_game_ids_for_shop(
         ]
     else:
         fetched = [(gid, int(reviews or 0)) for gid, reviews in q.limit(fetch_n).all()]
-    rows = []
-    for gid, reviews in fetched:
-        rows.append(gid)
-        review_by_id[gid] = reviews
-
-    if not rows:
+    if not fetched:
         return []
 
-    # Fair mix: majority by popularity (+ Tier A rank), every Nth = absolute oldest.
-    primary = list(rows)
-    primary.sort(
-        key=lambda gid: (
-            -review_by_id.get(gid, 0),
-            tier_rank.get(gid, 10_000) if tier_rank else 0,
-            gid,
+    buckets: dict[str, list[int]] = {"A": [], "B": [], "C": []}
+    for gid, reviews in fetched:
+        review_by_id[gid] = reviews
+        tier = _classify_scan_tier(
+            gid, reviews, tier_rank=tier_rank, favorite_ids=favorite_ids
         )
-    )
-    oldest = list(rows)
+        buckets[tier].append(gid)
+
+    for tier, ids in buckets.items():
+        ids.sort(
+            key=lambda gid: (
+                tier_rank.get(gid, 10_000) if tier == "A" else 0,
+                -review_by_id.get(gid, 0),
+                gid,
+            )
+        )
+
+    # Normalize mix percentages.
+    pct_sum = max(1, TIER_A_BATCH_PCT + TIER_B_BATCH_PCT + TIER_C_BATCH_PCT)
+    quota = {
+        "A": max(1, int(round(limit * TIER_A_BATCH_PCT / pct_sum))) if TIER_A_BATCH_PCT else 0,
+        "B": max(1, int(round(limit * TIER_B_BATCH_PCT / pct_sum))) if TIER_B_BATCH_PCT else 0,
+        "C": max(1, int(round(limit * TIER_C_BATCH_PCT / pct_sum))) if TIER_C_BATCH_PCT else 0,
+    }
+    # Ensure quotas fit limit.
+    while sum(quota.values()) > limit:
+        for t in ("A", "B", "C"):
+            if quota[t] > 1 and sum(quota.values()) > limit:
+                quota[t] -= 1
+
     out: list[int] = []
     seen: set[int] = set()
-    pi = oi = 0
-    while len(out) < limit and (pi < len(primary) or oi < len(oldest)):
-        take_oldest = (len(out) + 1) % STARVATION_EVERY == 0
-        src = oldest if take_oldest else primary
-        idx = oi if take_oldest else pi
-        while idx < len(src) and src[idx] in seen:
-            idx += 1
-        if idx >= len(src):
-            if take_oldest:
-                oi = idx
-            else:
-                pi = idx
-            take_oldest = not take_oldest
-            src = oldest if take_oldest else primary
-            idx = oi if take_oldest else pi
-            while idx < len(src) and src[idx] in seen:
-                idx += 1
-            if idx >= len(src):
+    pointers = {"A": 0, "B": 0, "C": 0}
+
+    def _take(tier: str, n: int) -> None:
+        taken = 0
+        while taken < n and pointers[tier] < len(buckets[tier]) and len(out) < limit:
+            gid = buckets[tier][pointers[tier]]
+            pointers[tier] += 1
+            if gid in seen:
+                continue
+            seen.add(gid)
+            out.append(gid)
+            taken += 1
+
+    _take("A", quota["A"])
+    _take("B", quota["B"])
+    _take("C", quota["C"])
+    # Fill remainder from any tier (A→B→C), then absolute oldest for aging.
+    for tier in ("A", "B", "C"):
+        _take(tier, limit)
+
+    if len(out) < limit:
+        leftover = [gid for gid, _ in fetched if gid not in seen]
+        for gid in leftover:
+            if len(out) >= limit:
                 break
-        gid = src[idx]
-        seen.add(gid)
-        out.append(gid)
-        if take_oldest:
-            oi = idx + 1
-        else:
-            pi = idx + 1
-    return out
+            seen.add(gid)
+            out.append(gid)
+
+    # Inject every Nth slot as absolute oldest for starvation protection.
+    if len(out) >= STARVATION_EVERY and fetched:
+        by_age = [gid for gid, _ in fetched]
+        for i in range(STARVATION_EVERY - 1, len(out), STARVATION_EVERY):
+            if i < len(by_age):
+                aged = by_age[min(i, len(by_age) - 1)]
+                if aged not in out[:i]:
+                    out[i] = aged
+    return out[:limit]
 
 
 class _RateLimiter:

@@ -145,12 +145,18 @@ def shop_auth_blocker(shop: str) -> str | None:
                 return "CDKeys Algolia key missing/expired"
         except Exception as exc:
             return f"CDKeys auth check error: {exc}"[:120]
-    if shop in {"Fanatical", "Kinguin"}:
+    # Kinguin has an HTML search fallback — do not pause the whole shop when
+    # the Awin feed is in negative cache. Fanatical is feed-only today.
+    if shop == "Fanatical":
         try:
             from app.parsers import affiliate_feeds as af
 
             if af._feed_fail_active(shop):
                 return f"{shop} affiliate feed in negative cache"
+            # Feed-only shop: without an on-disk CSV there is nothing to verify.
+            cache = af._cache_path(shop)
+            if not cache.is_file():
+                return f"{shop} affiliate feed unavailable (no cache; Awin FID invalid)"
         except Exception as exc:
             return f"{shop} feed check error: {exc}"[:120]
     return None

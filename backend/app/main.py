@@ -80,6 +80,7 @@ from app.core.offer_quality import (
 )
 from app.core.site_chat_routes import router as site_chat_router
 from app.core.scanner_admin_routes import router as scanner_admin_router
+from app.core.catalog_price_status import catalog_price_status as _catalog_price_status
 from app.core.price_engine import (
     evaluate_game_prices,
     evaluate_game_prices_from_db,
@@ -578,19 +579,6 @@ def _savings_vs_steam(best: Offer | None, steam: Offer | None) -> dict[str, floa
         "savings_pln": round(savings, 2),
         "savings_pct": int(round((savings / steam_price) * 100)),
     }
-
-
-def _catalog_price_status(game: Game, best: Offer | None) -> str:
-    """Mutually exclusive catalog card state for Cozy Orange price slot."""
-    if best is not None and best.price_pln is not None:
-        return "confirmed"
-    has_priced = any(
-        o.in_stock and o.price_pln is not None and o.price_pln > 0
-        for o in (game.offers or [])
-    )
-    if has_priced:
-        return "no_confirmed"
-    return "no_offers"
 
 
 def _game_list_item(

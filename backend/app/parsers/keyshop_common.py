@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from datetime import datetime
 from typing import Callable
 from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
 
@@ -1079,6 +1080,8 @@ def upsert_keyshop_offer(
     match_confidence: float | None = None,
     activation_region: str | None = None,
     product_title: str | None = None,
+    live_fetch: bool = True,
+    observed_at: datetime | None = None,
 ) -> bool:
     region = (activation_region or "").strip().lower() or None
     # Permanent F2P base games: never attach paid marketplace / digi copies.
@@ -1177,19 +1180,26 @@ def upsert_keyshop_offer(
     source = (shop_name or "keyshop").lower().replace(" ", "_")
     if existing:
         prev_price = float(existing.price_pln) if existing.price_pln is not None else None
-        # Always stamp verification time — same price must still count as fresh for PE V2.
-        record_verified_price(
-            existing,
-            price_pln=float(price_pln),
-            source=source,
-            previous_price=prev_price,
-        )
         existing.affiliate_url = affiliate_url
-        # Only restock after title match (or ID-backed). Soft-disabled bad rows
-        # stay down until classify accepts a new URL/title above.
         existing.activation_region = region
         if match_confidence is not None:
             existing.match_confidence = match_confidence
+        if live_fetch:
+            # Stamp only after a successful live source check (same price still counts).
+            record_verified_price(
+                existing,
+                price_pln=float(price_pln),
+                source=source,
+                previous_price=prev_price,
+                now=observed_at,
+            )
+        else:
+            # Replay / import of cached rows: update price fields, never freshness.
+            existing.price_pln = float(price_pln)
+            existing.in_stock = True
+            if observed_at is not None:
+                existing.updated_at = observed_at
+            record_attempt(existing, status="skipped", source=source)
         from app.core.price_history import record_offer_price_change
 
         db.flush()
@@ -1215,12 +1225,16 @@ def upsert_keyshop_offer(
         )
         db.add(offer)
         db.flush()
-        record_verified_price(
-            offer,
-            price_pln=float(price_pln),
-            source=source,
-            previous_price=None,
-        )
+        if live_fetch:
+            record_verified_price(
+                offer,
+                price_pln=float(price_pln),
+                source=source,
+                previous_price=None,
+                now=observed_at,
+            )
+        else:
+            record_attempt(offer, status="skipped", source=source)
         from app.core.price_history import record_offer_price_change
 
         record_offer_price_change(

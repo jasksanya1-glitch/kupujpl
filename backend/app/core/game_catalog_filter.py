@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -62,6 +63,28 @@ NEW_RELEASE_JUNK_TITLE = (
 )
 
 
+def _polish_language_flags(supported_languages: str | None) -> tuple[bool | None, bool | None]:
+    """Parse Steam supported_languages HTML into (has_interface, has_audio).
+
+    Steam marks full-audio languages with a trailing <strong>*</strong> and a
+    footnote. Interface presence is the bare language token.
+    """
+    raw = (supported_languages or "").strip()
+    if not raw:
+        return None, None
+    lower = raw.lower()
+    if "polish" not in lower and "polski" not in lower:
+        return False, False
+    # Split footnote so audio markers only apply to listed languages.
+    body = lower.split("<br>", 1)[0]
+    # Audio: Polish followed by optional tags then *
+    has_audio = bool(
+        re.search(r"(?:polish|polski)\s*(?:<[^>]+>\s*)*\*", body, flags=re.I)
+    )
+    has_interface = True
+    return has_interface, has_audio
+
+
 def apply_appdetails_metadata(game: Game, data: dict) -> None:
     game.steam_app_type = (data.get("type") or "").lower() or None
     game.is_free = bool(data.get("is_free"))
@@ -75,6 +98,12 @@ def apply_appdetails_metadata(game: Game, data: dict) -> None:
     metacritic = data.get("metacritic") or {}
     if metacritic.get("score") is not None:
         game.rating = float(metacritic["score"])
+    if "supported_languages" in data:
+        iface, audio = _polish_language_flags(data.get("supported_languages"))
+        if iface is not None and hasattr(game, "has_polish_interface"):
+            game.has_polish_interface = iface
+        if audio is not None and hasattr(game, "has_polish_audio"):
+            game.has_polish_audio = audio
 
 
 def is_blocked_app_type(game: Game | None) -> bool:
@@ -386,6 +415,7 @@ __all__ = [
     "MIN_METACRITIC_TO_SHOW",
     "MIN_STEAM_RECOMMENDATIONS",
     "apply_appdetails_metadata",
+    "_polish_language_flags",
     "is_blocked_app_type",
     "is_hidden_from_catalog",
     "is_hidden_from_steam_list",
