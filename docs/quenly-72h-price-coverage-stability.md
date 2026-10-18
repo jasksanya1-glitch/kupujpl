@@ -208,7 +208,7 @@ Parent-shell `KeyboardInterrupt` may still appear **after** the green summary; j
 | Commit | Topic |
 |---|---|
 | `4e7cf42` | Prior PE consistency (miss/timeout / never-listed backoff) |
-| *(this pass)* | Timestamp integrity regression tests + this 72h observation report |
+| `5854645` | Timestamp integrity regression tests + this 72h observation report |
 
 No production whitelist deploy this pass.
 
