@@ -143,7 +143,7 @@ RPS unchanged.
 ## 11. Git commit hashes
 
 - Prior reliability: `9266f7a`  
-- This integrity pass: (see `git log` after commit) miss classification + GOG edition guards + tests  
+- This integrity pass: 53762a9  
 
 ---
 
