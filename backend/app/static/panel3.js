@@ -455,7 +455,7 @@
                 'cd D:\\CursorProjects\\kupujpl-games\\backend',
                 '$env:GAMES_API_URL = "https://kupujpl.pl/games"',
                 '$env:PANEL3_ACCESS_CODE = "ВАШ_КОД_PANEL3"',
-                'python tools/local_offer_worker.py --limit 15 --shops Eneba,G2A,CDKeys',
+                'python tools/local_offer_worker.py --limit 15 --shops G2A,CDKeys,Kinguin',
             ].join('\n');
         }
 
@@ -465,7 +465,7 @@
             const has = ws.offers_upserted != null;
             wsEl.innerHTML = has
                 ? `<p>Останній upload з домашнього PC: <strong>${fmtNum(ws.offers_upserted)}</strong> нових/оновлених пропозицій у <strong>${fmtNum(ws.games_touched)}</strong> іграх · джерело: <code>${esc(ws.source || '—')}</code> · ${fmtDate(ws.updated_at)}</p>`
-                : '<p class="panel3-muted">Ще не було uploadів з PC — keyshop-и (Eneba, G2A, CDKeys) на VPS часто недоступні.</p>';
+                : '<p class="panel3-muted">Ще не було uploadів з PC — keyshop-и (G2A, CDKeys, Kinguin) на VPS часто недоступні.</p>';
         }
     }
 
@@ -1185,6 +1185,48 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
         showPane(currentPaneFromHash(), { updateHash: true });
     }
 
+    async function loadIgdbScanLists() {
+        const body = document.getElementById('igdb-scan-lists-body');
+        const status = document.getElementById('igdb-scan-lists-status');
+        if (!body) return;
+        try {
+            const res = await fetch('api/admin/igdb/scan-lists', { credentials: 'same-origin' });
+            if (!res.ok) {
+                body.innerHTML = `<p class="panel3-muted">HTTP ${res.status}</p>`;
+                return;
+            }
+            const data = await res.json();
+            const counts = data.counts || {};
+            const enq = data.enqueued_count ?? '—';
+            const updated = data.updated_at || '—';
+            const parts = ['TRENDING', 'POPULAR', 'NEW_RELEASES', 'UPCOMING'].map((key) => {
+                const rows = (data.lists && data.lists[key]) || [];
+                const lines = rows.slice(0, 8).map((r) => {
+                    const link = r.slug ? `<a href="/gra/${esc(r.slug)}" class="panel3-inline-link">${esc(r.name || r.slug)}</a>` : esc(r.name || '?');
+                    return `<li>#${r.rank || '?'} ${link}</li>`;
+                }).join('');
+                return `<div class="panel3-card"><h3>${esc(key)} (${counts[key] ?? rows.length})</h3><ul class="panel3-list-compact">${lines || '<li>—</li>'}</ul></div>`;
+            }).join('');
+            body.innerHTML = `<p class="panel3-muted">Оновлено: ${esc(updated)} · у черзі сканерів: <strong>${esc(String(enq))}</strong> · oferty oznaczone stale: ${esc(String(data.offers_marked_stale ?? '—'))}</p><div class="panel3-scanners-grid">${parts}</div>`;
+            if (status) status.textContent = '';
+        } catch (e) {
+            body.innerHTML = `<p class="panel3-muted">${esc(e.message || 'błąd')}</p>`;
+        }
+    }
+
+    function bindIgdbScanLists() {
+        document.getElementById('btn-igdb-scan-refresh')?.addEventListener('click', async () => {
+            const status = document.getElementById('igdb-scan-lists-status');
+            if (status) status.textContent = 'Odświeżanie…';
+            try {
+                const res = await fetch('api/admin/igdb/refresh-scan-lists', { method: 'POST', credentials: 'same-origin' });
+                if (status) status.textContent = res.ok ? 'Job w tle — za ~1–3 min odśwież stronę' : `HTTP ${res.status}`;
+            } catch (e) {
+                if (status) status.textContent = e.message || 'błąd';
+            }
+        });
+    }
+
     async function boot() {
         // #region agent log
         agentDebugLog('pre-fix', 'D', 'app/static/panel3.js:boot', 'Panel3 boot started', {
@@ -1197,7 +1239,9 @@ ${JSON.stringify(last.offers_by_shop || s.offers_by_shop || {}, null, 2)}
         bindStopButtons();
         bindDiscover();
         bindScanners();
+        bindIgdbScanLists();
         await loadStats();
+        loadIgdbScanLists().catch(() => {});
         pollEvents().catch(() => {});
         pollTierA().catch(() => {});
         pollScanners().catch(() => {});

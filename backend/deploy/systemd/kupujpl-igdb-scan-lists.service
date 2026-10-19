@@ -1,0 +1,15 @@
+[Unit]
+Description=Quenly IGDB ranking lists refresh for scanner priority
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/kupujpl-games/backend
+EnvironmentFile=-/opt/kupujpl-games/backend/.env
+ExecStart=/opt/kupujpl-games/backend/venv/bin/python scripts/igdb_scan_refresh.py
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

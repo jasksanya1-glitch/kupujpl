@@ -278,6 +278,12 @@ from app.core.igdb_home import (
     merge_home_section_caches,
     refresh_igdb_home_cache,
     igdb_cache_needs_refresh,
+    home_sections_enabled,
+)
+from app.core.igdb_scan_lists import (
+    load_igdb_scan_lists_cache,
+    refresh_igdb_scan_lists,
+    lists_cache_needs_refresh,
 )
 from app.parsers.steam_lists import (
     fetch_steam_list_slice,
@@ -1080,13 +1086,24 @@ def on_startup():
             db.close()
 
     def _refresh_igdb_home_if_stale():
-        if not igdb_cache_needs_refresh():
+        if not home_sections_enabled() or not igdb_cache_needs_refresh():
             return
         db = SessionLocal()
         try:
             refresh_igdb_home_cache(db)
         except Exception as exc:
             logging.getLogger("startup").warning("IGDB home cache refresh failed: %s", exc)
+        finally:
+            db.close()
+
+    def _refresh_igdb_scan_lists_if_stale():
+        if not lists_cache_needs_refresh():
+            return
+        db = SessionLocal()
+        try:
+            refresh_igdb_scan_lists(db)
+        except Exception as exc:
+            logging.getLogger("startup").warning("IGDB scan lists refresh failed: %s", exc)
         finally:
             db.close()
 
@@ -1131,6 +1148,7 @@ def on_startup():
 
     threading.Thread(target=_refresh_home_if_stale, daemon=True).start()
     threading.Thread(target=_refresh_igdb_home_if_stale, daemon=True).start()
+    threading.Thread(target=_refresh_igdb_scan_lists_if_stale, daemon=True).start()
     threading.Thread(target=_cleanup_stubs_once, daemon=True).start()
     threading.Thread(target=_refresh_visible_count, daemon=True).start()
     threading.Thread(target=_warm_home_response_cache, daemon=True).start()
@@ -3616,6 +3634,49 @@ def trigger_igdb_home_refresh(request: Request, background_tasks: BackgroundTask
 
     background_tasks.add_task(_job)
     return {"message": "Odświeżanie sekcji IGDB na stronie głównej w tle."}
+
+
+@app.get("/api/admin/igdb/scan-lists")
+def admin_igdb_scan_lists(request: Request):
+    require_panel3_admin(request)
+    data = load_igdb_scan_lists_cache() or {}
+    lists = data.get("lists") or {}
+    preview: dict[str, list[dict[str, Any]]] = {}
+    for key, rows in lists.items():
+        preview[key] = [
+            {
+                "rank": r.get("rank"),
+                "name": r.get("name"),
+                "slug": r.get("slug"),
+                "game_id": r.get("game_id"),
+                "steam_appid": r.get("steam_appid"),
+            }
+            for r in (rows or [])[:25]
+        ]
+    return {
+        "updated_at": data.get("updated_at"),
+        "counts": data.get("counts"),
+        "enqueued_count": data.get("enqueued_count"),
+        "offers_marked_stale": data.get("offers_marked_stale"),
+        "write_production": data.get("write_production"),
+        "enqueue_scanners": data.get("enqueue_scanners"),
+        "lists": preview,
+    }
+
+
+@app.post("/api/admin/igdb/refresh-scan-lists")
+def admin_igdb_refresh_scan_lists(request: Request, background_tasks: BackgroundTasks):
+    require_panel3_admin(request)
+
+    def _job():
+        db = SessionLocal()
+        try:
+            refresh_igdb_scan_lists(db)
+        finally:
+            db.close()
+
+    background_tasks.add_task(_job)
+    return {"message": "Odświeżanie list IGDB dla skanerów w tle."}
 
 
 @app.post("/api/parser/prefetch-featured")

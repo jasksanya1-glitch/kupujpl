@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily IGDB scan list refresh (08:00 Europe/Warsaw approx via 06:00 UTC)
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target

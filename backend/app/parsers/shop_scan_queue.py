@@ -91,7 +91,6 @@ _SHOP_LIMITS: dict[str, dict[str, float]] = {
     "G2A": {"concurrency": 1, "rps": 0.5, "method": "feed+html"},
     "Gamivo": {"concurrency": 1, "rps": 0.5, "method": "feed"},
     "CDKeys": {"concurrency": 1, "rps": 0.5, "method": "algolia"},
-    "Eneba": {"concurrency": 1, "rps": 0.3, "method": "html"},
 }
 
 
@@ -233,12 +232,31 @@ def _favorite_game_ids(db: Session) -> set[int]:
         return set()
 
 
+def _igdb_scan_rank_map() -> dict[int, int]:
+    try:
+        from app.core.igdb_scan_lists import igdb_scan_priority_rank_map
+
+        return igdb_scan_priority_rank_map()
+    except Exception:
+        return {}
+
+
+def _igdb_scan_priority_ids() -> set[int]:
+    try:
+        from app.core.igdb_scan_lists import igdb_scan_priority_game_ids
+
+        return igdb_scan_priority_game_ids()
+    except Exception:
+        return set()
+
+
 def _classify_scan_tier(
     gid: int,
     reviews: int,
     *,
     tier_rank: dict[int, int],
     favorite_ids: set[int],
+    igdb_priority_ids: set[int] | None = None,
     recommendations: int | None = None,
 ) -> str:
     """Mutually exclusive A/B/C by real popularity — not the full sellers list.
@@ -258,6 +276,8 @@ def _classify_scan_tier(
     popularity = max(rev, recs // 10) if recs > 0 else rev
 
     if gid in favorite_ids:
+        return "A"
+    if igdb_priority_ids and gid in igdb_priority_ids:
         return "A"
     if popularity >= TIER_A_MIN_REVIEWS:
         return "A"
@@ -311,6 +331,8 @@ def select_stale_game_ids_for_shop(
 
     tier_rank = _tier_a_rank_map()
     favorite_ids = _favorite_game_ids(db)
+    igdb_priority_ids = _igdb_scan_priority_ids()
+    igdb_rank = _igdb_scan_rank_map()
 
     offer_cols = [Offer.game_id, Offer.updated_at, Offer.in_stock]
     if use_v2:
@@ -326,7 +348,7 @@ def select_stale_game_ids_for_shop(
         # Hot slice of sellers cache + favorites + high-review titles.
         hot_ids = {
             gid for gid, rank in tier_rank.items() if rank < TIER_A_CACHE_TOP_N
-        } | set(favorite_ids)
+        } | set(favorite_ids) | set(igdb_priority_ids)
         clauses = [Game.steam_review_count >= TIER_A_MIN_REVIEWS]
         if hot_ids:
             clauses.insert(0, Game.id.in_(hot_ids))
@@ -431,6 +453,7 @@ def select_stale_game_ids_for_shop(
             reviews,
             tier_rank=tier_rank,
             favorite_ids=favorite_ids,
+            igdb_priority_ids=igdb_priority_ids,
             recommendations=recs,
         )
         buckets[tier].append(gid)
@@ -438,6 +461,7 @@ def select_stale_game_ids_for_shop(
     for tier, ids in buckets.items():
         ids.sort(
             key=lambda gid: (
+                igdb_rank.get(gid, 10_000) if gid in igdb_priority_ids else 10_001,
                 tier_rank.get(gid, 10_000) if tier == "A" else 0,
                 -review_by_id.get(gid, 0),
                 gid,
@@ -541,8 +565,18 @@ def set_shop_http_context(shop: str | None) -> None:
     _HTTP_SHOP_CTX.shop = shop
 
 
+def _shop_rps_disabled() -> bool:
+    """Local PC max-speed workers set OFFER_FETCH_FAST — skip shared RPS queue."""
+    for key in ("SCAN_DISABLE_SHOP_RPS", "OFFER_FETCH_FAST"):
+        if os.environ.get(key, "").strip().lower() in ("1", "true", "yes"):
+            return True
+    return False
+
+
 def shop_http_wait(shop: str | None = None) -> None:
     """Block until the next request slot for this shop (thread-safe)."""
+    if _shop_rps_disabled():
+        return
     name = shop or getattr(_HTTP_SHOP_CTX, "shop", None)
     if not name:
         return
@@ -939,7 +973,6 @@ def run_shop_scan_cycle(
             "Instant Gaming": 6,
             "G2A": 7,
             "Gamivo": 8,
-            "Eneba": 9,
         }
         ordered = sorted(active, key=lambda s: order_rank.get(s, 50))
 

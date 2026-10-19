@@ -1,8 +1,9 @@
-"""IGDB PopScore sections for Quenly homepage (TRENDING / POPULAR on PC)."""
+"""IGDB PopScore sections for Quenly homepage (optional; off by default)."""
 from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -250,8 +251,18 @@ def igdb_cache_needs_refresh() -> bool:
     return age >= CACHE_MAX_AGE_HOURS
 
 
+def home_sections_enabled() -> bool:
+    return os.environ.get("IGDB_HOME_SECTIONS_ENABLED", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
 def merge_home_section_caches(steam_cache: dict | None) -> dict | None:
-    """Prepend IGDB sections to Steam home sections for /api/home."""
+    """Prepend IGDB sections to Steam home sections for /api/home (optional)."""
+    if not home_sections_enabled():
+        return steam_cache
     base = dict(steam_cache) if steam_cache else {"sections": [], "updated_at": None}
     igdb = load_igdb_home_cache()
     if not igdb or not (igdb.get("sections") or []):

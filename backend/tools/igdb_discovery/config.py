@@ -72,8 +72,9 @@ def require_credentials() -> tuple[str, str]:
 
 
 def assert_prototype_safety() -> None:
+    """Block local prototype CLI from production flags (API uses app.core.igdb_scan_lists)."""
     if WRITE_PRODUCTION or ENQUEUE_SCANNERS:
         raise RuntimeError(
-            "Prototype refuses WRITE_PRODUCTION/ENQUEUE_SCANNERS=1. "
-            "Promote only after commercial IGDB approval + GO decision."
+            "Prototype CLI refuses WRITE_PRODUCTION/ENQUEUE_SCANNERS=1. "
+            "Use: python scripts/igdb_scan_refresh.py on VPS with flags in .env."
         )
