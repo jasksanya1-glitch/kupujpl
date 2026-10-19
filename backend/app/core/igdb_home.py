@@ -24,6 +24,11 @@ from app.core.igdb_scan_lists import (
     RANK_UPCOMING,
     load_igdb_scan_lists_cache,
 )
+from app.core.game_catalog_filter import (
+    is_blocked_app_type,
+    is_hidden_from_steam_list,
+    is_poorly_rated_game,
+)
 from app.core.steam_media import steam_cover_url
 from app.models.models import Game
 from app.parsers.home_featured import _enrich_cache_items, _upsert_section_games
@@ -277,6 +282,41 @@ DEFAULT_HOME_LIST_KEYS = (
     RANK_RECENT_HITS,
     RANK_UPCOMING,
 )
+
+IGDB_SCAN_HOME_SECTION_SLUGS: frozenset[str] = frozenset(
+    {
+        "nowe-premiery",
+        "trending",
+        "nowe-hity",
+        "nadchodzace",
+        "popularne",
+    }
+)
+
+
+def is_igdb_scan_home_section_slug(slug: str | None) -> bool:
+    return (slug or "").strip().lower() in IGDB_SCAN_HOME_SECTION_SLUGS
+
+
+def is_hidden_from_igdb_scan_home_section(
+    game: Game | None,
+    *,
+    section_slug: str | None,
+    item: dict[str, Any] | None = None,
+) -> bool:
+    """Light filters for IGDB scan-list home rows — match cache visibility, not full catalog."""
+    slug = (section_slug or "").strip().lower()
+    if slug in {"nowe-premiery", "nadchodzace"}:
+        if is_hidden_from_steam_list(
+            None, list_slug="nowe-gry", item=item, in_stock_offers=None
+        ):
+            return True
+    if game is None:
+        return False
+    if is_blocked_app_type(game):
+        return True
+    return is_poorly_rated_game(game)
+
 
 SCAN_HOME_SECTION_META: dict[str, dict[str, str]] = {
     RANK_NEW: {

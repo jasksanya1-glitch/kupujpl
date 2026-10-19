@@ -280,6 +280,8 @@ from app.core.igdb_home import (
     igdb_cache_needs_refresh,
     home_sections_enabled,
     legacy_popscore_home_enabled,
+    is_hidden_from_igdb_scan_home_section,
+    is_igdb_scan_home_section_slug,
 )
 from app.core.igdb_scan_lists import (
     load_igdb_scan_lists_cache,
@@ -3537,7 +3539,9 @@ def get_home_page(
             shop_name=steam_shop,
             fallback_shop=steam_fallback,
         )
-        min_reviews = min_reviews_for_list_slug(section.get("slug"))
+        section_slug = section.get("slug")
+        igdb_scan_section = is_igdb_scan_home_section_slug(section_slug)
+        min_reviews = min_reviews_for_list_slug(section_slug)
         offer_counts = in_stock_offer_counts(db, [g.id for g in db_games.values() if g.id])
 
         games_out: list[GameListResponse] = []
@@ -3548,6 +3552,20 @@ def get_home_page(
                 continue
             seen.add(aid)
             game = db_games.get(aid)
+            if igdb_scan_section:
+                if is_hidden_from_igdb_scan_home_section(
+                    game, section_slug=section_slug, item=item
+                ):
+                    continue
+                games_out.append(
+                    _game_list_from_steam_item(
+                        game,
+                        item,
+                        best_map.get(game.id) if game else None,
+                        steam_map.get(game.id) if game else None,
+                    )
+                )
+                continue
             offers = None
             if game:
                 offers = offer_counts.get(game.id, 0)

@@ -117,3 +117,65 @@ def test_merge_prepends_scan_lists(monkeypatch):
 def test_home_section_list_keys_env(monkeypatch):
     monkeypatch.setenv("IGDB_HOME_SECTION_LISTS", "TRENDING,POPULAR")
     assert igdb_home.home_section_list_keys() == ("TRENDING", "POPULAR")
+
+
+def test_igdb_scan_home_shows_missing_db_and_no_offers():
+    assert not igdb_home.is_hidden_from_igdb_scan_home_section(
+        None,
+        section_slug="nowe-premiery",
+        item={"appid": 1203620, "title": "Enshrouded"},
+    )
+    stub = type(
+        "G",
+        (),
+        {
+            "steam_app_type": None,
+            "is_free": False,
+            "is_coming_soon": False,
+            "steam_review_count": None,
+            "steam_review_positive_pct": None,
+        },
+    )()
+    assert not igdb_home.is_hidden_from_igdb_scan_home_section(
+        stub,
+        section_slug="trending",
+        item={"appid": 1, "title": "Trend Stub"},
+    )
+
+
+def test_igdb_scan_nowe_premiery_keeps_coming_soon_stub():
+    coming = type(
+        "G",
+        (),
+        {
+            "steam_app_type": None,
+            "is_free": False,
+            "is_coming_soon": True,
+            "steam_review_count": None,
+            "steam_review_positive_pct": None,
+        },
+    )()
+    assert not igdb_home.is_hidden_from_igdb_scan_home_section(
+        coming,
+        section_slug="nowe-premiery",
+        item={"appid": 1, "title": "Fresh Release"},
+    )
+
+
+def test_igdb_scan_nadchodzace_keeps_coming_soon():
+    coming = type(
+        "G",
+        (),
+        {
+            "steam_app_type": None,
+            "is_free": False,
+            "is_coming_soon": True,
+            "steam_review_count": None,
+            "steam_review_positive_pct": None,
+        },
+    )()
+    assert not igdb_home.is_hidden_from_igdb_scan_home_section(
+        coming,
+        section_slug="nadchodzace",
+        item={"appid": 99, "title": "Future Game"},
+    )
