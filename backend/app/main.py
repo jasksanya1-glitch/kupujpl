@@ -227,7 +227,6 @@ from app.parsers.steam_catalog import (
 )
 from app.parsers.gog_parser import import_gog_offers
 from app.parsers.epic_parser import import_epic_offers
-from app.parsers.eneba_parser import import_eneba_offers
 from app.parsers.kinguin_parser import import_kinguin_offers
 from app.parsers.cdkeys_parser import import_cdkeys_offers
 from app.parsers.gamivo_parser import import_gamivo_offers
@@ -274,6 +273,11 @@ from app.parsers.home_featured import (
     refresh_home_cache,
     cache_needs_refresh,
     _load_cache,
+)
+from app.core.igdb_home import (
+    merge_home_section_caches,
+    refresh_igdb_home_cache,
+    igdb_cache_needs_refresh,
 )
 from app.parsers.steam_lists import (
     fetch_steam_list_slice,
@@ -1075,6 +1079,17 @@ def on_startup():
         finally:
             db.close()
 
+    def _refresh_igdb_home_if_stale():
+        if not igdb_cache_needs_refresh():
+            return
+        db = SessionLocal()
+        try:
+            refresh_igdb_home_cache(db)
+        except Exception as exc:
+            logging.getLogger("startup").warning("IGDB home cache refresh failed: %s", exc)
+        finally:
+            db.close()
+
     def _cleanup_stubs_once():
         db = SessionLocal()
         try:
@@ -1115,6 +1130,7 @@ def on_startup():
             logging.getLogger("startup").warning("Home response warm failed: %s", exc)
 
     threading.Thread(target=_refresh_home_if_stale, daemon=True).start()
+    threading.Thread(target=_refresh_igdb_home_if_stale, daemon=True).start()
     threading.Thread(target=_cleanup_stubs_once, daemon=True).start()
     threading.Thread(target=_refresh_visible_count, daemon=True).start()
     threading.Thread(target=_warm_home_response_cache, daemon=True).start()
@@ -1162,8 +1178,24 @@ def service_worker_js():
 
 
 @app.get("/")
-def read_root():
-    return _static_page("index.html")
+def read_root(db: Session = Depends(get_db)):
+    """Home HTML with SSR first featured slide (PL / PE V2 confirmed prices)."""
+    path = os.path.join(STATIC_DIR, "index.html")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Page not found")
+    try:
+        with open(path, encoding="utf-8") as f:
+            body = f.read()
+        from app.core.home_lcp_bootstrap import inject_home_lcp
+
+        # Anonymous PL homepage only — no cookies / user id in SSR cache key.
+        body = inject_home_lcp(body, db, region="pl")
+        return HTMLResponse(
+            content=body,
+            headers={"Cache-Control": "public, max-age=30"},
+        )
+    except Exception:
+        return FileResponse(path)
 
 
 @app.get("/login")
@@ -1960,6 +1992,12 @@ def wykop_callback(rtoken: Optional[str] = Query(None)):
 @app.get("/panel")
 def panel_page():
     return _static_page("panel.html")
+
+
+@app.get("/ulubione")
+def ulubione_alias():
+    """Friendly favorites URL — same panel (login required for data, not for page)."""
+    return RedirectResponse(url="/games/panel", status_code=302)
 
 
 @app.get("/panel2")
@@ -3379,7 +3417,7 @@ def get_home_page(
     steam_fallback = "Steam" if region == "us" else None
     curation = load_curation()
     spotlight = _spotlight_game_responses(db, curation.get("spotlight_slugs") or [])
-    cache = _load_cache()
+    cache = merge_home_section_caches(_load_cache())
 
     def _pack_games(games: list[Game], ages: dict[int, str] | None = None) -> list[GameListResponse]:
         if not games:
@@ -3565,6 +3603,21 @@ def trigger_home_refresh(request: Request, background_tasks: BackgroundTasks):
     return {"message": "Odświeżanie strony głównej w tle."}
 
 
+@app.post("/api/admin/home/refresh-igdb")
+def trigger_igdb_home_refresh(request: Request, background_tasks: BackgroundTasks):
+    require_panel3_admin(request)
+
+    def _job():
+        db = SessionLocal()
+        try:
+            refresh_igdb_home_cache(db)
+        finally:
+            db.close()
+
+    background_tasks.add_task(_job)
+    return {"message": "Odświeżanie sekcji IGDB na stronie głównej w tle."}
+
+
 @app.post("/api/parser/prefetch-featured")
 def trigger_featured_prefetch(
     request: Request,
@@ -3617,6 +3670,12 @@ def _clear_public_response_caches() -> None:
     _HOME_RESP_CACHE.clear()
     with _GAMES_CACHE_LOCK:
         _GAMES_CACHE.clear()
+    try:
+        from app.core.home_lcp_bootstrap import clear_home_lcp_caches
+
+        clear_home_lcp_caches()
+    except Exception:
+        pass
 
 
 on_catalog_change(_clear_public_response_caches)
@@ -4125,7 +4184,6 @@ def run_parsers_task():
         import_gog_offers(db, limit=batch_limit)
         import_epic_offers(db, limit=batch_limit)
         import_instant_gaming_offers(db, limit=batch_limit)
-        import_eneba_offers(db, limit=batch_limit)
         import_kinguin_offers(db, limit=batch_limit)
         import_cdkeys_offers(db, limit=batch_limit)
         import_gamivo_offers(db, limit=batch_limit)
