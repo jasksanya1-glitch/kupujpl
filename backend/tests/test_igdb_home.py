@@ -85,21 +85,35 @@ def test_refresh_writes_trending_section(monkeypatch, igdb_cache_tmp):
     assert trending["games"][0]["appid"] == 5101
 
 
-def test_merge_prepends_igdb(monkeypatch, tmp_path):
-    igdb_file = tmp_path / "igdb.json"
-    igdb_file.write_text(
-        json.dumps(
-            {
-                "updated_at": "2026-10-19T12:00:00+00:00",
-                "sections": [{"slug": "igdb-trending", "games": [{"appid": 1}]}],
-            }
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(igdb_home, "CACHE_FILE", igdb_file)
+def test_merge_prepends_scan_lists(monkeypatch):
+    scan_payload = {
+        "updated_at": "2026-10-20T12:00:00+00:00",
+        "lists": {
+            "NEW_RELEASES": [
+                {"steam_appid": 1203620, "name": "Enshrouded", "game_id": 1},
+            ],
+            "TRENDING": [
+                {"steam_appid": 1326470, "name": "Silksong", "game_id": 2},
+            ],
+            "RECENT_HITS": [],
+            "UPCOMING": [],
+            "POPULAR": [{"steam_appid": 730, "name": "CS2", "game_id": 3}],
+        },
+    }
+    monkeypatch.setattr(igdb_home, "load_igdb_scan_lists_cache", lambda: scan_payload)
     monkeypatch.setattr(igdb_home, "home_sections_enabled", lambda: True)
     steam = {"updated_at": "2026-10-18", "sections": [{"slug": "top", "games": []}]}
     merged = igdb_home.merge_home_section_caches(steam)
     assert merged is not None
-    assert merged["sections"][0]["slug"] == "igdb-trending"
-    assert merged["sections"][1]["slug"] == "top"
+    slugs = [s["slug"] for s in merged["sections"]]
+    assert slugs[0] == "nowe-premiery"
+    assert slugs[1] == "trending"
+    assert "popularne" not in slugs
+    assert merged["sections"][0]["games"][0]["appid"] == 1203620
+    assert merged["sections"][1]["slug"] == "trending"
+    assert merged["sections"][-1]["slug"] == "top"
+
+
+def test_home_section_list_keys_env(monkeypatch):
+    monkeypatch.setenv("IGDB_HOME_SECTION_LISTS", "TRENDING,POPULAR")
+    assert igdb_home.home_section_list_keys() == ("TRENDING", "POPULAR")

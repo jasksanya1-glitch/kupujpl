@@ -28,7 +28,7 @@ MIN_REVIEWS_FOR_NEW_RELEASES = int(os.environ.get("MIN_STEAM_REVIEWS_FOR_NEW", "
 
 
 def min_reviews_for_list_slug(slug: str | None) -> int:
-    if (slug or "").strip().lower() == "nowe-gry":
+    if (slug or "").strip().lower() in {"nowe-gry", "nowe-premiery", "nadchodzace"}:
         return MIN_REVIEWS_FOR_NEW_RELEASES
     return MIN_REVIEWS_TO_SHOW
 

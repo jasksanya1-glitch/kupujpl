@@ -279,6 +279,7 @@ from app.core.igdb_home import (
     refresh_igdb_home_cache,
     igdb_cache_needs_refresh,
     home_sections_enabled,
+    legacy_popscore_home_enabled,
 )
 from app.core.igdb_scan_lists import (
     load_igdb_scan_lists_cache,
@@ -1086,7 +1087,11 @@ def on_startup():
             db.close()
 
     def _refresh_igdb_home_if_stale():
-        if not home_sections_enabled() or not igdb_cache_needs_refresh():
+        if (
+            not home_sections_enabled()
+            or not legacy_popscore_home_enabled()
+            or not igdb_cache_needs_refresh()
+        ):
             return
         db = SessionLocal()
         try:
@@ -3633,7 +3638,13 @@ def trigger_igdb_home_refresh(request: Request, background_tasks: BackgroundTask
             db.close()
 
     background_tasks.add_task(_job)
-    return {"message": "Odświeżanie sekcji IGDB na stronie głównej w tle."}
+    return {
+        "message": (
+            "Odświeżanie legacy PopScore na stronie głównej w tle "
+            "(publiczne sekcje czytają tmp/igdb_scan_lists.json; użyj "
+            "/api/admin/igdb/refresh-scan-lists)."
+        )
+    }
 
 
 @app.get("/api/admin/igdb/scan-lists")
@@ -3650,6 +3661,8 @@ def admin_igdb_scan_lists(request: Request):
                 "slug": r.get("slug"),
                 "game_id": r.get("game_id"),
                 "steam_appid": r.get("steam_appid"),
+                "release_year": r.get("release_year"),
+                "first_release_date": r.get("first_release_date"),
             }
             for r in (rows or [])[:25]
         ]

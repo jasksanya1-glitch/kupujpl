@@ -1,4 +1,8 @@
-"""IGDB PopScore sections for Quenly homepage (optional; off by default)."""
+"""IGDB-driven homepage sections (optional; off by default).
+
+Public home reads ``tmp/igdb_scan_lists.json`` (same cache as scanner priority).
+Legacy PopScore refresh (``igdb_home_cache.json``) remains for ``IGDB_HOME_LEGACY_POPSCORE=1``.
+"""
 from __future__ import annotations
 
 import json
@@ -12,6 +16,14 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.igdb_api import IgdbClient, credentials_from_env
+from app.core.igdb_scan_lists import (
+    RANK_NEW,
+    RANK_POPULAR,
+    RANK_RECENT_HITS,
+    RANK_TRENDING,
+    RANK_UPCOMING,
+    load_igdb_scan_lists_cache,
+)
 from app.core.steam_media import steam_cover_url
 from app.models.models import Game
 from app.parsers.home_featured import _enrich_cache_items, _upsert_section_games
@@ -259,12 +271,118 @@ def home_sections_enabled() -> bool:
     }
 
 
+DEFAULT_HOME_LIST_KEYS = (
+    RANK_NEW,
+    RANK_TRENDING,
+    RANK_RECENT_HITS,
+    RANK_UPCOMING,
+)
+
+SCAN_HOME_SECTION_META: dict[str, dict[str, str]] = {
+    RANK_NEW: {
+        "slug": "nowe-premiery",
+        "catalog_slug": "nowe-gry",
+        "name": "🆕 Nowe premiery",
+        "subtitle": "Świeże premiery na PC",
+    },
+    RANK_TRENDING: {
+        "slug": "trending",
+        "catalog_slug": "top",
+        "name": "🔥 Trending",
+        "subtitle": "Gry, które teraz rosną w popularności",
+    },
+    RANK_RECENT_HITS: {
+        "slug": "nowe-hity",
+        "catalog_slug": "top",
+        "name": "⭐ Nowe hity",
+        "subtitle": "Hity z ostatnich lat",
+    },
+    RANK_UPCOMING: {
+        "slug": "nadchodzace",
+        "catalog_slug": "nowe-gry",
+        "name": "📅 Nadchodzące",
+        "subtitle": "Premiery w najbliższych miesiącach",
+    },
+    RANK_POPULAR: {
+        "slug": "popularne",
+        "catalog_slug": "top-sprzedaz",
+        "name": "⭐ Popularne",
+        "subtitle": "Najczęściej wybierane tytuły",
+    },
+}
+
+
+def legacy_popscore_home_enabled() -> bool:
+    return os.environ.get("IGDB_HOME_LEGACY_POPSCORE", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+
+def _games_per_home_section() -> int:
+    try:
+        return max(4, min(24, int(os.environ.get("IGDB_HOME_SECTIONS_GAMES_PER_LIST", "12"))))
+    except ValueError:
+        return 12
+
+
+def home_section_list_keys() -> tuple[str, ...]:
+    raw = os.environ.get("IGDB_HOME_SECTION_LISTS", "").strip()
+    if not raw:
+        return DEFAULT_HOME_LIST_KEYS
+    valid = set(SCAN_HOME_SECTION_META.keys())
+    keys: list[str] = []
+    for part in raw.replace(" ", "").split(","):
+        key = part.upper()
+        if key in valid and key not in keys:
+            keys.append(key)
+    return tuple(keys) if keys else DEFAULT_HOME_LIST_KEYS
+
+
+def build_home_sections_from_scan_lists(cache_data: dict | None = None) -> dict | None:
+    """Map ``igdb_scan_lists.json`` rows to home section cache shape (no extra IGDB calls)."""
+    data = cache_data if cache_data is not None else load_igdb_scan_lists_cache()
+    if not data:
+        return None
+    lists = data.get("lists") or {}
+    per_section = _games_per_home_section()
+    sections: list[dict[str, Any]] = []
+    for list_key in home_section_list_keys():
+        meta = SCAN_HOME_SECTION_META.get(list_key)
+        if not meta:
+            continue
+        rows = lists.get(list_key) or []
+        games: list[dict[str, Any]] = []
+        for row in rows:
+            appid = row.get("steam_appid")
+            if appid is None:
+                continue
+            aid = int(appid)
+            games.append(
+                {
+                    "appid": aid,
+                    "title": str(row.get("name") or ""),
+                    "cover_image": steam_cover_url(aid),
+                }
+            )
+            if len(games) >= per_section:
+                break
+        if games:
+            sections.append({**meta, "games": games})
+    if not sections:
+        return None
+    return {"updated_at": data.get("updated_at"), "sections": sections}
+
+
 def merge_home_section_caches(steam_cache: dict | None) -> dict | None:
-    """Prepend IGDB sections to Steam home sections for /api/home (optional)."""
+    """Prepend IGDB scan-list sections to Steam home sections for /api/home (optional)."""
     if not home_sections_enabled():
         return steam_cache
     base = dict(steam_cache) if steam_cache else {"sections": [], "updated_at": None}
-    igdb = load_igdb_home_cache()
+    igdb = build_home_sections_from_scan_lists()
+    if not igdb and legacy_popscore_home_enabled():
+        igdb = load_igdb_home_cache()
     if not igdb or not (igdb.get("sections") or []):
         return steam_cache
     igdb_sections = igdb.get("sections") or []
