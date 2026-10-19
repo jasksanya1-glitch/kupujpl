@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 import unicodedata
@@ -111,8 +112,10 @@ class SteamCheck:
 class SteamVerifier:
     def __init__(self, *, pause_sec: float | None = None) -> None:
         self.pause = pause_sec if pause_sec is not None else float(
-            __import__("os").environ.get("IGDB_STEAM_PAUSE_SEC", "1.05")
+            os.environ.get("IGDB_STEAM_PAUSE_SEC", "1.05")
         )
+        self._429_retries = max(0, int(os.environ.get("IGDB_STEAM_429_RETRIES", "4")))
+        self._429_backoff_sec = float(os.environ.get("IGDB_STEAM_429_BACKOFF_SEC", "8"))
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": config.USER_AGENT})
         self._last = 0.0
@@ -126,32 +129,45 @@ class SteamVerifier:
     def fetch_details(self, appid: int) -> dict[str, Any] | None:
         if appid in self._cache:
             return self._cache[appid]
-        self._throttle()
-        try:
-            resp = self._session.get(
-                APPDETAILS_URL,
-                params={"appids": appid, "cc": "pl", "l": "english"},
-                timeout=25,
-            )
-            self._last = time.time()
-            if resp.status_code == 429:
-                logger.warning("Steam 429 for appid=%s", appid)
+        attempt = 0
+        while True:
+            self._throttle()
+            try:
+                resp = self._session.get(
+                    APPDETAILS_URL,
+                    params={"appids": appid, "cc": "pl", "l": "english"},
+                    timeout=25,
+                )
+                self._last = time.time()
+                if resp.status_code == 429:
+                    if attempt < self._429_retries:
+                        wait = self._429_backoff_sec * (2**attempt)
+                        logger.warning(
+                            "Steam 429 for appid=%s — retry %s/%s in %.1fs",
+                            appid,
+                            attempt + 1,
+                            self._429_retries,
+                            wait,
+                        )
+                        time.sleep(wait)
+                        attempt += 1
+                        continue
+                    logger.warning("Steam 429 for appid=%s — retries exhausted", appid)
+                    return None
+                if resp.status_code != 200:
+                    self._cache[appid] = None
+                    return None
+                block = resp.json().get(str(appid))
+                if not block or not block.get("success"):
+                    self._cache[appid] = {}  # exists as miss
+                    return {}
+                data = block.get("data") or {}
+                self._cache[appid] = data
+                return data
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Steam appdetails failed appid=%s: %s", appid, exc)
                 self._cache[appid] = None
                 return None
-            if resp.status_code != 200:
-                self._cache[appid] = None
-                return None
-            block = resp.json().get(str(appid))
-            if not block or not block.get("success"):
-                self._cache[appid] = {}  # exists as miss
-                return {}
-            data = block.get("data") or {}
-            self._cache[appid] = data
-            return data
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Steam appdetails failed appid=%s: %s", appid, exc)
-            self._cache[appid] = None
-            return None
 
     def check(self, appid: int | None, igdb_name: str) -> SteamCheck:
         if not appid:

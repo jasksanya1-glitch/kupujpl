@@ -174,7 +174,7 @@ def refresh_igdb_scan_lists(db: Session, *, top_n: int | None = None) -> dict[st
         if g.steam_appid
     }
     games = [(s.candidate.igdb_id, s.candidate.name) for s in scored]
-    verifier = SteamVerifier(pause_sec=0.12)
+    verifier = SteamVerifier()
     resolutions = resolve_many(client, games, verifier, catalog_steam_ids=catalog_steam_ids)
 
     lists: dict[str, list[dict[str, Any]]] = {k: [] for k in ALL_LISTS}

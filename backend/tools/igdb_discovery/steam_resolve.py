@@ -127,6 +127,21 @@ def resolve_steam_appid(
             candidates=[],
         )
 
+    # Single IGDB→Steam mapping already in Quenly — skip Store API (rate limits).
+    if len(ordered) == 1 and ordered[0].appid in catalog_steam_ids:
+        hit = ordered[0]
+        return SteamResolution(
+            igdb_game_id=igdb_game_id,
+            igdb_name=igdb_name,
+            appid=hit.appid,
+            status="verified",
+            confidence=0.95,
+            reason="quenly_catalog_trusted_igdb_steam_link",
+            steam_name=hit.external_name,
+            candidates=[hit.appid],
+            preferred_because=["catalog_steam_appid_skip_store_verify"],
+        )
+
     verified: list[tuple[SteamExternalHit, Any]] = []
     rejected: list[dict[str, Any]] = []
     unverified_any = False
