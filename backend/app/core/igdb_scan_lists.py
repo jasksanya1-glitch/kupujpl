@@ -157,6 +157,12 @@ def refresh_igdb_scan_lists(db: Session, *, top_n: int | None = None) -> dict[st
     from tools.igdb_discovery.steam_verify import SteamVerifier
 
     igdb_config.CATALOG_DB = Path(BASE_DIR) / "database.db"
+    # Writable on VPS (www-data); avoid tools/igdb_discovery/staging permissions.
+    igdb_config.STAGING_DIR = Path(BASE_DIR) / "tmp" / "igdb_staging"
+    igdb_config.STAGING_DIR.mkdir(parents=True, exist_ok=True)
+    from tools.igdb_discovery import pop_history
+
+    pop_history.SNAP_DB = igdb_config.STAGING_DIR / "pop_score_history.sqlite3"
 
     client = IgdbClient()
     client.ensure_token()
