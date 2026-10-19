@@ -97,6 +97,7 @@ def test_merge_prepends_igdb(monkeypatch, tmp_path):
         encoding="utf-8",
     )
     monkeypatch.setattr(igdb_home, "CACHE_FILE", igdb_file)
+    monkeypatch.setattr(igdb_home, "home_sections_enabled", lambda: True)
     steam = {"updated_at": "2026-10-18", "sections": [{"slug": "top", "games": []}]}
     merged = igdb_home.merge_home_section_caches(steam)
     assert merged is not None
