@@ -23,19 +23,20 @@ CACHE_MAX_AGE_HOURS = 8
 POP_WANT_TO_PLAY = 2
 POP_GLOBAL_TOP_SELLERS = 9
 
+# User-visible copy matches other home sections; data source is IGDB (see logs / this module).
 IGDB_HOME_SECTIONS = [
     {
         "slug": "igdb-trending",
-        "catalog_slug": "igdb-trending",
-        "name": "🔥 Trending (IGDB)",
-        "subtitle": "Rosnące zainteresowanie na PC (IGDB PopScore, źródło: Twitch/IGDB)",
+        "catalog_slug": "top",
+        "name": "🔥 Trending",
+        "subtitle": "Gry, które teraz rosną w popularności",
         "igdb_list": "trending",
     },
     {
         "slug": "igdb-popular",
-        "catalog_slug": "igdb-popular",
-        "name": "⭐ Popularne (IGDB)",
-        "subtitle": "Globalni bestsellerzy PC (IGDB PopScore)",
+        "catalog_slug": "top-sprzedaz",
+        "name": "⭐ Popularne",
+        "subtitle": "Najczęściej wybierane tytuły",
         "igdb_list": "popular",
     },
 ]
@@ -207,15 +208,12 @@ def refresh_igdb_home_cache(db: Session, *, games_per_section: int = 12) -> dict
         except Exception:
             db.rollback()
         popular_items = _enrich_cache_items(db, popular_items)
-        pop_subtitle = pop_meta["subtitle"]
-        if not sellers:
-            pop_subtitle = pop_meta["subtitle"] + " (fallback: want-to-play)"
         sections_data.append(
             {
                 "slug": pop_meta["slug"],
                 "catalog_slug": pop_meta["catalog_slug"],
                 "name": pop_meta["name"],
-                "subtitle": pop_subtitle,
+                "subtitle": pop_meta["subtitle"],
                 "games": popular_items,
             }
         )
