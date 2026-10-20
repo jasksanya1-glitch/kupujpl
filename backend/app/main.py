@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse, HTMLResponse, Response
 
 from app.core.database import get_db, init_db, SessionLocal
-from app.core.steam_media import effective_cover, list_cover_image
+from app.core.steam_media import effective_cover, list_cover_image, pick_list_cover_url
 from app.core.category_lookup import resolve_category_slug
 from app.core.category_visibility import is_hidden_public_category_slug
 from app.core.curated_categories import (
@@ -3399,9 +3399,11 @@ def _game_list_from_steam_item(
     title = item.get("title") or (game.title if game else None) or f"Gra {appid}"
     if game and game.steam_enriched:
         title = game.title
-    cover_src = item.get("cover_image")
-    if game and game.steam_enriched and game.cover_image:
-        cover_src = game.cover_image
+    cover_src = pick_list_cover_url(
+        item.get("cover_image"),
+        game.cover_image if game else None,
+        steam_appid=appid,
+    )
     slug = game.slug if game else f"{slugify(title)}-{appid}"
     savings = _savings_vs_steam(best, steam)
     best_price = best.price_pln if best else None

@@ -114,6 +114,34 @@ def test_merge_prepends_scan_lists(monkeypatch):
     assert merged["sections"][-1]["slug"] == "top"
 
 
+def test_build_home_sections_uses_scan_list_cover():
+    hashed = (
+        "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/"
+        "3764200/ce5437442768e38eb575f205ab9397d0264017b0/header.jpg"
+    )
+    scan_payload = {
+        "updated_at": "2026-10-20T12:00:00+00:00",
+        "lists": {
+            "NEW_RELEASES": [],
+            "TRENDING": [
+                {
+                    "steam_appid": 3764200,
+                    "name": "Resident Evil Requiem",
+                    "cover_image": hashed,
+                },
+            ],
+            "RECENT_HITS": [],
+            "UPCOMING": [],
+            "POPULAR": [],
+        },
+    }
+    out = igdb_home.build_home_sections_from_scan_lists(scan_payload)
+    assert out is not None
+    assert out["sections"][0]["slug"] == "trending"
+    cover = out["sections"][0]["games"][0]["cover_image"]
+    assert "ce5437442768e38eb575f205ab9397d0264017b0" in cover
+
+
 def test_home_section_list_keys_env(monkeypatch):
     monkeypatch.setenv("IGDB_HOME_SECTION_LISTS", "TRENDING,POPULAR")
     assert igdb_home.home_section_list_keys() == ("TRENDING", "POPULAR")

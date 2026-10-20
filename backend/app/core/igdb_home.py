@@ -29,7 +29,7 @@ from app.core.game_catalog_filter import (
     is_hidden_from_steam_list,
     is_poorly_rated_game,
 )
-from app.core.steam_media import steam_cover_url
+from app.core.steam_media import pick_list_cover_url, steam_cover_url
 from app.models.models import Game
 from app.parsers.home_featured import _enrich_cache_items, _upsert_section_games
 
@@ -403,7 +403,11 @@ def build_home_sections_from_scan_lists(cache_data: dict | None = None) -> dict 
                 {
                     "appid": aid,
                     "title": str(row.get("name") or ""),
-                    "cover_image": steam_cover_url(aid),
+                    "cover_image": pick_list_cover_url(
+                        row.get("cover_image"),
+                        steam_cover_url(aid),
+                        steam_appid=aid,
+                    ),
                 }
             )
             if len(games) >= per_section:

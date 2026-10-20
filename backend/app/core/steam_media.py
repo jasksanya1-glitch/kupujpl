@@ -1,5 +1,7 @@
 """Steam CDN cover image URLs (no API call needed)."""
 
+import re
+
 STEAM_HEADER = (
     "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{appid}/header.jpg"
 )
@@ -18,6 +20,12 @@ _LOW_RES_MARKERS = (
     "467x181",
     "_120.jpg",
     "capsule_sm_120_alt",
+)
+
+_HASHED_STEAM_ASSET = re.compile(r"/apps/\d+/[a-f0-9]{40}/", re.IGNORECASE)
+_BARE_STEAM_ASSET = re.compile(
+    r"/apps/\d+/(?:header|capsule_616x353|library_600x900)\.jpg(?:\?|$)",
+    re.IGNORECASE,
 )
 
 
@@ -42,6 +50,47 @@ def is_low_res_steam_cover(url: str | None) -> bool:
         return True
     lower = url.lower()
     return any(marker in lower for marker in _LOW_RES_MARKERS)
+
+
+def is_bare_steam_cover_url(url: str | None) -> bool:
+    """True for template CDN paths without a content hash (often 404 for unreleased games)."""
+    if not url:
+        return False
+    normalized = normalize_cover_url(url) or url
+    if _HASHED_STEAM_ASSET.search(normalized):
+        return False
+    return bool(_BARE_STEAM_ASSET.search(normalized))
+
+
+def cover_from_steam_appdetails(data: dict | None, appid: int | None = None) -> str | None:
+    """Best cover URL from Steam appdetails payload (hashed assets when available)."""
+    if data:
+        for key in (
+            "header_image",
+            "capsule_image",
+            "capsule_imagev5",
+            "background",
+            "background_raw",
+        ):
+            val = data.get(key)
+            if isinstance(val, str) and val.strip():
+                return normalize_cover_url(val.strip())
+    return steam_cover_url(appid) if appid else None
+
+
+def pick_list_cover_url(
+    *candidates: str | None,
+    steam_appid: int | None = None,
+) -> str:
+    """Prefer verified hashed Steam art over bare template URLs."""
+    normalized = [normalize_cover_url(c) for c in candidates if c]
+    for url in normalized:
+        if url and not is_low_res_steam_cover(url) and not is_bare_steam_cover_url(url):
+            return url
+    for url in normalized:
+        if url and not is_low_res_steam_cover(url):
+            return url
+    return effective_cover(normalized[0] if normalized else None, steam_appid)
 
 
 def _hd_cover_candidates(appid: int | str) -> list[str]:
@@ -76,7 +125,11 @@ def list_cover_image(cover_image: str | None, steam_appid: int | None) -> str:
 def effective_cover(cover_image: str | None, steam_appid: int | None) -> str:
     """Best single cover URL (game detail pages)."""
     stored = normalize_cover_url(cover_image)
-    if stored and not is_low_res_steam_cover(stored):
+    if (
+        stored
+        and not is_low_res_steam_cover(stored)
+        and not is_bare_steam_cover_url(stored)
+    ):
         return stored
     chain = cover_fallback_chain(steam_appid, cover_image)
     return chain[0] if chain else PLACEHOLDER
@@ -88,7 +141,8 @@ def cover_fallback_chain(
     chain: list[str] = []
     stored = normalize_cover_url(cover_image)
 
-    if steam_appid and is_low_res_steam_cover(stored):
+    stored_unreliable = is_low_res_steam_cover(stored) or is_bare_steam_cover_url(stored)
+    if steam_appid and stored_unreliable:
         chain.extend(_hd_cover_candidates(steam_appid))
         if stored:
             chain.append(stored)
